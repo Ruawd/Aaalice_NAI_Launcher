@@ -333,16 +333,39 @@ class ZhDictionaryService extends ChangeNotifier
   Future<int> _validate(String path) async {
     final file = File(path);
     final header = await file
-        .openRead(0, 16)
+        .openRead(0, 20)
         .fold<List<int>>(<int>[], (bytes, chunk) => bytes..addAll(chunk));
-    if (!ascii.decode(header).startsWith('SQLite format 3')) {
+    if (header.length < 20 ||
+        !ascii.decode(header.sublist(0, 16)).startsWith('SQLite format 3')) {
       throw StateError('Invalid SQLite dictionary header');
     }
+
+    // The upstream ffdkj database is distributed with SQLite's WAL read/write
+    // format bytes set in its header, but without the transient -wal/-shm
+    // sidecars. SqfliteDarwin cannot open that standalone file with
+    // SQLITE_OPEN_READONLY (code 14: unable to open database file). Open it
+    // writable once and switch it to DELETE journal mode before validating;
+    // subsequent translation queries can then keep using read-only access.
+    final usesWalFormat = header[18] == 2 || header[19] == 2;
     final db = await appDatabaseFactory.openDatabase(
       path,
-      options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
+      options: OpenDatabaseOptions(
+        readOnly: !usesWalFormat,
+        singleInstance: false,
+      ),
     );
     try {
+      if (usesWalFormat) {
+        final journalRows = await db.rawQuery('PRAGMA journal_mode = DELETE');
+        final journalMode = journalRows.first.values.first
+            .toString()
+            .toLowerCase();
+        if (journalMode != 'delete') {
+          throw StateError(
+            'Unable to normalize ffdkj SQLite journal mode: $journalMode',
+          );
+        }
+      }
       final columns = await db.rawQuery('PRAGMA table_info(tags)');
       final names = columns.map((row) => row['name'] as String).toSet();
       if (!names.containsAll({'name', 'category', 'cn_name', 'post_count'})) {
@@ -358,6 +381,10 @@ class ZhDictionaryService extends ChangeNotifier
       return count;
     } finally {
       await db.close();
+      if (usesWalFormat) {
+        await File('$path-wal').deleteIfExists();
+        await File('$path-shm').deleteIfExists();
+      }
     }
   }
 

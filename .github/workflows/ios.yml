@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore beta 5: fixes the persistent GalleryDataSource not available error by isolating optional autocomplete databases, self-healing the local-gallery database, and retrying mobile SQLite with one connection when needed; also includes the earlier gallery layout and generation parameter-drawer fixes."
+            --notes "iOS/TrollStore beta 6: fixes ffdkj Simplified Chinese dictionary installation by normalizing the upstream standalone WAL database before iOS read-only validation; also includes beta 5 local-gallery database recovery and the earlier mobile UI fixes."
