@@ -8883,7 +8883,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get settings_defaultHivePath => '默认 (%APPDATA%/NAI_Launcher/hive/)';
+  String settings_defaultHivePath(String path) {
+    return '$path (默认)';
+  }
 
   @override
   String get settings_protectionMode => '保护模式';

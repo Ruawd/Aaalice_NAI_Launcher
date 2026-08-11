@@ -291,7 +291,9 @@ Future<ConnectionLease> acquireLease({
 
       final poolVersion = ConnectionPoolHolder.version;
       final pool = ConnectionPoolHolder.instance;
-      final connection = await pool.acquire();
+      final remaining = timeout - stopwatch.elapsed;
+      if (remaining <= Duration.zero) break;
+      final connection = await pool.acquire(timeout: remaining);
 
       // 验证连接
       try {
@@ -329,6 +331,8 @@ Future<ConnectionLease> acquireLease({
           );
         },
       );
+    } on TimeoutException {
+      break;
     } catch (e) {
       final errorStr = e.toString().toLowerCase();
       if (errorStr.contains('database_closed') ||

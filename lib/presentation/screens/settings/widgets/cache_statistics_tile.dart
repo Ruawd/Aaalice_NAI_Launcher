@@ -11,19 +11,22 @@ import '../../../widgets/common/app_toast.dart';
 ///
 /// 使用 autoDispose 确保组件销毁时释放资源
 /// 通过统计信息失效回调机制实现实时刷新
-final cacheStatisticsProvider =
-    FutureProvider.autoDispose<CacheStatistics>((ref) async {
+final cacheStatisticsProvider = FutureProvider.autoDispose<CacheStatistics>((
+  ref,
+) async {
   GalleryCacheManager().registerOnStatisticsInvalidated(ref.invalidateSelf);
   ref.onDispose(
-    () => GalleryCacheManager()
-        .unregisterOnStatisticsInvalidated(ref.invalidateSelf),
+    () => GalleryCacheManager().unregisterOnStatisticsInvalidated(
+      ref.invalidateSelf,
+    ),
   );
   return await GalleryCacheManager().getStatistics();
 });
 
 /// 缓存统计展示组件
 ///
-/// 支持自动刷新，每 3 秒更新一次统计数据
+/// 支持自动刷新。刷新期间不会再次使 Provider 失效，避免慢速存储平台
+/// 永远停留在 loading 状态。
 class CacheStatisticsTile extends ConsumerStatefulWidget {
   const CacheStatisticsTile({super.key});
 
@@ -39,7 +42,7 @@ class _CacheStatisticsTileState extends ConsumerState<CacheStatisticsTile> {
   @override
   void initState() {
     super.initState();
-    // 启动定时器，每 3 秒自动刷新一次
+    // 统计管理器本身有 30 秒缓存，无需高频轮询数据库。
     _startAutoRefresh();
   }
 
@@ -52,7 +55,7 @@ class _CacheStatisticsTileState extends ConsumerState<CacheStatisticsTile> {
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(
-      const Duration(seconds: 3),
+      const Duration(seconds: 30),
       (_) => _refreshStats(),
     );
   }
@@ -63,12 +66,17 @@ class _CacheStatisticsTileState extends ConsumerState<CacheStatisticsTile> {
   }
 
   void _refreshStats() {
-    if (mounted) {
-      ref.invalidate(cacheStatisticsProvider);
-      setState(() {
-        _lastRefreshTime = DateTime.now();
-      });
-    }
+    if (!mounted) return;
+
+    // Invalidating a FutureProvider does not cancel the native SQLite call.
+    // Repeating it while loading used to create an endless loading loop on
+    // iOS. Let the current request settle before scheduling another one.
+    if (ref.read(cacheStatisticsProvider).isLoading) return;
+
+    ref.invalidate(cacheStatisticsProvider);
+    setState(() {
+      _lastRefreshTime = DateTime.now();
+    });
   }
 
   String _getTimeSinceLastRefresh() {
@@ -269,10 +277,7 @@ class _DatabaseIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     return _CacheIndicator(
       label: context.l10n.cacheStats_l3Sqlite,
-      value: context.l10n.cacheStats_databaseValue(
-        imageCount,
-        metadataCount,
-      ),
+      value: context.l10n.cacheStats_databaseValue(imageCount, metadataCount),
       icon: Icons.table_chart,
       color: Colors.purple,
     );

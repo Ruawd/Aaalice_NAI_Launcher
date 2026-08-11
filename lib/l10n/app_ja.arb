@@ -4628,7 +4628,14 @@
       "path": {}
     }
   },
-  "settings_defaultHivePath": "デフォルト (%APPDATA%/NAI_Launcher/hive/)",
+  "settings_defaultHivePath": "{path} (デフォルト)",
+  "@settings_defaultHivePath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "settings_protectionMode": "保護モード",
   "settings_protectionModeSubtitle": "以下のオプションを通じて、ローカル資産、共有コピー、高コストおよび高頻度の画像生成操作を保護します。オフにしても各設定値は保持されますが、機能は無効になります。",
   "settings_protectionFeatures": "保護機能",

@@ -9007,7 +9007,9 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get settings_defaultHivePath => 'デフォルト (%APPDATA%/NAI_Launcher/hive/)';
+  String settings_defaultHivePath(String path) {
+    return '$path (デフォルト)';
+  }
 
   @override
   String get settings_protectionMode => '保護モード';

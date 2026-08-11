@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore beta 7: fixes Sugar Cloud generations getting stuck by following the /generate task-event stream, sending its token in the provider JSON body, surfacing upstream failures immediately, enforcing a five-minute timeout, and avoiding duplicate retries. Also includes the beta 6 ffdkj dictionary fix and earlier mobile UI/gallery fixes."
+            --notes "iOS/TrollStore beta 8: makes the local gallery load saved files directly from the iOS sandbox without waiting for SQLite, prevents cache statistics from remaining stuck on loading, bounds database connection waits, and shows the real Hive sandbox path instead of %APPDATA%. Note: enable Auto Save in Settings for newly generated images to enter the local gallery."

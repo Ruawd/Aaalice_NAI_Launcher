@@ -95,7 +95,7 @@ class ConnectionPool {
   /// 获取数据库连接
   ///
   /// 从池中获取连接，如果连接已失效则自动创建新连接替代
-  Future<Database> acquire() async {
+  Future<Database> acquire({Duration? timeout}) async {
     if (_disposed) {
       throw StateError('ConnectionPool has been disposed');
     }
@@ -104,6 +104,7 @@ class ConnectionPool {
     }
 
     final stopwatch = Stopwatch()..start();
+    final deadline = timeout == null ? null : DateTime.now().add(timeout);
     final availableBefore = _availableConnections.length;
     final inUseBefore = _inUseConnections.length;
 
@@ -112,13 +113,24 @@ class ConnectionPool {
       // 使用条件变量通知机制替代忙等待
       while (_availableConnections.isEmpty &&
           _inUseConnections.length >= maxConnections) {
+        final remaining = deadline?.difference(DateTime.now());
+        if (remaining != null && remaining <= Duration.zero) {
+          throw TimeoutException(
+            'Timed out waiting for a database connection after ${timeout!.inMilliseconds}ms',
+          );
+        }
+
         // 创建一个 completer 来等待连接可用通知
         final completer = Completer<void>();
         _waiters.add(completer);
         _lock.release();
 
         try {
-          await completer.future;
+          if (remaining == null) {
+            await completer.future;
+          } else {
+            await completer.future.timeout(remaining);
+          }
         } finally {
           _waiters.remove(completer);
           await _lock.acquire();

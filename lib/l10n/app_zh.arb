@@ -4383,7 +4383,14 @@
       "path": {}
     }
   },
-  "settings_defaultHivePath": "默认 (%APPDATA%/NAI_Launcher/hive/)",
+  "settings_defaultHivePath": "{path} (默认)",
+  "@settings_defaultHivePath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "settings_protectionMode": "保护模式",
   "settings_protectionModeSubtitle": "开启后按下方子项保护本地资产、分享副本、高消耗和高频生图操作；关闭时保留子项配置但不生效。",
   "settings_protectionFeatures": "保护功能",
