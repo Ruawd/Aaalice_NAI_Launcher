@@ -44,13 +44,14 @@ class _MobileGenerationLayoutState
     final isKeyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return ThemedScaffold(
-      // 使用 GlobalKey 来控制 Drawer
-      key: _scaffoldKey,
+      // ThemedScaffold 是包装组件，必须把 key 显式传给内部 Scaffold。
+      scaffoldKey: _scaffoldKey,
       appBar: AppBar(
         title: Text(context.l10n.generation_title),
         actions: [
           // 参数设置按钮 (打开侧边抽屉)
           IconButton(
+            key: const ValueKey('generationParametersButton'),
             icon: const Icon(Icons.tune),
             onPressed: () {
               _scaffoldKey.currentState?.openEndDrawer();
