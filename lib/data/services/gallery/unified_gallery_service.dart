@@ -1328,15 +1328,17 @@ class GalleryService extends _$GalleryService {
   Future<LocalGalleryService> _initializeService(int generation) async {
     LocalGalleryService? candidate;
     try {
-      // 等待数据库准备就绪
-      final dbManager = DatabaseManager.instance;
-      final dataSource = dbManager.getDataSource<GalleryDataSource>('gallery');
-
-      if (dataSource == null) {
-        throw const GalleryDatabaseException(
-          message: 'GalleryDataSource not available',
+      // 大型补全资产库初始化失败时，DatabaseManager 可能只完成了部分启动。
+      // 本地画廊只依赖运行时数据库，因此在这里单独确保其连接池和表可用。
+      DatabaseManager dbManager;
+      try {
+        dbManager = DatabaseManager.instance;
+      } on StateError {
+        dbManager = await DatabaseManager.initialize(
+          maxConnections: Platform.isAndroid || Platform.isIOS ? 4 : 20,
         );
       }
+      final dataSource = await dbManager.ensureGalleryDataSource();
 
       final filterService = GalleryFilterService(dataSource);
 

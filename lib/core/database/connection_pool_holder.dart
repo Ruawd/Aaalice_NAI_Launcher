@@ -51,7 +51,10 @@ class ConnectionPoolHolder {
   }
 
   /// 检查是否已初始化
-  static bool get isInitialized => _instance != null;
+  static bool get isInitialized {
+    final instance = _instance;
+    return instance != null && instance.isInitialized && !instance.isDisposed;
+  }
 
   /// 初始化（首次启动）
   static Future<ConnectionPool> initialize({
@@ -134,7 +137,12 @@ class ConnectionPoolHolder {
       dbPath: dbPath,
       maxConnections: maxConnections,
     );
-    await newInstance.initialize();
+    try {
+      await newInstance.initialize();
+    } catch (_) {
+      await newInstance.dispose();
+      rethrow;
+    }
 
     _instance = newInstance;
 

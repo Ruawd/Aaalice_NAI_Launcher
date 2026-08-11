@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore beta 4: fixes the generation page parameter button so it opens the settings drawer; also includes beta 3 local-gallery initialization, retry, safe-area, and responsive-toolbar fixes."
+            --notes "iOS/TrollStore beta 5: fixes the persistent GalleryDataSource not available error by isolating optional autocomplete databases, self-healing the local-gallery database, and retrying mobile SQLite with one connection when needed; also includes the earlier gallery layout and generation parameter-drawer fixes."

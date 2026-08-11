@@ -61,9 +61,7 @@ void main() {
             ),
           );
           final bytes = assetBytes[key];
-          if (bytes == null) {
-            throw StateError('Unexpected asset request: $key');
-          }
+          if (bytes == null) return null;
           return ByteData.sublistView(bytes);
         });
   });
@@ -148,6 +146,30 @@ void main() {
 
       expect(manager.isInitialized, isTrue);
       expect(identical(DatabaseManager.instance, manager), isTrue);
+    },
+  );
+
+  test(
+    'local gallery remains available when an optional asset database fails',
+    () async {
+      assetBytes.remove('assets/databases/cooccurrence.db');
+
+      final manager = await DatabaseManager.initialize(maxConnections: 2);
+      final gallery = await manager.ensureGalleryDataSource();
+
+      expect(manager.isInitialized, isTrue);
+      expect(gallery.isInitialized, isTrue);
+
+      final db = await manager.acquireDatabase();
+      try {
+        final tables = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+          ['gallery_images'],
+        );
+        expect(tables, isNotEmpty);
+      } finally {
+        await manager.releaseDatabase(db);
+      }
     },
   );
 }
