@@ -443,6 +443,17 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     );
 
     try {
+      // The file-system gallery must remain usable even while SQLite is still
+      // starting. GalleryService triggers this method again when the database
+      // becomes ready, so there is no reason to wait here.
+      if (!_dataSource.isInitialized) {
+        AppLogger.w(
+          'Skipping background index initialization because SQLite is not ready',
+          'LocalGalleryService',
+        );
+        return;
+      }
+
       // 检查是否需要完整扫描
       final existingCount = await _dataSource.countImages();
       AppLogger.i(
@@ -502,6 +513,14 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     bool retryMissingMetadata = false,
     bool retryFailedMetadata = false,
   }) async {
+    if (!_dataSource.isInitialized) {
+      AppLogger.w(
+        'Skipping incremental scan because gallery SQLite is not ready',
+        'LocalGalleryService',
+      );
+      return;
+    }
+
     final rootPath = await GalleryFolderRepository.instance.getRootPath();
     if (rootPath == null) {
       AppLogger.w(
@@ -555,6 +574,14 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     bool retryMissingMetadata = false,
     bool retryFailedMetadata = false,
   }) async {
+    if (!_dataSource.isInitialized) {
+      AppLogger.w(
+        'Skipping full scan because gallery SQLite is not ready',
+        'LocalGalleryService',
+      );
+      return;
+    }
+
     final rootPath = await GalleryFolderRepository.instance.getRootPath();
     if (rootPath == null) {
       AppLogger.w(
@@ -642,32 +669,13 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       }
     }
 
-    // 批量获取数据库信息
     final paths = files.map((f) => f.path).toList();
-    final pathToIdMap = await _dataSource.getImageIdsByPaths(paths);
-
-    // 收集有效的图片ID
-    final imageIds = pathToIdMap.values.whereType<int>().toList();
-
-    // 并行获取收藏、标签、元数据
-    final results = await Future.wait([
-      if (imageIds.isNotEmpty)
-        _dataSource.getFavoritesByImageIds(imageIds)
-      else
-        Future.value(<int, bool>{}),
-      if (imageIds.isNotEmpty)
-        _dataSource.getTagsByImageIds(imageIds)
-      else
-        Future.value(<int, List<String>>{}),
-      if (imageIds.isNotEmpty)
-        _dataSource.getMetadataByImageIds(imageIds)
-      else
-        Future.value(<int, GalleryMetadataRecord?>{}),
-    ]);
-
-    final favoritesMap = results[0] as Map<int, bool>;
-    final tagsMap = results[1] as Map<int, List<String>>;
-    final metadataMap = results[2] as Map<int, GalleryMetadataRecord?>;
+    final databaseRecords = await _loadDatabaseRecords(paths);
+    final pathToIdMap = databaseRecords?.pathToId ?? const <String, int?>{};
+    final favoritesMap = databaseRecords?.favorites ?? const <int, bool>{};
+    final tagsMap = databaseRecords?.tags ?? const <int, List<String>>{};
+    final metadataMap =
+        databaseRecords?.metadata ?? const <int, GalleryMetadataRecord?>{};
 
     // 构建记录列表
     final records = <LocalImageRecord>[];
@@ -723,6 +731,54 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     }
 
     return records;
+  }
+
+  Future<
+    ({
+      Map<String, int?> pathToId,
+      Map<int, bool> favorites,
+      Map<int, List<String>> tags,
+      Map<int, GalleryMetadataRecord?> metadata,
+    })?
+  >
+  _loadDatabaseRecords(List<String> paths) async {
+    if (!_dataSource.isInitialized || paths.isEmpty) return null;
+
+    try {
+      return await (() async {
+        final pathToIdMap = await _dataSource.getImageIdsByPaths(paths);
+        final imageIds = pathToIdMap.values.whereType<int>().toList();
+        if (imageIds.isEmpty) {
+          return (
+            pathToId: pathToIdMap,
+            favorites: <int, bool>{},
+            tags: <int, List<String>>{},
+            metadata: <int, GalleryMetadataRecord?>{},
+          );
+        }
+
+        final results = await Future.wait([
+          _dataSource.getFavoritesByImageIds(imageIds),
+          _dataSource.getTagsByImageIds(imageIds),
+          _dataSource.getMetadataByImageIds(imageIds),
+        ]);
+        return (
+          pathToId: pathToIdMap,
+          favorites: results[0] as Map<int, bool>,
+          tags: results[1] as Map<int, List<String>>,
+          metadata: results[2] as Map<int, GalleryMetadataRecord?>,
+        );
+      }()).timeout(const Duration(seconds: 4));
+    } catch (e) {
+      // A blocked/corrupt cache database must not hide files that are already
+      // readable from the app's Documents directory. Rich metadata can catch
+      // up after SQLite recovers.
+      AppLogger.w(
+        'Gallery database enrichment unavailable; showing file-system records: $e',
+        'LocalGalleryService',
+      );
+      return null;
+    }
   }
 
   /// 批量预加载元数据
@@ -793,91 +849,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
 
     if (existingFiles.isEmpty) return [];
 
-    // 获取文件状态信息
-    final fileStats = <File, FileStat>{};
-    for (final file in existingFiles) {
-      try {
-        fileStats[file] = await file.stat();
-      } catch (e) {
-        AppLogger.w('Failed to stat file: ${file.path}', 'LocalGalleryService');
-      }
-    }
-
-    // 批量获取数据库信息
-    final filePaths = existingFiles.map((f) => f.path).toList();
-    final pathToIdMap = await _dataSource.getImageIdsByPaths(filePaths);
-
-    // 收集有效的图片ID
-    final imageIds = pathToIdMap.values.whereType<int>().toList();
-
-    // 并行获取收藏、标签、元数据
-    final results = await Future.wait([
-      if (imageIds.isNotEmpty)
-        _dataSource.getFavoritesByImageIds(imageIds)
-      else
-        Future.value(<int, bool>{}),
-      if (imageIds.isNotEmpty)
-        _dataSource.getTagsByImageIds(imageIds)
-      else
-        Future.value(<int, List<String>>{}),
-      if (imageIds.isNotEmpty)
-        _dataSource.getMetadataByImageIds(imageIds)
-      else
-        Future.value(<int, GalleryMetadataRecord?>{}),
-    ]);
-
-    final favoritesMap = results[0] as Map<int, bool>;
-    final tagsMap = results[1] as Map<int, List<String>>;
-    final metadataMap = results[2] as Map<int, GalleryMetadataRecord?>;
-
-    // 构建记录列表
-    final records = <LocalImageRecord>[];
-
-    for (final file in existingFiles) {
-      try {
-        final stat = fileStats[file];
-        if (stat == null) continue;
-
-        final imageId = pathToIdMap[file.path];
-        bool isFavorite = false;
-        List<String> tags = [];
-        NaiImageMetadata? metadata;
-        MetadataStatus metadataStatus = MetadataStatus.none;
-
-        if (imageId != null) {
-          isFavorite = favoritesMap[imageId] ?? false;
-          tags = tagsMap[imageId] ?? [];
-
-          final metadataRecord = metadataMap[imageId];
-          if (metadataRecord != null) {
-            metadata = _buildMetadataFromRecord(metadataRecord);
-            metadataStatus = metadata.hasData
-                ? MetadataStatus.success
-                : MetadataStatus.none;
-          }
-        }
-
-        records.add(
-          LocalImageRecord(
-            path: file.path,
-            size: stat.size,
-            modifiedAt: stat.modified,
-            isFavorite: isFavorite,
-            tags: tags,
-            metadata: metadata,
-            metadataStatus: metadataStatus,
-          ),
-        );
-      } catch (e) {
-        AppLogger.w(
-          'Failed to load record for ${file.path}',
-          'LocalGalleryService',
-        );
-        // 跳过加载失败的记录
-      }
-    }
-
-    return records;
+    return _loadRecords(existingFiles);
   }
 
   // ============================================================
@@ -1128,35 +1100,51 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       final stat = await file.stat();
       final fileName = p.basename(file.path);
 
-      // 1. 插入/更新数据库（使用 upsert）
       final metadataStatus = metadata != null && metadata.hasData
           ? MetadataStatus.success
           : MetadataStatus.none;
 
-      final imageId = await _dataSource.upsertImage(
-        filePath: file.path,
-        fileName: fileName,
-        fileSize: stat.size,
-        width: metadata?.width,
-        height: metadata?.height,
-        aspectRatio: _calculateAspectRatio(metadata?.width, metadata?.height),
-        createdAt: stat.modified,
-        modifiedAt: stat.modified,
-        resolutionKey: metadata?.width != null && metadata?.height != null
-            ? '${metadata!.width}x${metadata.height}'
-            : null,
-        lastScannedAt: DateTime.now(),
-        metadataStatus: metadataStatus,
-      );
-
-      // 2. 如果有元数据，保存到数据库
+      // Expose the saved file before touching SQLite. A saturated native
+      // connection pool must not delay the image appearing in the gallery.
+      _allFiles.insert(0, file);
       if (metadata != null && metadata.hasData) {
-        await _dataSource.upsertMetadata(imageId, metadata);
         ImageMetadataService().cacheMetadata(file.path, metadata);
       }
 
-      // 3. 添加到 _allFiles 列表开头（因为是新文件，修改时间最新）
-      _allFiles.insert(0, file);
+      int? imageId;
+      if (_dataSource.isInitialized) {
+        try {
+          imageId = await (() async {
+            final indexedId = await _dataSource.upsertImage(
+              filePath: file.path,
+              fileName: fileName,
+              fileSize: stat.size,
+              width: metadata?.width,
+              height: metadata?.height,
+              aspectRatio: _calculateAspectRatio(
+                metadata?.width,
+                metadata?.height,
+              ),
+              createdAt: stat.modified,
+              modifiedAt: stat.modified,
+              resolutionKey: metadata?.width != null && metadata?.height != null
+                  ? '${metadata!.width}x${metadata.height}'
+                  : null,
+              lastScannedAt: DateTime.now(),
+              metadataStatus: metadataStatus,
+            );
+            if (metadata != null && metadata.hasData) {
+              await _dataSource.upsertMetadata(indexedId, metadata);
+            }
+            return indexedId;
+          }()).timeout(const Duration(seconds: 2));
+        } catch (e) {
+          AppLogger.w(
+            '[AddNewImage] SQLite indexing deferred: $e',
+            'LocalGalleryService',
+          );
+        }
+      }
 
       // 4. 重新应用过滤（如果有过滤条件）
       if (_currentFilter.hasFilters) {
@@ -1166,7 +1154,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       }
 
       AppLogger.i(
-        '[AddNewImage] Added new image immediately: $fileName (ID: $imageId)',
+        '[AddNewImage] Added new image immediately: $fileName (ID: ${imageId ?? 'pending'})',
         'LocalGalleryService',
       );
       return true;
@@ -1328,27 +1316,31 @@ class GalleryService extends _$GalleryService {
   Future<LocalGalleryService> _initializeService(int generation) async {
     LocalGalleryService? candidate;
     try {
-      // 大型补全资产库初始化失败时，DatabaseManager 可能只完成了部分启动。
-      // 本地画廊只依赖运行时数据库，因此在这里单独确保其连接池和表可用。
-      DatabaseManager dbManager;
-      try {
-        dbManager = DatabaseManager.instance;
-      } on StateError {
-        dbManager = await DatabaseManager.initialize(
-          maxConnections: Platform.isAndroid || Platform.isIOS ? 4 : 20,
-        );
-      }
-      final dataSource = await dbManager.ensureGalleryDataSource();
-
+      // File discovery is independent from the metadata index. Publish a
+      // usable file-system gallery first and repair/initialize SQLite in the
+      // background. This avoids an iOS native-sqflite stall keeping the whole
+      // gallery on its placeholder/loading screen.
+      final dataSource = GalleryDataSource();
       final filterService = GalleryFilterService(dataSource);
 
-      candidate = LocalGalleryServiceImpl(
+      final concreteService = LocalGalleryServiceImpl(
         dataSource: dataSource,
         filterService: filterService,
       );
+      candidate = concreteService;
+
+      final databasePreparation = _prepareGalleryDatabase(dataSource);
 
       // 初始化服务
       await candidate.initialize();
+
+      unawaited(
+        databasePreparation.then((ready) async {
+          if (ready && concreteService.isInitialized) {
+            await concreteService._initializeIndexInBackground();
+          }
+        }),
+      );
 
       if (_isDisposed || generation != _initializationGeneration) {
         await candidate.dispose();
@@ -1379,6 +1371,37 @@ class GalleryService extends _$GalleryService {
       await candidate?.dispose();
       _publishInitializationError(generation, '画廊初始化失败: $e');
       rethrow;
+    }
+  }
+
+  Future<bool> _prepareGalleryDatabase(GalleryDataSource dataSource) async {
+    if (dataSource.isInitialized) return true;
+
+    try {
+      DatabaseManager dbManager;
+      try {
+        dbManager = DatabaseManager.instance;
+      } on StateError {
+        dbManager = await DatabaseManager.initialize(
+          maxConnections: Platform.isAndroid || Platform.isIOS ? 4 : 20,
+        );
+      }
+      await dbManager.ensureGalleryDataSource().timeout(
+        const Duration(seconds: 20),
+      );
+      AppLogger.i(
+        'Gallery SQLite index is ready after file-system startup',
+        'GalleryService',
+      );
+      return true;
+    } catch (e, stack) {
+      AppLogger.e(
+        'Gallery SQLite index is unavailable; file-system mode remains active',
+        e,
+        stack,
+        'GalleryService',
+      );
+      return false;
     }
   }
 

@@ -4509,7 +4509,14 @@
       "path": {}
     }
   },
-  "settings_defaultHivePath": "Default (%APPDATA%/NAI_Launcher/hive/)",
+  "settings_defaultHivePath": "{path} (Default)",
+  "@settings_defaultHivePath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "settings_protectionMode": "Protection Mode",
   "settings_protectionModeSubtitle": "Protect local assets, shared copies, and high-cost or high-frequency generation operations through the options below. Turning this off keeps the option values but disables them.",
   "settings_protectionFeatures": "Protection Features",

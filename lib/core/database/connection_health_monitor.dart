@@ -325,9 +325,9 @@ class ConnectionHealthMonitor {
 
     try {
       final acquireStopwatch = Stopwatch()..start();
-      testConnection = await ConnectionPoolHolder.instance.acquire().timeout(
-            _config.connectionAcquireTimeoutThreshold * 2,
-          );
+      testConnection = await ConnectionPoolHolder.instance.acquire(
+        timeout: _config.connectionAcquireTimeoutThreshold * 2,
+      );
       acquireLatency = acquireStopwatch.elapsed;
 
       // 记录连接获取时间

@@ -787,6 +787,27 @@ class GalleryDataSource extends EnhancedBaseDataSource
     });
   }
 
+  /// Count cached metadata rows without running the full multi-table health
+  /// check. Settings uses this lightweight query for cache statistics.
+  Future<int> countMetadata() async {
+    try {
+      return await execute(
+        'countMetadata',
+        (db) async {
+          final result = await db.rawQuery(
+            'SELECT COUNT(*) as count FROM $_metadataTable',
+          );
+          return (result.first['count'] as num?)?.toInt() ?? 0;
+        },
+        timeout: const Duration(seconds: 3),
+        maxRetries: 1,
+      );
+    } catch (e) {
+      AppLogger.w('Failed to count gallery metadata: $e', 'GalleryDS');
+      return 0;
+    }
+  }
+
   /// 按元数据状态统计图片数量
   ///
   /// 返回一个 Map: {statusName: count}

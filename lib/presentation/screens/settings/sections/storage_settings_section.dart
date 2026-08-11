@@ -284,10 +284,10 @@ class _VibeLibraryPathTileState extends State<VibeLibraryPathTile> {
           final displayPath = hasCustomPath
               ? (customPath ?? '')
               : (snapshot.data != null
-                  ? context.l10n.settings_defaultVibePath(snapshot.data!)
-                  : context.l10n.settings_defaultVibePath(
-                      'Documents/NAI_Launcher/vibes/',
-                    ));
+                    ? context.l10n.settings_defaultVibePath(snapshot.data!)
+                    : context.l10n.settings_defaultVibePath(
+                        'Documents/NAI_Launcher/vibes/',
+                      ));
           return Text(
             displayPath,
             maxLines: 1,
@@ -425,12 +425,17 @@ class _HiveStoragePathTileState extends State<HiveStoragePathTile> {
     return ListTile(
       leading: const Icon(Icons.storage_outlined),
       title: Text(context.l10n.settings_hiveStoragePath),
-      subtitle: Text(
-        hasCustomPath
-            ? (_hiveHelper.getCustomPath() ?? '')
-            : context.l10n.settings_defaultHivePath,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      subtitle: FutureBuilder<String>(
+        future: _hiveHelper.getPath(),
+        builder: (context, snapshot) => Text(
+          hasCustomPath
+              ? (_hiveHelper.getCustomPath() ?? '')
+              : context.l10n.settings_defaultHivePath(
+                  snapshot.data ?? 'Application Support/hive/',
+                ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

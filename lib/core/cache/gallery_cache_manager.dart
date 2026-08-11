@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -109,17 +110,17 @@ class CacheStatistics {
 
   /// 转换为 JSON
   Map<String, dynamic> toJson() => {
-        'l1MemorySize': l1MemorySize,
-        'l1HitRate': l1HitRate,
-        'l1MemoryBytes': l1MemoryBytes,
-        'l2HiveSize': l2HiveSize,
-        'l2HitRate': l2HitRate,
-        'l2HiveBytes': l2HiveBytes,
-        'l3DatabaseImageCount': l3DatabaseImageCount,
-        'l3DatabaseMetadataCount': l3DatabaseMetadataCount,
-        'totalHitRate': totalHitRate,
-        'lastUpdated': lastUpdated.toIso8601String(),
-      };
+    'l1MemorySize': l1MemorySize,
+    'l1HitRate': l1HitRate,
+    'l1MemoryBytes': l1MemoryBytes,
+    'l2HiveSize': l2HiveSize,
+    'l2HitRate': l2HitRate,
+    'l2HiveBytes': l2HiveBytes,
+    'l3DatabaseImageCount': l3DatabaseImageCount,
+    'l3DatabaseMetadataCount': l3DatabaseMetadataCount,
+    'totalHitRate': totalHitRate,
+    'lastUpdated': lastUpdated.toIso8601String(),
+  };
 
   /// 从 JSON 创建
   factory CacheStatistics.fromJson(Map<String, dynamic> json) {
@@ -133,7 +134,8 @@ class CacheStatistics {
       l3DatabaseImageCount: json['l3DatabaseImageCount'] as int? ?? 0,
       l3DatabaseMetadataCount: json['l3DatabaseMetadataCount'] as int? ?? 0,
       totalHitRate: json['totalHitRate'] as double? ?? 0.0,
-      lastUpdated: DateTime.tryParse(json['lastUpdated'] as String? ?? '') ??
+      lastUpdated:
+          DateTime.tryParse(json['lastUpdated'] as String? ?? '') ??
           DateTime.now(),
     );
   }
@@ -368,12 +370,35 @@ class GalleryCacheManager {
     final l2HitRate = imageService.persistentCacheHitRate;
     final l2Bytes = await _getHiveCacheBytes();
 
-    // 获取 L3 数据库统计
-    final imageCount = await dataSource.countImages();
-    final metadataCount = await _getMetadataCount(dataSource);
+    // 获取 L3 数据库统计。SQLite 是画廊的增强索引，不应让设置页在原生
+    // sqflite 初始化较慢时无限显示“统计中”。未就绪或超时就先显示 0，下一次
+    // 刷新会在数据库恢复后补上真实数字。
+    var imageCount = 0;
+    var metadataCount = 0;
+    if (dataSource.isInitialized) {
+      try {
+        final counts = await Future.wait<int>([
+          dataSource.countImages(),
+          dataSource.countMetadata(),
+        ]).timeout(const Duration(seconds: 4));
+        imageCount = counts[0];
+        metadataCount = counts[1];
+      } on TimeoutException {
+        AppLogger.w(
+          'Gallery cache database statistics timed out; using partial values',
+          'GalleryCacheManager',
+        );
+      } catch (e) {
+        AppLogger.w(
+          'Gallery cache database statistics unavailable: $e',
+          'GalleryCacheManager',
+        );
+      }
+    }
 
     // 计算总命中率（加权平均）
-    final totalRequests = (l1HitRate > 0 ? l1Size / l1HitRate : 0) +
+    final totalRequests =
+        (l1HitRate > 0 ? l1Size / l1HitRate : 0) +
         (l2HitRate > 0 ? l2Size / l2HitRate : 0);
     final totalHits = l1Size + l2Size;
     final totalHitRate = totalRequests > 0 ? totalHits / totalRequests : 0.0;
@@ -448,16 +473,6 @@ class GalleryCacheManager {
       // 忽略错误
     }
     return null;
-  }
-
-  Future<int> _getMetadataCount(GalleryDataSource dataSource) async {
-    try {
-      final health = await dataSource.checkHealth();
-      return health.details['metadataCount'] as int? ?? 0;
-    } catch (e) {
-      AppLogger.w('Failed to get metadata count: $e', 'GalleryCacheManager');
-      return 0;
-    }
   }
 
   /// 重置所有缓存统计计数器
@@ -653,8 +668,8 @@ class L2CacheCleaner {
   Future<int> _getCacheSizeMB() async {
     try {
       final bytes = await GalleryCacheManager().getStatistics().then(
-            (s) => s.l2HiveBytes,
-          );
+        (s) => s.l2HiveBytes,
+      );
       return bytes ~/ (1024 * 1024);
     } catch (_) {
       return 0;

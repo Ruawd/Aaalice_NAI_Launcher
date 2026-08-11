@@ -151,6 +151,31 @@ void main() {
     },
   );
 
+  test('bounded acquire times out without leaking a waiter', () async {
+    final pool = ConnectionPool(
+      dbPath: p.join(tempDir.path, 'bounded_waiter.db'),
+      maxConnections: 1,
+    );
+    addTearDown(pool.dispose);
+
+    await pool.initialize();
+    final first = await pool.acquire();
+
+    await expectLater(
+      pool.acquire(timeout: const Duration(milliseconds: 30)),
+      throwsA(isA<TimeoutException>()),
+    );
+    expect(pool.inUseCount, 1);
+    expect(pool.availableCount, 0);
+
+    await pool.release(first);
+    final second = await pool.acquire(
+      timeout: const Duration(milliseconds: 100),
+    );
+    expect(second.isOpen, isTrue);
+    await pool.release(second);
+  });
+
   test('dispose completes pending acquire with StateError', () async {
     final pool = ConnectionPool(
       dbPath: p.join(tempDir.path, 'dispose_waiter.db'),

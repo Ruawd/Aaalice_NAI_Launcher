@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -118,6 +119,57 @@ void main() {
     expect(cacheRect.right, primaryRect.right);
     expect(cacheRect.width, primaryRect.width);
   });
+
+  testWidgets(
+    'cache statistics does not restart a request that is still loading',
+    (tester) async {
+      final completer = Completer<CacheStatistics>();
+      var requestCount = 0;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            cacheStatisticsProvider.overrideWith((ref) {
+              requestCount++;
+              return completer.future;
+            }),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: CacheStatisticsTile()),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(requestCount, 1);
+
+      // Cross the automatic refresh interval while the first SQLite request is
+      // still pending. The old implementation invalidated it and stayed loading.
+      await tester.pump(const Duration(seconds: 31));
+      expect(requestCount, 1);
+
+      completer.complete(
+        CacheStatistics(
+          l1MemorySize: 0,
+          l1HitRate: 0,
+          l1MemoryBytes: 0,
+          l2HiveSize: 0,
+          l2HitRate: 0,
+          l2HiveBytes: 0,
+          l3DatabaseImageCount: 0,
+          l3DatabaseMetadataCount: 0,
+          totalHitRate: 0,
+          lastUpdated: DateTime(2026),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(find.text('缓存统计'), findsOneWidget);
+    },
+  );
 }
 
 Widget _buildSubject(_MemoryLocalStorageService storage) {
