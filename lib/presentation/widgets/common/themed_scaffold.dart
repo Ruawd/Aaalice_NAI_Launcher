@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../themes/theme_extension.dart';
 
 class ThemedScaffold extends StatelessWidget {
+  /// Optional key for controlling the inner [Scaffold] (for example, drawers).
+  final GlobalKey<ScaffoldState>? scaffoldKey;
   final Widget body;
   final PreferredSizeWidget? appBar;
   final Widget? bottomNavigationBar;
@@ -13,6 +15,7 @@ class ThemedScaffold extends StatelessWidget {
 
   const ThemedScaffold({
     super.key,
+    this.scaffoldKey,
     required this.body,
     this.appBar,
     this.bottomNavigationBar,
@@ -30,6 +33,7 @@ class ThemedScaffold extends StatelessWidget {
     final enableDotMatrix = extension?.enableDotMatrix ?? false;
 
     return Scaffold(
+      key: scaffoldKey,
       appBar: appBar,
       body: Stack(
         children: [

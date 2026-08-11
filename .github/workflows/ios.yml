@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore beta 3: fixes local gallery initialization on slow storage, adds a real retry path, creates a missing default gallery directory automatically, and keeps the responsive gallery toolbar below the iOS status bar with horizontally scrollable actions."
+            --notes "iOS/TrollStore beta 4: fixes the generation page parameter button so it opens the settings drawer; also includes beta 3 local-gallery initialization, retry, safe-area, and responsive-toolbar fixes."
