@@ -27,6 +27,31 @@ void main() {
     expect(await service.validateDatabaseFile(file.path), 1000);
   });
 
+  test('normalizes a standalone WAL dictionary before validation', () async {
+    final file = _createDictionary(
+      '${temp.path}/wal.sqlite',
+      rows: 1000,
+      useWal: true,
+    );
+    final walHeader = await file
+        .openRead(0, 20)
+        .expand((bytes) => bytes)
+        .toList();
+    expect(walHeader[18], 2);
+    expect(walHeader[19], 2);
+
+    expect(await service.validateDatabaseFile(file.path), 1000);
+
+    final normalizedHeader = await file
+        .openRead(0, 20)
+        .expand((bytes) => bytes)
+        .toList();
+    expect(normalizedHeader[18], 1);
+    expect(normalizedHeader[19], 1);
+    expect(await File('${file.path}-wal').exists(), isFalse);
+    expect(await File('${file.path}-shm').exists(), isFalse);
+  });
+
   test('rejects a corrupt SQLite file', () async {
     final file = File('${temp.path}/corrupt.sqlite');
     await file.writeAsString('not a sqlite database');
@@ -55,8 +80,9 @@ void main() {
   );
 }
 
-File _createDictionary(String path, {required int rows}) {
+File _createDictionary(String path, {required int rows, bool useWal = false}) {
   final db = native.sqlite3.open(path);
+  if (useWal) db.execute('PRAGMA journal_mode = WAL');
   db.execute('''
     CREATE TABLE tags(
       name TEXT PRIMARY KEY,
