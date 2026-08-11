@@ -92,4 +92,19 @@ void main() {
       expect(lease.isValid, isFalse);
     },
   );
+
+  test('holder readiness requires a fully initialized live pool', () async {
+    final pool = await ConnectionPoolHolder.initialize(
+      dbPath: p.join(tempDir.path, 'holder_readiness.db'),
+      maxConnections: 1,
+    );
+
+    expect(ConnectionPoolHolder.isInitialized, isTrue);
+    await pool.dispose();
+    expect(ConnectionPoolHolder.isInitialized, isFalse);
+
+    // Holder dispose must also clear the retained disposed instance.
+    await ConnectionPoolHolder.dispose();
+    expect(ConnectionPoolHolder.getInstanceOrNull(), isNull);
+  });
 }

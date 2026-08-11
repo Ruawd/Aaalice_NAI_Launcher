@@ -42,7 +42,8 @@ class DatabaseManager {
       // 检查是否可用
       try {
         final pool = ConnectionPoolHolder.getInstanceOrNull();
-        if (pool != null && !pool.isDisposed) {
+        if (pool != null && pool.isInitialized && !pool.isDisposed) {
+          await _instance!.ensureGalleryDataSource();
           AppLogger.d('DatabaseManager already initialized', 'DatabaseManager');
           return _instance!;
         }
@@ -66,12 +67,13 @@ class DatabaseManager {
     return _instance!;
   }
 
-  static const int _maxConnections = 20;
   static const String _danbooruDbName = 'danbooru.db';
 
   DatabaseInitState _state = DatabaseInitState.uninitialized;
   String? _dbPath;
   String? _errorMessage;
+  int _configuredMaxConnections = 20;
+  Future<GalleryDataSource>? _galleryInitialization;
 
   // 初始化完成标记
   final _initCompleter = Completer<void>();
@@ -147,22 +149,15 @@ class DatabaseManager {
   /// 执行初始化
   Future<void> _doInitialize({required int maxConnections}) async {
     _state = DatabaseInitState.initializing;
+    _configuredMaxConnections = maxConnections;
 
     try {
-      await AssetDatabaseManager.initialize();
-
-      _translationDataSource = TranslationDataSource();
-      await _translationDataSource!.initialize();
-
-      _cooccurrenceDataSource = CooccurrenceDataSource();
-      await _cooccurrenceDataSource!.initialize();
+      // 标签目录与共现库是补全功能的可选资产。它们体积较大，且在部分
+      // 移动设备上可能安装/校验失败；这不应阻止运行时数据库和本地画廊启动。
+      await _initializeOptionalDataSources();
 
       _dbPath = await _getDatabasePath(_danbooruDbName);
-
-      await ConnectionPoolHolder.initialize(
-        dbPath: _dbPath!,
-        maxConnections: maxConnections,
-      );
+      await _ensureConnectionPool();
 
       await _registerRuntimeDataSources();
       _startHealthMonitoring();
@@ -188,6 +183,141 @@ class DatabaseManager {
       );
       rethrow;
     }
+  }
+
+  Future<void> _initializeOptionalDataSources() async {
+    var assetDatabasesReady = false;
+    try {
+      await AssetDatabaseManager.initialize();
+      assetDatabasesReady = true;
+    } catch (e, stack) {
+      AppLogger.e(
+        'Optional asset databases are unavailable; continuing with runtime database',
+        e,
+        stack,
+        'DatabaseManager',
+      );
+    }
+
+    _translationDataSource = TranslationDataSource();
+    try {
+      await _translationDataSource!.initialize();
+    } catch (e, stack) {
+      AppLogger.e(
+        'Optional TranslationDataSource initialization failed',
+        e,
+        stack,
+        'DatabaseManager',
+      );
+    }
+
+    _cooccurrenceDataSource = CooccurrenceDataSource();
+    if (!assetDatabasesReady) {
+      AppLogger.w(
+        'Skipping CooccurrenceDataSource because asset databases are unavailable',
+        'DatabaseManager',
+      );
+      return;
+    }
+
+    try {
+      await _cooccurrenceDataSource!.initialize();
+    } catch (e, stack) {
+      AppLogger.e(
+        'Optional CooccurrenceDataSource initialization failed',
+        e,
+        stack,
+        'DatabaseManager',
+      );
+    }
+  }
+
+  Future<void> _ensureConnectionPool() async {
+    _dbPath ??= await _getDatabasePath(_danbooruDbName);
+    final current = ConnectionPoolHolder.getInstanceOrNull();
+    if (current != null && current.isInitialized && !current.isDisposed) {
+      return;
+    }
+
+    Future<void> openPool(int connections) async {
+      final existing = ConnectionPoolHolder.getInstanceOrNull();
+      if (existing == null) {
+        await ConnectionPoolHolder.initialize(
+          dbPath: _dbPath!,
+          maxConnections: connections,
+        );
+      } else {
+        await ConnectionPoolHolder.reset(
+          dbPath: _dbPath!,
+          maxConnections: connections,
+        );
+      }
+    }
+
+    try {
+      await openPool(_configuredMaxConnections);
+    } catch (e, stack) {
+      final canUseSingleConnection =
+          (Platform.isAndroid || Platform.isIOS) &&
+          _configuredMaxConnections > 1;
+      if (!canUseSingleConnection) rethrow;
+
+      AppLogger.e(
+        'Mobile connection pool initialization failed; retrying with one connection',
+        e,
+        stack,
+        'DatabaseManager',
+      );
+      _configuredMaxConnections = 1;
+      await ConnectionPoolHolder.reset(
+        dbPath: _dbPath!,
+        maxConnections: _configuredMaxConnections,
+      );
+    }
+  }
+
+  /// Ensures the runtime database and local-gallery tables are available.
+  ///
+  /// This can recover a partially initialized manager after an optional bundled
+  /// autocomplete database failed during startup.
+  Future<GalleryDataSource> ensureGalleryDataSource() {
+    final current = _galleryDataSource;
+    if (current != null &&
+        current.isInitialized &&
+        ConnectionPoolHolder.isInitialized) {
+      return Future.value(current);
+    }
+
+    final active = _galleryInitialization;
+    if (active != null) return active;
+
+    final operation = _doEnsureGalleryDataSource();
+    _galleryInitialization = operation;
+    unawaited(
+      operation.then<void>(
+        (_) {
+          if (identical(_galleryInitialization, operation)) {
+            _galleryInitialization = null;
+          }
+        },
+        onError: (Object _, StackTrace __) {
+          if (identical(_galleryInitialization, operation)) {
+            _galleryInitialization = null;
+          }
+        },
+      ),
+    );
+    return operation;
+  }
+
+  Future<GalleryDataSource> _doEnsureGalleryDataSource() async {
+    await _ensureConnectionPool();
+    final dataSource = _galleryDataSource ?? GalleryDataSource();
+    _galleryDataSource = dataSource;
+    if (!dataSource.isInitialized) {
+      await dataSource.initialize();
+    }
+    return dataSource;
   }
 
   /// 获取数据库路径
@@ -240,7 +370,7 @@ class DatabaseManager {
         'tables': tableStats,
         'tableCount': tables.length,
         'connectionPool': {
-          'maxConnections': _maxConnections,
+          'maxConnections': _configuredMaxConnections,
           'available': pool.availableCount,
           'inUse': pool.inUseCount,
         },
@@ -251,8 +381,27 @@ class DatabaseManager {
   }
 
   Future<Map<String, int>> getCoreAssetStatistics() async {
-    final translationCount = await translationDataSource.getCount();
-    final cooccurrenceCount = await cooccurrenceDataSource.getCount();
+    var translationCount = 0;
+    var cooccurrenceCount = 0;
+    try {
+      translationCount = await _translationDataSource?.getCount() ?? 0;
+    } catch (e) {
+      AppLogger.w(
+        'Unable to read optional translation statistics: $e',
+        'DatabaseManager',
+      );
+    }
+    try {
+      final source = _cooccurrenceDataSource;
+      if (source != null && source.isInitialized) {
+        cooccurrenceCount = await source.getCount();
+      }
+    } catch (e) {
+      AppLogger.w(
+        'Unable to read optional cooccurrence statistics: $e',
+        'DatabaseManager',
+      );
+    }
 
     return {
       'translations': translationCount,
@@ -264,8 +413,10 @@ class DatabaseManager {
     try {
       await ConnectionPoolHolder.reset(
         dbPath: _dbPath!,
-        maxConnections: _maxConnections,
+        maxConnections: _configuredMaxConnections,
       );
+      _galleryDataSource = null;
+      await ensureGalleryDataSource();
       AppLogger.i('Database recovery completed', 'DatabaseManager');
     } catch (e, stack) {
       AppLogger.e('Database recovery failed', e, stack, 'DatabaseManager');
@@ -364,6 +515,8 @@ class DatabaseManager {
         'DatabaseManager',
       );
     }
+    _galleryDataSource = null;
+    _galleryInitialization = null;
 
     await ConnectionPoolHolder.dispose();
 
@@ -386,9 +539,8 @@ class DatabaseManager {
       );
     }
 
-    _galleryDataSource = GalleryDataSource();
     try {
-      await _galleryDataSource!.initialize();
+      await ensureGalleryDataSource();
     } catch (e, stack) {
       AppLogger.e(
         'Failed to initialize GalleryDataSource',
@@ -396,6 +548,7 @@ class DatabaseManager {
         stack,
         'DatabaseManager',
       );
+      rethrow;
     }
 
     await _warmupConnectionPool();
@@ -404,7 +557,7 @@ class DatabaseManager {
   Future<void> _warmupConnectionPool() async {
     try {
       final result = await ConnectionPoolHolder.warmup(
-        connections: _maxConnections,
+        connections: _configuredMaxConnections,
         timeout: const Duration(seconds: 5),
       );
 
