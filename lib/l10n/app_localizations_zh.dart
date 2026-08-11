@@ -329,7 +329,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get auth_thirdPartyLogin => '第三方站点';
 
   @override
+  String get auth_thirdPartyProviderType => '接口类型';
+
+  @override
+  String get auth_providerNovelAiCompatible => 'NovelAI 兼容 API';
+
+  @override
+  String get auth_providerShatangyun => '砂糖云（推荐）';
+
+  @override
   String get auth_thirdPartyApiSite => '第三方 API 站点';
+
+  @override
+  String get auth_shatangyunEndpoint => '砂糖云 NovelAI 接口';
 
   @override
   String get auth_imageApiSiteOptional => '图像 API 站点（可选）';
@@ -346,6 +358,10 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get auth_thirdPartyCompatibilityHint =>
       '请求将使用 NovelAI 原生路径、JSON/MessagePack 格式及 ZIP/图片响应；Token 按 Bearer 方式发送。建议使用 HTTPS。';
+
+  @override
+  String get auth_shatangyunCompatibilityHint =>
+      '兼容砂糖云 /novelai、/api/generate 与 AstrBot 中使用的同一 Token。应用会自动使用 /novelai 非流式接口并下载最终图片，不要开启 MessagePack 流式生图。';
 
   @override
   String get auth_thirdPartySubscriptionApi => '支持订阅信息接口';

@@ -1,5 +1,18 @@
 import '../constants/api_constants.dart';
 
+/// Request/response dialect exposed by a configured image provider.
+enum NaiApiProviderType {
+  /// A server that mirrors NovelAI's endpoint layout and ZIP/MessagePack
+  /// responses.
+  novelAiCompatible,
+
+  /// Sugar Cloud's single NovelAI-compatible generation endpoint.
+  ///
+  /// It accepts the regular NovelAI JSON payload at `/novelai`, but returns a
+  /// JSON image URL instead of NovelAI's ZIP response.
+  shatangyun,
+}
+
 /// NAI-compatible API endpoint configuration.
 ///
 /// Official NovelAI uses separate main and image API hosts. Third-party
@@ -10,12 +23,14 @@ class NaiApiEndpointConfig {
   final String imageBaseUrl;
   final bool supportsSubscriptionApi;
   final bool supportsStreamingApi;
+  final NaiApiProviderType providerType;
 
   const NaiApiEndpointConfig({
     required this.mainBaseUrl,
     required this.imageBaseUrl,
     this.supportsSubscriptionApi = true,
     this.supportsStreamingApi = true,
+    this.providerType = NaiApiProviderType.novelAiCompatible,
   });
 
   static const official = NaiApiEndpointConfig(
@@ -28,27 +43,52 @@ class NaiApiEndpointConfig {
     String? imageBaseUrl,
     bool supportsSubscriptionApi = true,
     bool supportsStreamingApi = true,
+    NaiApiProviderType providerType = NaiApiProviderType.novelAiCompatible,
   }) {
-    final normalizedMain = _normalizeBaseUrl(mainBaseUrl);
+    var normalizedMain = _normalizeBaseUrl(mainBaseUrl);
     final normalizedImage = imageBaseUrl == null || imageBaseUrl.trim().isEmpty
         ? normalizedMain
         : _normalizeBaseUrl(imageBaseUrl);
+
+    if (providerType == NaiApiProviderType.shatangyun) {
+      final configuredEndpoint =
+          !_looksLikeShatangyunUrl(normalizedMain) &&
+              _looksLikeShatangyunUrl(normalizedImage)
+          ? normalizedImage
+          : normalizedMain;
+      normalizedMain = _normalizeShatangyunEndpoint(configuredEndpoint);
+      return NaiApiEndpointConfig(
+        mainBaseUrl: normalizedMain,
+        imageBaseUrl: normalizedMain,
+        supportsSubscriptionApi: false,
+        supportsStreamingApi: false,
+        providerType: providerType,
+      );
+    }
 
     return NaiApiEndpointConfig(
       mainBaseUrl: normalizedMain,
       imageBaseUrl: normalizedImage,
       supportsSubscriptionApi: supportsSubscriptionApi,
       supportsStreamingApi: supportsStreamingApi,
+      providerType: providerType,
     );
   }
 
   factory NaiApiEndpointConfig.fromJson(Map<String, dynamic> json) {
+    final mainBaseUrl = json['mainBaseUrl'] as String? ?? ApiConstants.baseUrl;
+    final imageBaseUrl =
+        json['imageBaseUrl'] as String? ?? ApiConstants.imageBaseUrl;
+    final providerType =
+        _providerTypeFromJson(json['providerType']) ??
+        inferProviderType(mainBaseUrl, imageBaseUrl: imageBaseUrl);
+
     return NaiApiEndpointConfig.fromInput(
-      mainBaseUrl: json['mainBaseUrl'] as String? ?? ApiConstants.baseUrl,
-      imageBaseUrl:
-          json['imageBaseUrl'] as String? ?? ApiConstants.imageBaseUrl,
+      mainBaseUrl: mainBaseUrl,
+      imageBaseUrl: imageBaseUrl,
       supportsSubscriptionApi: json['supportsSubscriptionApi'] as bool? ?? true,
       supportsStreamingApi: json['supportsStreamingApi'] as bool? ?? true,
+      providerType: providerType,
     );
   }
 
@@ -57,15 +97,24 @@ class NaiApiEndpointConfig {
     'imageBaseUrl': imageBaseUrl,
     'supportsSubscriptionApi': supportsSubscriptionApi,
     'supportsStreamingApi': supportsStreamingApi,
+    'providerType': providerType.name,
   };
 
   bool get isOfficial =>
       mainBaseUrl == ApiConstants.baseUrl &&
       imageBaseUrl == ApiConstants.imageBaseUrl &&
       supportsSubscriptionApi &&
-      supportsStreamingApi;
+      supportsStreamingApi &&
+      providerType == NaiApiProviderType.novelAiCompatible;
 
   bool get isThirdParty => !isOfficial;
+
+  bool get isShatangyun => providerType == NaiApiProviderType.shatangyun;
+
+  /// Full image generation endpoint for providers that do not expose a base
+  /// URL plus NovelAI paths.
+  String get imageGenerationUrl =>
+      isShatangyun ? mainBaseUrl : imageUrl(ApiConstants.generateImageEndpoint);
 
   String mainUrl(String endpoint) => _appendEndpoint(mainBaseUrl, endpoint);
 
@@ -100,6 +149,55 @@ class NaiApiEndpointConfig {
         ? endpoint
         : '/$endpoint';
     return '$baseUrl$normalizedEndpoint';
+  }
+
+  /// Detect legacy beta records where Sugar Cloud was saved before provider
+  /// dialects were persisted. This makes existing accounts work after upgrade
+  /// without requiring the user to remove and add them again.
+  static NaiApiProviderType inferProviderType(
+    String mainBaseUrl, {
+    String? imageBaseUrl,
+  }) {
+    if (_looksLikeShatangyunUrl(mainBaseUrl) ||
+        (imageBaseUrl != null && _looksLikeShatangyunUrl(imageBaseUrl))) {
+      return NaiApiProviderType.shatangyun;
+    }
+    return NaiApiProviderType.novelAiCompatible;
+  }
+
+  static bool _looksLikeShatangyunUrl(String value) {
+    final uri = Uri.tryParse(_withDefaultScheme(value.trim()));
+    if (uri == null || uri.host.toLowerCase() != 'std.loliyc.com') {
+      return false;
+    }
+    final path = uri.path.replaceAll(RegExp(r'/+$'), '').toLowerCase();
+    return path.endsWith('/novelai') ||
+        path.endsWith('/api/generate') ||
+        path.endsWith('/generate');
+  }
+
+  static NaiApiProviderType? _providerTypeFromJson(Object? value) {
+    final name = value?.toString();
+    if (name == null || name.isEmpty) return null;
+    for (final type in NaiApiProviderType.values) {
+      if (type.name == name) return type;
+    }
+    return null;
+  }
+
+  static String _normalizeShatangyunEndpoint(String value) {
+    final uri = Uri.parse(value);
+    var path = uri.path.replaceAll(RegExp(r'/+$'), '');
+    final lowerPath = path.toLowerCase();
+    if (lowerPath.endsWith('/api/generate')) {
+      path =
+          '${path.substring(0, path.length - '/api/generate'.length)}/novelai';
+    } else if (lowerPath.endsWith('/generate')) {
+      path = '${path.substring(0, path.length - '/generate'.length)}/novelai';
+    } else if (!lowerPath.endsWith('/novelai')) {
+      path = '$path/novelai';
+    }
+    return uri.replace(path: path).toString();
   }
 
   static String _normalizeBaseUrl(String value) {
@@ -151,7 +249,8 @@ class NaiApiEndpointConfig {
           mainBaseUrl == other.mainBaseUrl &&
           imageBaseUrl == other.imageBaseUrl &&
           supportsSubscriptionApi == other.supportsSubscriptionApi &&
-          supportsStreamingApi == other.supportsStreamingApi;
+          supportsStreamingApi == other.supportsStreamingApi &&
+          providerType == other.providerType;
 
   @override
   int get hashCode => Object.hash(
@@ -159,6 +258,7 @@ class NaiApiEndpointConfig {
     imageBaseUrl,
     supportsSubscriptionApi,
     supportsStreamingApi,
+    providerType,
   );
 
   @override
@@ -166,6 +266,7 @@ class NaiApiEndpointConfig {
     return 'NaiApiEndpointConfig(mainBaseUrl: $mainBaseUrl, '
         'imageBaseUrl: $imageBaseUrl, '
         'supportsSubscriptionApi: $supportsSubscriptionApi, '
-        'supportsStreamingApi: $supportsStreamingApi)';
+        'supportsStreamingApi: $supportsStreamingApi, '
+        'providerType: ${providerType.name})';
   }
 }

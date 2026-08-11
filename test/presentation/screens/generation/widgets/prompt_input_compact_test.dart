@@ -6,6 +6,7 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/prompt_token_counter_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 
 void main() {
   testWidgets('紧凑模式会显示正向 token 计数', (tester) async {
@@ -41,6 +42,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('12 / 512'), findsOneWidget);
+    final compactInput = tester.widget<UnifiedPromptInput>(
+      find.byType(UnifiedPromptInput),
+    );
+    expect(
+      compactInput.enableAssistant,
+      isFalse,
+      reason: 'The 72px iPhone editor cannot fit the assistant toolbar.',
+    );
   });
 }
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
@@ -15,6 +16,65 @@ import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_se
 import 'package:nai_launcher/data/models/image/image_params.dart';
 
 void main() {
+  test(
+    'Sugar Cloud posts to the full /novelai endpoint and downloads JSON URL',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService()
+        ..setCurrent(
+          NaiApiEndpointConfig.fromInput(
+            mainBaseUrl: 'https://std.loliyc.com/api/generate',
+            providerType: NaiApiProviderType.shatangyun,
+          ),
+        );
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+      );
+
+      final streamChunks = await service
+          .generateImageStream(const ImageParams(prompt: 'sugar stream'))
+          .toList();
+      expect(streamChunks.single.error, contains('Streaming is not allowed'));
+      expect(adapter.requests, isEmpty);
+
+      final resultFuture = service.generateImage(
+        const ImageParams(prompt: 'sugar test'),
+      );
+      await _waitForRequestCount(adapter, 1);
+
+      final generationRequest = adapter.requests[0].options;
+      expect(
+        generationRequest.uri.toString(),
+        'https://std.loliyc.com/novelai',
+      );
+      expect(generationRequest.data, isA<Map<String, dynamic>>());
+      expect(generationRequest.responseType, ResponseType.json);
+      adapter.requests[0].completeWithJson({
+        'data': [
+          {'url': '/img/generated.png'},
+        ],
+        'original_response': {'status': 'success', 'url': '/img/generated.png'},
+      });
+
+      await _waitForRequestCount(adapter, 2);
+      final imageRequest = adapter.requests[1].options;
+      expect(
+        imageRequest.uri.toString(),
+        'https://std.loliyc.com/img/generated.png',
+      );
+      expect(imageRequest.extra['skipAuth'], isTrue);
+      final png = _solidPng(width: 64, height: 64, r: 8, g: 9, b: 10);
+      adapter.requests[1].completeWithImage(png);
+
+      final result = await resultFuture;
+      expect(result.$1, hasLength(1));
+      expect(result.$1.single, orderedEquals(png));
+    },
+  );
+
   test(
     'generation-only provider skips stream and uses NovelAI ZIP endpoint',
     () async {
@@ -755,6 +815,30 @@ class _PendingRequest {
         200,
         headers: {
           Headers.contentTypeHeader: ['application/x-zip-compressed'],
+        },
+      ),
+    );
+  }
+
+  void completeWithJson(Map<String, dynamic> data) {
+    response.complete(
+      ResponseBody.fromString(
+        jsonEncode(data),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      ),
+    );
+  }
+
+  void completeWithImage(Uint8List imageBytes) {
+    response.complete(
+      ResponseBody.fromBytes(
+        imageBytes,
+        200,
+        headers: {
+          Headers.contentTypeHeader: ['image/png'],
         },
       ),
     );

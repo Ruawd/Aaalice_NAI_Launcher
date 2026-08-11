@@ -151,6 +151,40 @@ void main() {
       expect(endpoint.supportsSubscriptionApi, isTrue);
       expect(endpoint.supportsStreamingApi, isTrue);
     });
+
+    test('normalizes Sugar Cloud endpoints and disables unsupported APIs', () {
+      final endpoint = NaiApiEndpointConfig.fromInput(
+        mainBaseUrl: 'https://std.loliyc.com/api/generate',
+        providerType: NaiApiProviderType.shatangyun,
+      );
+
+      expect(endpoint.mainBaseUrl, 'https://std.loliyc.com/novelai');
+      expect(endpoint.imageBaseUrl, 'https://std.loliyc.com/novelai');
+      expect(endpoint.imageGenerationUrl, 'https://std.loliyc.com/novelai');
+      expect(endpoint.supportsSubscriptionApi, isFalse);
+      expect(endpoint.supportsStreamingApi, isFalse);
+      expect(endpoint.isShatangyun, isTrue);
+      expect(
+        NaiApiEndpointConfig.fromJson(endpoint.toJson()),
+        equals(endpoint),
+      );
+    });
+
+    test('migrates legacy Sugar Cloud beta account records automatically', () {
+      final endpoint = NaiApiEndpointConfig.fromJson({
+        'mainBaseUrl': 'https://std.loliyc.com/novelai',
+        'imageBaseUrl': 'https://std.loliyc.com/novelai',
+        // beta.1 stored these as true, which made the app call a non-existent
+        // MessagePack endpoint and end with "No final image received".
+        'supportsSubscriptionApi': true,
+        'supportsStreamingApi': true,
+      });
+
+      expect(endpoint.providerType, NaiApiProviderType.shatangyun);
+      expect(endpoint.supportsSubscriptionApi, isFalse);
+      expect(endpoint.supportsStreamingApi, isFalse);
+      expect(endpoint.imageGenerationUrl, 'https://std.loliyc.com/novelai');
+    });
   });
 
   group('UcPresets', () {
