@@ -113,6 +113,15 @@ class AuthInterceptor extends Interceptor {
   ) async {
     AppLogger.d('Request to: ${options.path}', 'DIO');
 
+    // Provider responses may contain a public image URL. Do not leak the
+    // account token to that response-controlled destination.
+    if (options.extra['skipAuth'] == true) {
+      options.headers.remove('Authorization');
+      AppLogger.d('Skipping auth for public provider asset', 'DIO');
+      handler.next(options);
+      return;
+    }
+
     // 登录接口不需要 Token
     if (options.path.contains('/user/login')) {
       AppLogger.d('Skipping auth for login endpoint', 'DIO');

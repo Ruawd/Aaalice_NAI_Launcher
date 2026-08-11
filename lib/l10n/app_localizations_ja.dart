@@ -333,7 +333,19 @@ class AppLocalizationsJa extends AppLocalizations {
   String get auth_thirdPartyLogin => 'サードパーティサイト';
 
   @override
+  String get auth_thirdPartyProviderType => 'API タイプ';
+
+  @override
+  String get auth_providerNovelAiCompatible => 'NovelAI 互換 API';
+
+  @override
+  String get auth_providerShatangyun => 'Sugar Cloud（推奨）';
+
+  @override
   String get auth_thirdPartyApiSite => 'サードパーティ API サイト';
+
+  @override
+  String get auth_shatangyunEndpoint => 'Sugar Cloud NovelAI エンドポイント';
 
   @override
   String get auth_imageApiSiteOptional => '画像 API サイト (オプション)';
@@ -350,6 +362,10 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get auth_thirdPartyCompatibilityHint =>
       'リクエストには NovelAI ネイティブのパス、JSON/MessagePack 形式、ZIP/画像レスポンスを使用します。トークンは Bearer 方式で送信されます。HTTPS を推奨します。';
+
+  @override
+  String get auth_shatangyunCompatibilityHint =>
+      'Sugar Cloud の /novelai、/api/generate、および AstrBot と同じトークンに対応します。アプリは非ストリームの /novelai を自動使用して最終画像を取得し、MessagePack ストリーミングは無効になります。';
 
   @override
   String get auth_thirdPartySubscriptionApi => 'サブスクリプション API に対応';

@@ -724,11 +724,35 @@ abstract class AppLocalizations {
   /// **'Third-party Site'**
   String get auth_thirdPartyLogin;
 
+  /// No description provided for @auth_thirdPartyProviderType.
+  ///
+  /// In en, this message translates to:
+  /// **'API type'**
+  String get auth_thirdPartyProviderType;
+
+  /// No description provided for @auth_providerNovelAiCompatible.
+  ///
+  /// In en, this message translates to:
+  /// **'NovelAI-compatible API'**
+  String get auth_providerNovelAiCompatible;
+
+  /// No description provided for @auth_providerShatangyun.
+  ///
+  /// In en, this message translates to:
+  /// **'Sugar Cloud (Recommended)'**
+  String get auth_providerShatangyun;
+
   /// No description provided for @auth_thirdPartyApiSite.
   ///
   /// In en, this message translates to:
   /// **'Third-party API Site'**
   String get auth_thirdPartyApiSite;
+
+  /// No description provided for @auth_shatangyunEndpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sugar Cloud NovelAI endpoint'**
+  String get auth_shatangyunEndpoint;
 
   /// No description provided for @auth_imageApiSiteOptional.
   ///
@@ -759,6 +783,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Requests use NovelAI-native paths, JSON/MessagePack payloads, and ZIP/image responses. The token is sent as a Bearer token. HTTPS is recommended.'**
   String get auth_thirdPartyCompatibilityHint;
+
+  /// No description provided for @auth_shatangyunCompatibilityHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Compatible with Sugar Cloud /novelai and /api/generate URLs and the same token used by AstrBot. The app automatically uses the non-stream /novelai endpoint and downloads the final image; MessagePack streaming is disabled.'**
+  String get auth_shatangyunCompatibilityHint;
 
   /// No description provided for @auth_thirdPartySubscriptionApi.
   ///

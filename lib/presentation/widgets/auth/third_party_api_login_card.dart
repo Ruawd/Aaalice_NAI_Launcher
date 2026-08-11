@@ -29,6 +29,7 @@ class _ThirdPartyApiLoginCardState
   bool _obscureToken = true;
   bool _supportsSubscriptionApi = true;
   bool _supportsStreamingApi = true;
+  NaiApiProviderType _providerType = NaiApiProviderType.novelAiCompatible;
 
   @override
   void initState() {
@@ -56,26 +57,64 @@ class _ThirdPartyApiLoginCardState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          DropdownButtonFormField<NaiApiProviderType>(
+            key: ValueKey(_providerType),
+            initialValue: _providerType,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: l10n.auth_thirdPartyProviderType,
+              prefixIcon: const Icon(Icons.hub_outlined, size: 20),
+            ),
+            items: [
+              DropdownMenuItem(
+                value: NaiApiProviderType.novelAiCompatible,
+                child: Text(
+                  l10n.auth_providerNovelAiCompatible,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              DropdownMenuItem(
+                value: NaiApiProviderType.shatangyun,
+                child: Text(
+                  l10n.auth_providerShatangyun,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+            onChanged: authState.isLoading
+                ? null
+                : (value) {
+                    if (value != null) _setProviderType(value);
+                  },
+          ),
+          const SizedBox(height: 16),
           FloatingLabelInput(
-            label: l10n.auth_thirdPartyApiSite,
+            label: _providerType == NaiApiProviderType.shatangyun
+                ? l10n.auth_shatangyunEndpoint
+                : l10n.auth_thirdPartyApiSite,
             controller: _mainApiController,
-            hintText: 'https://example.com/api',
+            hintText: _providerType == NaiApiProviderType.shatangyun
+                ? 'https://std.loliyc.com/novelai'
+                : 'https://example.com/api',
             prefixIcon: Icons.public_outlined,
             keyboardType: TextInputType.url,
             textInputAction: TextInputAction.next,
             required: true,
+            onChanged: _handleMainApiChanged,
             validator: (value) => _validateMainApiUrl(value),
           ),
-          const SizedBox(height: 16),
-          FloatingLabelInput(
-            label: l10n.auth_imageApiSiteOptional,
-            controller: _imageApiController,
-            hintText: l10n.auth_imageApiSiteHint,
-            prefixIcon: Icons.image_outlined,
-            keyboardType: TextInputType.url,
-            textInputAction: TextInputAction.next,
-            validator: (value) => _validateImageApiUrl(value),
-          ),
+          if (_providerType == NaiApiProviderType.novelAiCompatible) ...[
+            const SizedBox(height: 16),
+            FloatingLabelInput(
+              label: l10n.auth_imageApiSiteOptional,
+              controller: _imageApiController,
+              hintText: l10n.auth_imageApiSiteHint,
+              prefixIcon: Icons.image_outlined,
+              keyboardType: TextInputType.url,
+              textInputAction: TextInputAction.next,
+              validator: (value) => _validateImageApiUrl(value),
+            ),
+          ],
           const SizedBox(height: 16),
           FloatingLabelInput(
             label: l10n.settings_nickname,
@@ -132,27 +171,31 @@ class _ThirdPartyApiLoginCardState
             },
           ),
           const SizedBox(height: 12),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: Text(l10n.auth_thirdPartySubscriptionApi),
-            subtitle: Text(l10n.auth_thirdPartySubscriptionApiHint),
-            value: _supportsSubscriptionApi,
-            onChanged: (value) {
-              setState(() => _supportsSubscriptionApi = value);
-            },
-          ),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: Text(l10n.auth_thirdPartyStreamingApi),
-            subtitle: Text(l10n.auth_thirdPartyStreamingApiHint),
-            value: _supportsStreamingApi,
-            onChanged: (value) {
-              setState(() => _supportsStreamingApi = value);
-            },
-          ),
+          if (_providerType == NaiApiProviderType.novelAiCompatible) ...[
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l10n.auth_thirdPartySubscriptionApi),
+              subtitle: Text(l10n.auth_thirdPartySubscriptionApiHint),
+              value: _supportsSubscriptionApi,
+              onChanged: (value) {
+                setState(() => _supportsSubscriptionApi = value);
+              },
+            ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l10n.auth_thirdPartyStreamingApi),
+              subtitle: Text(l10n.auth_thirdPartyStreamingApiHint),
+              value: _supportsStreamingApi,
+              onChanged: (value) {
+                setState(() => _supportsStreamingApi = value);
+              },
+            ),
+          ],
           const SizedBox(height: 4),
           Text(
-            l10n.auth_thirdPartyCompatibilityHint,
+            _providerType == NaiApiProviderType.shatangyun
+                ? l10n.auth_shatangyunCompatibilityHint
+                : l10n.auth_thirdPartyCompatibilityHint,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -214,6 +257,7 @@ class _ThirdPartyApiLoginCardState
       NaiApiEndpointConfig.fromInput(
         mainBaseUrl: value,
         imageBaseUrl: _imageApiController.text,
+        providerType: _providerType,
       );
       return null;
     } on ArgumentError catch (e) {
@@ -230,6 +274,7 @@ class _ThirdPartyApiLoginCardState
       NaiApiEndpointConfig.fromInput(
         mainBaseUrl: _mainApiController.text,
         imageBaseUrl: value,
+        providerType: _providerType,
       );
       return null;
     } on ArgumentError catch (e) {
@@ -244,6 +289,35 @@ class _ThirdPartyApiLoginCardState
     }
   }
 
+  void _setProviderType(NaiApiProviderType value) {
+    if (_providerType == value) return;
+    setState(() {
+      _providerType = value;
+      if (value == NaiApiProviderType.shatangyun) {
+        if (_mainApiController.text.trim().isEmpty) {
+          _mainApiController.text = 'https://std.loliyc.com/novelai';
+        }
+        _supportsSubscriptionApi = false;
+        _supportsStreamingApi = false;
+      } else {
+        _supportsSubscriptionApi = true;
+        _supportsStreamingApi = true;
+      }
+    });
+  }
+
+  void _handleMainApiChanged(String value) {
+    final detected = NaiApiEndpointConfig.inferProviderType(value);
+    if (detected == NaiApiProviderType.shatangyun &&
+        _providerType != NaiApiProviderType.shatangyun) {
+      setState(() {
+        _providerType = NaiApiProviderType.shatangyun;
+        _supportsSubscriptionApi = false;
+        _supportsStreamingApi = false;
+      });
+    }
+  }
+
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -252,6 +326,7 @@ class _ThirdPartyApiLoginCardState
       imageBaseUrl: _imageApiController.text,
       supportsSubscriptionApi: _supportsSubscriptionApi,
       supportsStreamingApi: _supportsStreamingApi,
+      providerType: _providerType,
     );
     final token = _tokenController.text.trim();
     final nickname = _nicknameController.text.trim();

@@ -36,6 +36,8 @@ NAI Launcher is a third-party client for NovelAI built with Flutter. It integrat
 | 📦 Generation Queue | Supports task sorting, batch generation, pause/resume, failure handling strategies, progress statistics, and queue import/export. |
 | 🔌 External Integration | Supports local Krita integration, local ComfyUI workflows, system proxy, cross-platform image copying, and file location. |
 
+In addition to the official NovelAI service, the login screen supports configurable NovelAI-compatible third-party providers. Main and image API URLs can be set separately, while `/user/subscription` validation and streaming can be disabled for generation-only gateways. A dedicated Sugar Cloud preset accepts `https://std.loliyc.com/novelai`, AstrBot's usual `/api/generate` URL, and the same token, then automatically uses the non-stream endpoint and resolves the final image URL.
+
 ### Online Gallery Sources
 
 - **Danbooru / Safebooru**: Support tag and date searches plus native daily, weekly, and monthly rankings for a selected date. Danbooru supports login and writable favorites; Safebooru uses anonymous, read-only access to `safebooru.donmai.us`.

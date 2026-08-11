@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore build. Supports official NovelAI and configurable NovelAI-compatible third-party providers, including generation-only and non-stream gateways."
+            --notes "iOS/TrollStore beta 2: fixes the compact iPhone prompt editor and keyboard layout; adds a tested Sugar Cloud adapter for /novelai and /api/generate accounts; automatically migrates beta 1 Sugar Cloud account settings."

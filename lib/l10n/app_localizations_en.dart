@@ -338,7 +338,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_thirdPartyLogin => 'Third-party Site';
 
   @override
+  String get auth_thirdPartyProviderType => 'API type';
+
+  @override
+  String get auth_providerNovelAiCompatible => 'NovelAI-compatible API';
+
+  @override
+  String get auth_providerShatangyun => 'Sugar Cloud (Recommended)';
+
+  @override
   String get auth_thirdPartyApiSite => 'Third-party API Site';
+
+  @override
+  String get auth_shatangyunEndpoint => 'Sugar Cloud NovelAI endpoint';
 
   @override
   String get auth_imageApiSiteOptional => 'Image API Site (optional)';
@@ -358,6 +370,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get auth_thirdPartyCompatibilityHint =>
       'Requests use NovelAI-native paths, JSON/MessagePack payloads, and ZIP/image responses. The token is sent as a Bearer token. HTTPS is recommended.';
+
+  @override
+  String get auth_shatangyunCompatibilityHint =>
+      'Compatible with Sugar Cloud /novelai and /api/generate URLs and the same token used by AstrBot. The app automatically uses the non-stream /novelai endpoint and downloads the final image; MessagePack streaming is disabled.';
 
   @override
   String get auth_thirdPartySubscriptionApi => 'Supports subscription API';

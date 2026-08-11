@@ -42,6 +42,7 @@ class _MobileGenerationLayoutState
     final isGenerating =
         isLauncherGenerating || kritaBridgeState.isBridgeGenerating;
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
+    final isKeyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return ThemedScaffold(
       // 使用 GlobalKey 来控制 Drawer
@@ -97,7 +98,12 @@ class _MobileGenerationLayoutState
                   ),
                 )
               : Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.fromLTRB(
+                    12,
+                    isKeyboardVisible ? 8 : 12,
+                    12,
+                    isKeyboardVisible ? 4 : 12,
+                  ),
                   child: const PromptInputWidget(compact: true),
                 ),
 
@@ -130,7 +136,10 @@ class _MobileGenerationLayoutState
       // 底部生成按钮
       bottomNavigationBar: SafeArea(
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.symmetric(
+            horizontal: isKeyboardVisible ? 12 : 16,
+            vertical: isKeyboardVisible ? 8 : 16,
+          ),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
             border: Border(
@@ -139,13 +148,15 @@ class _MobileGenerationLayoutState
           ),
           child: Row(
             children: [
-              // Opus 免费配额 + Anlas 余额显示
-              const OpusUsageChip(compact: true),
-              const SizedBox(width: 6),
-              const AnlasBalanceChip(compact: true),
-              const SizedBox(width: 8),
+              // 配额和余额在键盘弹出时收起，给生成按钮保留空间。
+              if (!isKeyboardVisible) ...[
+                const OpusUsageChip(compact: true),
+                const SizedBox(width: 6),
+                const AnlasBalanceChip(compact: true),
+                const SizedBox(width: 8),
+              ],
               // 抽卡模式开关
-              if (showRandomTools) ...[
+              if (showRandomTools && !isKeyboardVisible) ...[
                 _MobileRandomModeToggle(
                   enabled: ref.watch(randomPromptModeProvider),
                 ),

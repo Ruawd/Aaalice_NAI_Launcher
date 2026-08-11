@@ -957,6 +957,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             controller: _promptController,
             focusNode: _promptFocusNode,
             sessionId: PromptHistorySessionIds.generationPrompt,
+            // The assistant toolbar needs roughly 48 logical pixels of
+            // clearance. Mounting it inside this fixed 72px compact editor
+            // leaves almost no editable area on iPhone and covers the prompt.
+            // The full-screen editor still exposes the complete assistant.
+            enableAssistant: false,
             onOpenAssistantSettings: _openAssistantQuickSettings,
             config: UnifiedPromptConfig(
               enableSyntaxHighlight: enableHighlight,

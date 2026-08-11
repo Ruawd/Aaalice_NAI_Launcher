@@ -287,9 +287,30 @@ class NAIImageGenerationApiService {
         AppLogger.d('==========================================', 'ImgGen');
       }
 
-      // 5. 发送请求
+      // 5. 发送请求。砂糖云接受 NAI 官方 JSON 参数，但返回图片 URL
+      // JSON；其余兼容服务继续按 NovelAI ZIP 响应处理。
+      final endpoint = _endpointService.current;
+      if (endpoint.isShatangyun) {
+        final images = await _generateWithShatangyun(
+          endpoint.imageGenerationUrl,
+          requestData,
+          cancelToken: cancelToken,
+          onProgress: onProgress,
+        );
+        final artifacts = await _compositeInpaintImages(
+          images,
+          params,
+          focusedRequest,
+          requestBuildResult,
+        );
+        if (artifacts.isEmpty) {
+          throw Exception('砂糖云响应中没有可用图片');
+        }
+        return (artifacts, vibeEncodingMap);
+      }
+
       final response = await _dio.post(
-        _endpointService.imageUrl(ApiConstants.generateImageEndpoint),
+        endpoint.imageGenerationUrl,
         data: requestData,
         cancelToken: cancelToken,
         onReceiveProgress: onProgress,
@@ -319,6 +340,208 @@ class NAIImageGenerationApiService {
         _currentCancelToken = null;
       }
     }
+  }
+
+  Future<List<Uint8List>> _generateWithShatangyun(
+    String generationUrl,
+    Map<String, dynamic> requestData, {
+    required CancelToken cancelToken,
+    void Function(int, int)? onProgress,
+  }) async {
+    AppLogger.i('Using Sugar Cloud NovelAI response adapter', 'ImgGen');
+    final response = await _dio.post<dynamic>(
+      generationUrl,
+      data: requestData,
+      cancelToken: cancelToken,
+      options: Options(
+        responseType: ResponseType.json,
+        headers: {'Accept': 'application/json'},
+      ),
+    );
+
+    final responseData = _decodeJsonResponse(response.data);
+    final locations = _extractShatangyunImageLocations(responseData);
+    if (locations.isEmpty) {
+      final detail = _extractProviderError(responseData);
+      throw Exception(detail.isEmpty ? '砂糖云没有返回图片地址' : '砂糖云生图失败：$detail');
+    }
+
+    final baseUri = Uri.parse(generationUrl);
+    final images = <Uint8List>[];
+    for (var index = 0; index < locations.length; index++) {
+      if (cancelToken.isCancelled) {
+        throw DioException(
+          requestOptions: response.requestOptions,
+          type: DioExceptionType.cancel,
+          error: 'User cancelled',
+        );
+      }
+      final bytes = await _loadShatangyunImage(
+        locations[index],
+        baseUri: baseUri,
+        cancelToken: cancelToken,
+        onProgress: onProgress,
+      );
+      images.add(bytes);
+    }
+    return images;
+  }
+
+  dynamic _decodeJsonResponse(dynamic data) {
+    if (data is String) {
+      try {
+        return jsonDecode(data);
+      } on FormatException {
+        return data;
+      }
+    }
+    return data;
+  }
+
+  List<String> _extractShatangyunImageLocations(dynamic responseData) {
+    final result = <String>[];
+
+    void addLocation(dynamic value) {
+      if (value is String && value.trim().isNotEmpty) {
+        final normalized = value.trim();
+        final lower = normalized.toLowerCase();
+        final looksLikeLocation =
+            lower.startsWith('https://') ||
+            lower.startsWith('http://') ||
+            lower.startsWith('/') ||
+            lower.startsWith('data:image/') ||
+            RegExp(
+              r'\.(png|jpe?g|webp|gif)(\?.*)?$',
+              caseSensitive: false,
+            ).hasMatch(normalized) ||
+            (normalized.length > 128 &&
+                RegExp(r'^[A-Za-z0-9+/=_-]+$').hasMatch(normalized));
+        if (!looksLikeLocation) return;
+        if (!result.contains(normalized)) result.add(normalized);
+        return;
+      }
+      if (value is List) {
+        for (final item in value) {
+          addLocation(item);
+        }
+        return;
+      }
+      if (value is Map) {
+        addLocation(value['url']);
+        addLocation(value['image_url']);
+        addLocation(value['b64_json']);
+      }
+    }
+
+    if (responseData is Map) {
+      addLocation(responseData['data']);
+      addLocation(responseData['images']);
+      addLocation(responseData['url']);
+      addLocation(responseData['image_url']);
+      addLocation(responseData['original_response']);
+    } else {
+      addLocation(responseData);
+    }
+    return result;
+  }
+
+  String _extractProviderError(dynamic responseData) {
+    if (responseData is Map) {
+      for (final key in const ['detail', 'message', 'error', 'data']) {
+        final value = responseData[key];
+        if (value is String && value.trim().isNotEmpty) return value.trim();
+      }
+      final original = responseData['original_response'];
+      if (original is Map) return _extractProviderError(original);
+    }
+    if (responseData is String) return responseData.trim();
+    return '';
+  }
+
+  Future<Uint8List> _loadShatangyunImage(
+    String location, {
+    required Uri baseUri,
+    required CancelToken cancelToken,
+    void Function(int, int)? onProgress,
+  }) async {
+    if (location.startsWith('data:image/')) {
+      final comma = location.indexOf(',');
+      if (comma < 0 || !location.substring(0, comma).contains(';base64')) {
+        throw Exception('砂糖云返回了无效的内嵌图片');
+      }
+      try {
+        return Uint8List.fromList(base64Decode(location.substring(comma + 1)));
+      } on FormatException {
+        throw Exception('砂糖云返回的内嵌图片无法解码');
+      }
+    }
+
+    // Some OpenAI-style gateways return raw base64 in `b64_json`.
+    if (!location.contains('://') &&
+        !location.startsWith('/') &&
+        location.length > 128) {
+      try {
+        final bytes = Uint8List.fromList(base64Decode(location));
+        if (_looksLikeImage(bytes)) return bytes;
+      } on FormatException {
+        // Continue and report the location as invalid below.
+      }
+    }
+
+    final parsed = Uri.tryParse(location);
+    if (parsed == null) throw Exception('砂糖云返回了无效的图片地址');
+    final imageUri = parsed.hasScheme ? parsed : baseUri.resolveUri(parsed);
+    if (imageUri.scheme != 'https' && imageUri.scheme != 'http') {
+      throw Exception('砂糖云返回了不支持的图片地址');
+    }
+
+    final response = await _dio.get<dynamic>(
+      imageUri.toString(),
+      cancelToken: cancelToken,
+      onReceiveProgress: onProgress,
+      options: Options(
+        responseType: ResponseType.bytes,
+        headers: {'Accept': 'image/*'},
+        // The generated image is public. Never forward the user's API token
+        // to a URL returned inside a provider response.
+        extra: {'skipAuth': true},
+      ),
+    );
+    final data = response.data;
+    final bytes = data is Uint8List
+        ? data
+        : data is List<int>
+        ? Uint8List.fromList(data)
+        : Uint8List(0);
+    if (!_looksLikeImage(bytes)) {
+      throw Exception('砂糖云返回的图片数据无效或不完整');
+    }
+    return bytes;
+  }
+
+  bool _looksLikeImage(Uint8List bytes) {
+    if (bytes.length < 12) return false;
+    final isPng =
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47;
+    final isJpeg = bytes[0] == 0xFF && bytes[1] == 0xD8;
+    final isGif =
+        bytes[0] == 0x47 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x38;
+    final isWebp =
+        bytes[0] == 0x52 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x46 &&
+        bytes[8] == 0x57 &&
+        bytes[9] == 0x45 &&
+        bytes[10] == 0x42 &&
+        bytes[11] == 0x50;
+    return isPng || isJpeg || isGif || isWebp;
   }
 
   /// 生成图像（可取消版本） - 保持向后兼容
