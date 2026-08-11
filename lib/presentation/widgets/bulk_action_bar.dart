@@ -78,6 +78,99 @@ class BulkActionBar extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final compactActions = constraints.maxWidth < 900;
+              final mobileLayout = constraints.maxWidth < 720;
+
+              Widget selectionBadge() => Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.8,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  l10n.bulkAction_selectedCount(selectedCount),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+
+              List<Widget> actionButtons({required bool compact}) => [
+                for (int i = 0; i < actions.length; i++) ...[
+                  if (i > 0 && actions[i].showDividerBefore) ...[
+                    const SizedBox(width: 16),
+                    Container(
+                      width: 1,
+                      height: 28,
+                      color: theme.dividerColor.withValues(alpha: 0.3),
+                    ),
+                    const SizedBox(width: 16),
+                  ] else if (i > 0)
+                    const SizedBox(width: 8),
+                  _ActionButton(
+                    icon: actions[i].icon,
+                    label: actions[i].label,
+                    onPressed: hasSelection ? actions[i].onPressed : null,
+                    color: actions[i].color,
+                    isDanger: actions[i].isDanger,
+                    compact: compact,
+                  ),
+                ],
+              ];
+
+              if (mobileLayout) {
+                return SingleChildScrollView(
+                  key: const ValueKey('bulkActionBarScroll'),
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _ActionButton(
+                        icon: Icons.close,
+                        label: l10n.common_exit,
+                        onPressed: onExit,
+                        compact: true,
+                      ),
+                      const SizedBox(width: 12),
+                      selectionBadge(),
+                      const SizedBox(width: 12),
+                      _ActionButton(
+                        icon: isAllSelected ? Icons.deselect : Icons.select_all,
+                        label: isAllSelected
+                            ? deselectAllLabel ?? l10n.common_deselectAll
+                            : selectAllLabel ?? l10n.common_selectAll,
+                        onPressed: onSelectAll,
+                        compact: true,
+                      ),
+                      if (onSelectAllAvailable != null) ...[
+                        const SizedBox(width: 8),
+                        _ActionButton(
+                          icon: isAllAvailableSelected
+                              ? Icons.deselect
+                              : Icons.library_add_check_outlined,
+                          label: isAllAvailableSelected
+                              ? deselectAllAvailableLabel ??
+                                    l10n.common_deselectAll
+                              : selectAllAvailableLabel ??
+                                    l10n.common_selectAll,
+                          onPressed: onSelectAllAvailable,
+                          compact: true,
+                        ),
+                      ],
+                      const SizedBox(width: 16),
+                      ...actionButtons(compact: true),
+                      const SizedBox(width: 8),
+                    ],
+                  ),
+                );
+              }
 
               return Row(
                 children: [
@@ -91,29 +184,7 @@ class BulkActionBar extends StatelessWidget {
                   const SizedBox(width: 12),
 
                   // 选中数量徽章
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer.withValues(
-                          alpha: 0.8,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        l10n.bulkAction_selectedCount(selectedCount),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
+                  Flexible(child: selectionBadge()),
                   const SizedBox(width: 12),
 
                   // 全选/取消全选按钮
@@ -144,28 +215,7 @@ class BulkActionBar extends StatelessWidget {
                   // 操作按钮组
                   Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (int i = 0; i < actions.length; i++) ...[
-                        if (i > 0 && actions[i].showDividerBefore) ...[
-                          const SizedBox(width: 16),
-                          Container(
-                            width: 1,
-                            height: 28,
-                            color: theme.dividerColor.withValues(alpha: 0.3),
-                          ),
-                          const SizedBox(width: 16),
-                        ] else if (i > 0)
-                          const SizedBox(width: 8),
-                        _ActionButton(
-                          icon: actions[i].icon,
-                          label: actions[i].label,
-                          onPressed: hasSelection ? actions[i].onPressed : null,
-                          color: actions[i].color,
-                          isDanger: actions[i].isDanger,
-                          compact: compactActions,
-                        ),
-                      ],
-                    ],
+                    children: actionButtons(compact: compactActions),
                   ),
                 ],
               );

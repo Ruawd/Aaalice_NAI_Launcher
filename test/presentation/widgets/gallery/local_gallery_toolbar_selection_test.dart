@@ -1,42 +1,105 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
+import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_gallery_toolbar.dart';
 
 void main() {
-  testWidgets('selection toolbar separates current page and all result actions',
-      (tester) async {
-    await _pumpToolbar(tester);
+  testWidgets('normal toolbar uses a scrollable compact layout on iPhone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-    expect(find.byTooltip('选择本页'), findsOneWidget);
-    expect(find.byTooltip('选择全部'), findsOneWidget);
-    expect(find.byTooltip('全选'), findsNothing);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localGalleryNotifierProvider.overrideWith(
+            () => _ToolbarGalleryNotifier(
+              const LocalGalleryState(
+                totalCount: 12,
+                filteredCount: 12,
+                isInitialized: true,
+              ),
+              filteredPaths: const [],
+            ),
+          ),
+          shortcutConfigNotifierProvider.overrideWith(
+            _TestShortcutConfigNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: LocalGalleryToolbar(enableSearchAutocomplete: false),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('localGalleryToolbarCompact')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('localGalleryToolbarActionsScroll')),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.refresh), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('select current page only selects visible page paths',
-      (tester) async {
+  testWidgets('selection toolbar remains scrollable on iPhone', (tester) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpToolbar(tester);
+
+    expect(find.byKey(const ValueKey('bulkActionBarScroll')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'selection toolbar separates current page and all result actions',
+    (tester) async {
+      await _pumpToolbar(tester);
+
+      expect(find.byTooltip('选择本页'), findsOneWidget);
+      expect(find.byTooltip('选择全部'), findsOneWidget);
+      expect(find.byTooltip('全选'), findsNothing);
+    },
+  );
+
+  testWidgets('select current page only selects visible page paths', (
+    tester,
+  ) async {
     final container = await _pumpToolbar(tester);
 
     await tester.tap(find.byTooltip('选择本页'));
     await tester.pump();
 
-    expect(
-      container.read(localGallerySelectionNotifierProvider).selectedIds,
-      {
-        r'C:\gallery\page-1.png',
-        r'C:\gallery\page-2.png',
-      },
-    );
+    expect(container.read(localGallerySelectionNotifierProvider).selectedIds, {
+      r'C:\gallery\page-1.png',
+      r'C:\gallery\page-2.png',
+    });
     expect(find.byTooltip('取消本页'), findsOneWidget);
     expect(find.byTooltip('选择全部'), findsOneWidget);
   });
 
-  testWidgets('select all replaces selection with all filtered result paths',
-      (tester) async {
+  testWidgets('select all replaces selection with all filtered result paths', (
+    tester,
+  ) async {
     final container = await _pumpToolbar(
       tester,
       initialSelectedIds: {r'C:\gallery\stale.png'},
@@ -45,16 +108,13 @@ void main() {
     await tester.tap(find.byTooltip('选择全部'));
     await tester.pumpAndSettle();
 
-    expect(
-      container.read(localGallerySelectionNotifierProvider).selectedIds,
-      {
-        r'C:\gallery\page-1.png',
-        r'C:\gallery\page-2.png',
-        r'C:\gallery\result-3.png',
-        r'C:\gallery\result-4.png',
-        r'C:\gallery\result-5.png',
-      },
-    );
+    expect(container.read(localGallerySelectionNotifierProvider).selectedIds, {
+      r'C:\gallery\page-1.png',
+      r'C:\gallery\page-2.png',
+      r'C:\gallery\result-3.png',
+      r'C:\gallery\result-4.png',
+      r'C:\gallery\result-5.png',
+    });
     expect(find.byTooltip('取消全部'), findsOneWidget);
   });
 }
@@ -95,9 +155,7 @@ Future<ProviderContainer> _pumpToolbar(
         locale: Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: LocalGalleryToolbar(),
-        ),
+        home: Scaffold(body: LocalGalleryToolbar()),
       ),
     ),
   );
@@ -108,18 +166,11 @@ Future<ProviderContainer> _pumpToolbar(
 }
 
 LocalImageRecord _record(String path) {
-  return LocalImageRecord(
-    path: path,
-    size: 1,
-    modifiedAt: DateTime(2026),
-  );
+  return LocalImageRecord(path: path, size: 1, modifiedAt: DateTime(2026));
 }
 
 class _ToolbarGalleryNotifier extends LocalGalleryNotifier {
-  _ToolbarGalleryNotifier(
-    this._initialState, {
-    required this.filteredPaths,
-  });
+  _ToolbarGalleryNotifier(this._initialState, {required this.filteredPaths});
 
   final LocalGalleryState _initialState;
   final List<String> filteredPaths;
@@ -138,9 +189,12 @@ class _ActiveSelectionNotifier extends LocalGallerySelectionNotifier {
 
   @override
   SelectionModeState build() {
-    return SelectionModeState(
-      isActive: true,
-      selectedIds: _initialSelectedIds,
-    );
+    return SelectionModeState(isActive: true, selectedIds: _initialSelectedIds);
   }
+}
+
+class _TestShortcutConfigNotifier extends ShortcutConfigNotifier {
+  @override
+  Future<ShortcutConfig> build() async =>
+      const ShortcutConfig(enableShortcuts: false);
 }
