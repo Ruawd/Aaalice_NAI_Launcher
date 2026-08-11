@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases"><img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"></a>
+  <a href="https://github.com/Ruawd/Aaalice_NAI_Launcher/releases"><img src="https://img.shields.io/badge/version-1.5.0-blue" alt="Version"></a>
   <img src="https://img.shields.io/badge/Flutter-3.44.2-blue?logo=flutter" alt="Flutter">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20iOS-lightgrey" alt="Platforms">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
@@ -89,7 +89,7 @@ In addition to the official NovelAI service, the login screen supports configura
 
 ## 📦 Download & Install
 
-Download the latest version from [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases).
+Download the latest version from [Releases](https://github.com/Ruawd/Aaalice_NAI_Launcher/releases).
 
 | Platform | Download File | Usage |
 | --- | --- | --- |
@@ -120,7 +120,7 @@ You can log in using NovelAI account credentials, an API Token, or a NovelAI-com
 ### General Steps
 
 ```bash
-git clone https://github.com/Aaalice233/Aaalice_NAI_Launcher.git
+git clone https://github.com/Ruawd/Aaalice_NAI_Launcher.git
 cd Aaalice_NAI_Launcher
 
 git lfs install

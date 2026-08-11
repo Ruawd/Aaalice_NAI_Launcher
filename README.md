@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases"><img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"></a>
+  <a href="https://github.com/Ruawd/Aaalice_NAI_Launcher/releases"><img src="https://img.shields.io/badge/version-1.5.0-blue" alt="Version"></a>
   <img src="https://img.shields.io/badge/Flutter-3.44.2-blue?logo=flutter" alt="Flutter">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20iOS-lightgrey" alt="Platforms">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
@@ -89,7 +89,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 
 ## 📦 下载与安装
 
-前往 [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases) 下载最新版本。
+前往 [Releases](https://github.com/Ruawd/Aaalice_NAI_Launcher/releases) 下载最新版本。
 
 | 平台 | 下载文件 | 使用方式 |
 | --- | --- | --- |
@@ -120,7 +120,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 ### 通用步骤
 
 ```bash
-git clone https://github.com/Aaalice233/Aaalice_NAI_Launcher.git
+git clone https://github.com/Ruawd/Aaalice_NAI_Launcher.git
 cd Aaalice_NAI_Launcher
 
 git lfs install
