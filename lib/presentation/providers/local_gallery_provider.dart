@@ -186,53 +186,39 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   ///
   /// 延迟初始化，确保在调用时才获取
   Future<LocalGalleryService> getService() async {
-    if (_service == null) {
-      // 等待服务初始化完成（最多10秒）
-      var attempts = 0;
-      const maxAttempts = 100; // 100 * 100ms = 10秒
-      LocalGalleryService? lastService;
-      while (attempts < maxAttempts) {
-        final service = ref.read(galleryServiceProvider);
-        lastService = service;
-
-        // 【调试】记录服务类型变化
-        if (attempts % 10 == 0) {
-          AppLogger.d(
-            'Waiting for gallery service: attempt=$attempts, type=${service.runtimeType}, isInitialized=${service.isInitialized}',
-            'LocalGalleryNotifier',
-          );
-        }
-
-        // 检查是否是错误状态的服务
-        if (service is ErrorGalleryService) {
-          throw GalleryDatabaseException(
-            message: 'Gallery service initialization failed: ${service.error}',
-          );
-        }
-
-        // 使用 isInitialized 检查服务是否已初始化
-        if (service.isInitialized) {
-          _service = service;
-          AppLogger.d(
-            'Gallery service ready after $attempts attempts, type=${service.runtimeType}',
-            'LocalGalleryNotifier',
-          );
-          break;
-        }
-        // 等待后重试
-        await Future.delayed(const Duration(milliseconds: 100));
-        attempts++;
-      }
-      if (_service == null) {
-        final typeInfo = lastService != null
-            ? ' (last type: ${lastService.runtimeType})'
-            : '';
-        throw GalleryDatabaseException(
-          message: 'Gallery service initialization timed out$typeInfo',
-        );
-      }
+    final cached = _service;
+    if (cached != null && cached.isInitialized) {
+      return cached;
     }
-    return _service!;
+
+    final current = ref.read(galleryServiceProvider);
+    if (current.isInitialized) {
+      _service = current;
+      return current;
+    }
+
+    AppLogger.d(
+      'Waiting for gallery service readiness: type=${current.runtimeType}',
+      'LocalGalleryNotifier',
+    );
+    final service = await ref.read(galleryServiceProvider.notifier).ready;
+    if (service is ErrorGalleryService) {
+      throw GalleryDatabaseException(
+        message: 'Gallery service initialization failed: ${service.error}',
+      );
+    }
+    if (!service.isInitialized) {
+      throw const GalleryNotInitializedException(
+        message: 'Gallery service completed without becoming ready',
+      );
+    }
+
+    _service = service;
+    AppLogger.d(
+      'Gallery service ready: type=${service.runtimeType}',
+      'LocalGalleryNotifier',
+    );
+    return service;
   }
 
   // ============================================================
@@ -335,6 +321,31 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         ),
       );
     }
+  }
+
+  /// 从服务创建阶段重新尝试初始化。
+  ///
+  /// 与普通 [refresh] 不同，该方法会丢弃错误/占位服务并创建新的服务实例，
+  /// 用于权限、数据库或首次文件扫描失败后的“重试”按钮。
+  Future<void> retryInitialization() async {
+    _service = null;
+    _filterRequestSerial++;
+    _cachedState = null;
+    _setState(
+      const LocalGalleryState(
+        isLoading: true,
+        isIndexing: true,
+        isPageLoading: true,
+      ),
+    );
+
+    try {
+      _service = await ref.read(galleryServiceProvider.notifier).reinitialize();
+    } catch (_) {
+      // initialize() 会读取同一个已完成的 Future，并把具体异常映射到 UI 状态。
+    }
+
+    await initialize();
   }
 
   // ============================================================
@@ -494,7 +505,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   /// 执行增量扫描，更新文件列表和索引
   Future<void> refresh({bool scan = true}) async {
     if (!state.isInitialized) {
-      await initialize();
+      if (state.error != null) {
+        await retryInitialization();
+      } else {
+        await initialize();
+      }
       return;
     }
 

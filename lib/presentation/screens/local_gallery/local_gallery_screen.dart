@@ -198,37 +198,41 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         autofocus: true,
         onKeyEvent: (event) => _handleKeyEvent(event, bulkOpState),
         child: Scaffold(
-          body: Row(
-            children: [
-              if (_showCategoryPanel && screenWidth > 800)
-                _buildCategoryPanel(theme, state, categoryState),
-              Expanded(
-                child: Column(
-                  children: [
-                    _buildToolbarOrSelectionBar(state, bulkOpState),
-                    Expanded(child: _buildBody(state, columns, itemWidth)),
-                    if (!state.isIndexing &&
-                        state.filteredFiles.isNotEmpty &&
-                        state.totalPages > 0)
-                      PaginationBar(
-                        currentPage: state.currentPage,
-                        totalPages: state.totalPages,
-                        totalItems: state.filteredCount,
-                        itemsPerPage: state.pageSize,
-                        onPageChanged: (p) => ref
-                            .read(localGalleryNotifierProvider.notifier)
-                            .loadPage(p),
-                        onItemsPerPageChanged: (size) => ref
-                            .read(localGalleryNotifierProvider.notifier)
-                            .setPageSize(size),
-                        showItemsPerPage: true,
-                        showTotalInfo: true,
-                        compact: contentWidth < 600,
-                      ),
-                  ],
+          body: SafeArea(
+            key: const ValueKey('localGallerySafeArea'),
+            bottom: false,
+            child: Row(
+              children: [
+                if (_showCategoryPanel && screenWidth > 800)
+                  _buildCategoryPanel(theme, state, categoryState),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _buildToolbarOrSelectionBar(state, bulkOpState),
+                      Expanded(child: _buildBody(state, columns, itemWidth)),
+                      if (!state.isIndexing &&
+                          state.filteredFiles.isNotEmpty &&
+                          state.totalPages > 0)
+                        PaginationBar(
+                          currentPage: state.currentPage,
+                          totalPages: state.totalPages,
+                          totalItems: state.filteredCount,
+                          itemsPerPage: state.pageSize,
+                          onPageChanged: (p) => ref
+                              .read(localGalleryNotifierProvider.notifier)
+                              .loadPage(p),
+                          onItemsPerPageChanged: (size) => ref
+                              .read(localGalleryNotifierProvider.notifier)
+                              .setPageSize(size),
+                          showItemsPerPage: true,
+                          showTotalInfo: true,
+                          compact: contentWidth < 600,
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -546,8 +550,14 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     if (state.error != null) {
       return GalleryErrorView(
         error: state.error!.localized(context.l10n),
-        onRetry: () =>
-            ref.read(localGalleryNotifierProvider.notifier).refresh(),
+        onRetry: () {
+          final notifier = ref.read(localGalleryNotifierProvider.notifier);
+          if (state.isInitialized) {
+            notifier.refresh();
+          } else {
+            notifier.retryInitialization();
+          }
+        },
       );
     }
 

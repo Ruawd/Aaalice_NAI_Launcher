@@ -357,10 +357,17 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
 
     final rootDir = Directory(rootPath);
     if (!await rootDir.exists()) {
-      throw GalleryPermissionDeniedException(
-        path: rootPath,
-        message: 'Gallery folder does not exist: $rootPath',
-      );
+      try {
+        // 新安装时默认图片目录尚不存在是正常情况。主动创建后应显示空图库，
+        // 而不是把“目录不存在”误报成权限错误。
+        await rootDir.create(recursive: true);
+      } catch (e) {
+        throw GalleryPermissionDeniedException(
+          path: rootPath,
+          message: 'Unable to create gallery folder: $rootPath',
+          cause: e,
+        );
+      }
     }
 
     var files = <File>[];
@@ -1262,22 +1269,64 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
 @Riverpod(keepAlive: true)
 class GalleryService extends _$GalleryService {
   LocalGalleryService? _service;
+  Future<LocalGalleryService>? _initializationFuture;
+  Future<LocalGalleryService>? _reinitializationFuture;
+  var _initializationGeneration = 0;
+  var _isDisposed = false;
 
   @override
   LocalGalleryService build() {
-    // 初始化时创建服务实例
-    _initializeService();
+    _isDisposed = false;
 
     ref.onDispose(() {
-      _service?.dispose();
+      _isDisposed = true;
+      _initializationGeneration++;
+      final service = _service;
       _service = null;
+      _initializationFuture = null;
+      _reinitializationFuture = null;
+      if (service != null) {
+        unawaited(service.dispose());
+      }
     });
 
-    // 返回一个未初始化的占位服务，直到异步初始化完成
+    // Provider build 必须同步返回。真正的初始化安排到微任务中，并通过
+    // [ready] 暴露同一个 Future，避免调用方轮询占位服务和误报超时。
+    _startInitialization();
     return _PlaceholderGalleryService();
   }
 
-  Future<void> _initializeService() async {
+  /// 等待当前画廊服务完成初始化。
+  ///
+  /// 文件系统扫描在图片较多或 iOS 存储较慢时可能持续较久，因此这里不设置
+  /// 任意的短超时。初始化失败时会原样传播具体异常。
+  Future<LocalGalleryService> get ready {
+    final service = _service;
+    if (service != null && service.isInitialized) {
+      return Future.value(service);
+    }
+    return _initializationFuture ?? _startInitialization();
+  }
+
+  Future<LocalGalleryService> _startInitialization() {
+    final existing = _initializationFuture;
+    if (existing != null) return existing;
+
+    final generation = ++_initializationGeneration;
+    final future = Future<LocalGalleryService>.microtask(
+      () => _initializeService(generation),
+    );
+    _initializationFuture = future;
+
+    // build() 会主动启动初始化，而当时可能还没有调用方等待 ready。挂载一个
+    // 仅用于消费异步错误的监听，真实错误仍保留在 original future 中供 ready
+    // 的调用方获取。
+    unawaited(future.then<void>((_) {}, onError: (Object _, StackTrace __) {}));
+    return future;
+  }
+
+  Future<LocalGalleryService> _initializeService(int generation) async {
+    LocalGalleryService? candidate;
     try {
       // 等待数据库准备就绪
       final dbManager = DatabaseManager.instance;
@@ -1291,40 +1340,97 @@ class GalleryService extends _$GalleryService {
 
       final filterService = GalleryFilterService(dataSource);
 
-      _service = LocalGalleryServiceImpl(
+      candidate = LocalGalleryServiceImpl(
         dataSource: dataSource,
         filterService: filterService,
       );
 
       // 初始化服务
-      await _service!.initialize();
+      await candidate.initialize();
+
+      if (_isDisposed || generation != _initializationGeneration) {
+        await candidate.dispose();
+        throw const GalleryCancelledException();
+      }
 
       // 通知状态更新
-      state = _service!;
+      _service = candidate;
+      state = candidate;
+      return candidate;
     } on GalleryPermissionDeniedException catch (e) {
       AppLogger.e('Gallery permission denied', e, null, 'GalleryService');
-      // 创建错误状态的服务
-      state = ErrorGalleryService(error: '无法访问图片文件夹: ${e.message}');
+      await candidate?.dispose();
+      _publishInitializationError(generation, '无法访问图片文件夹: ${e.message}');
+      rethrow;
     } on GalleryScanException catch (e) {
       AppLogger.e('Gallery scan failed', e, null, 'GalleryService');
-      state = ErrorGalleryService(error: '扫描图片失败: ${e.message}');
-    } catch (e) {
+      await candidate?.dispose();
+      _publishInitializationError(generation, '扫描图片失败: ${e.message}');
+      rethrow;
+    } catch (e, stack) {
       AppLogger.e(
         'Failed to initialize gallery service',
         e,
-        null,
+        stack,
         'GalleryService',
       );
-      // 创建错误状态的服务，让调用方知道初始化失败
-      state = ErrorGalleryService(error: '画廊初始化失败: $e');
+      await candidate?.dispose();
+      _publishInitializationError(generation, '画廊初始化失败: $e');
+      rethrow;
     }
   }
 
+  void _publishInitializationError(int generation, String message) {
+    if (_isDisposed || generation != _initializationGeneration) return;
+    _service = null;
+    state = ErrorGalleryService(error: message);
+  }
+
   /// 重新初始化服务
-  Future<void> reinitialize() async {
+  Future<LocalGalleryService> reinitialize() {
+    final active = _reinitializationFuture;
+    if (active != null) return active;
+
+    final operation = _doReinitialize();
+    _reinitializationFuture = operation;
+    unawaited(
+      operation.then<void>(
+        (_) {
+          if (identical(_reinitializationFuture, operation)) {
+            _reinitializationFuture = null;
+          }
+        },
+        onError: (Object _, StackTrace __) {
+          if (identical(_reinitializationFuture, operation)) {
+            _reinitializationFuture = null;
+          }
+        },
+      ),
+    );
+    return operation;
+  }
+
+  Future<LocalGalleryService> _doReinitialize() async {
+    // 正常情况下重试只会在初始化已经失败后触发。等待旧任务收尾可避免两个
+    // 文件扫描同时操作同一目录。
+    final previousInitialization = _initializationFuture;
+    if (previousInitialization != null) {
+      try {
+        await previousInitialization;
+      } catch (_) {
+        // 旧错误会由新一轮初始化重新、准确地呈现。
+      }
+    }
+
+    if (_isDisposed) {
+      throw const GalleryCancelledException();
+    }
+
     await _service?.dispose();
     _service = null;
-    await _initializeService();
+    _initializationFuture = null;
+    state = _PlaceholderGalleryService();
+    return _startInitialization();
   }
 }
 
