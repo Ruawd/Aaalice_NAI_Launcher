@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/latest"><img src="https://img.shields.io/github/v/release/Aaalice233/Aaalice_NAI_Launcher?display_name=tag&sort=semver" alt="Latest release"></a>
+  <a href="https://github.com/Ruawd/Aaalice_NAI_Launcher/releases/latest"><img src="https://img.shields.io/github/v/release/Ruawd/Aaalice_NAI_Launcher?display_name=tag&sort=semver" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey" alt="Platforms">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <a href="https://discord.gg/R48n6GwXzD"><img src="https://img.shields.io/badge/Discord-加入服务器-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
@@ -85,7 +85,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 
 ## 📦 下载与安装
 
-前往 [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases) 下载最新版本。应用会在登录前后持续提示可用更新，并完整渲染 Release“更新内容”中的 GitHub Flavored Markdown（标题、列表、表格、引用、代码、链接与图片），不重复显示平台下载与文件校验区段。
+前往 [Releases](https://github.com/Ruawd/Aaalice_NAI_Launcher/releases) 下载最新版本。应用会在登录前后持续提示可用更新，并完整渲染 Release“更新内容”中的 GitHub Flavored Markdown（标题、列表、表格、引用、代码、链接与图片），不重复显示平台下载与文件校验区段。
 
 | 平台 | 下载文件 | 使用方式 |
 | --- | --- | --- |
@@ -107,7 +107,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 - 遇到问题或有功能建议，请提交 [GitHub Issue](https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues)。
 - 交流使用经验、获取社区帮助可加入 [Discord](https://discord.gg/R48n6GwXzD)。
 - 欢迎提交 Pull Request；请说明变更目标、验证方式，界面改动尽量附上截图或录屏。
-- 每个版本的完整变化请查看 [CHANGELOG.md](CHANGELOG.md) 或 [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases)。
+- 每个版本的完整变化请查看 [CHANGELOG.md](CHANGELOG.md) 或 [Releases](https://github.com/Ruawd/Aaalice_NAI_Launcher/releases)。
 
 ## 🙏 致谢
 

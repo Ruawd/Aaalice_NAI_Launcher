@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/latest"><img src="https://img.shields.io/github/v/release/Aaalice233/Aaalice_NAI_Launcher?display_name=tag&sort=semver" alt="Latest release"></a>
+  <a href="https://github.com/Ruawd/Aaalice_NAI_Launcher/releases/latest"><img src="https://img.shields.io/github/v/release/Ruawd/Aaalice_NAI_Launcher?display_name=tag&sort=semver" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey" alt="Platforms">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <a href="https://discord.gg/R48n6GwXzD"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
@@ -85,7 +85,7 @@ NAI Launcher is a third-party client for NovelAI built with Flutter. It integrat
 
 ## 📦 Download & Install
 
-Download the latest version from [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases). The app persistently surfaces available updates before and after login and fully renders the GitHub Flavored Markdown under the Release’s “What’s Changed” section, including headings, lists, tables, quotes, code, links, and images, without repeating platform downloads or file verification details.
+Download the latest version from [Releases](https://github.com/Ruawd/Aaalice_NAI_Launcher/releases). The app persistently surfaces available updates before and after login and fully renders the GitHub Flavored Markdown under the Release’s “What’s Changed” section, including headings, lists, tables, quotes, code, links, and images, without repeating platform downloads or file verification details.
 
 | Platform | Download File | Usage |
 | --- | --- | --- |
@@ -107,7 +107,7 @@ You can log in for the first time using your NovelAI account credentials or an A
 - For bugs or feature requests, open a [GitHub Issue](https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues).
 - Join [Discord](https://discord.gg/R48n6GwXzD) for community help and usage discussions.
 - Pull Requests are welcome. Please describe the goal and verification steps, and include screenshots or recordings for UI changes when possible.
-- See [CHANGELOG.md](CHANGELOG.md) or [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases) for complete version changes.
+- See [CHANGELOG.md](CHANGELOG.md) or [Releases](https://github.com/Ruawd/Aaalice_NAI_Launcher/releases) for complete version changes.
 
 ## 🙏 Acknowledgments
 
