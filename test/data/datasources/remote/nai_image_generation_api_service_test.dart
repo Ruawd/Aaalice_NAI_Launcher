@@ -15,6 +15,55 @@ import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_se
 import 'package:nai_launcher/data/models/image/image_params.dart';
 
 void main() {
+  test(
+    'generation-only provider skips stream and uses NovelAI ZIP endpoint',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService()
+        ..setCurrent(
+          NaiApiEndpointConfig.fromInput(
+            mainBaseUrl: 'https://gateway.example/nai',
+            imageBaseUrl: 'https://images.gateway.example/nai',
+            supportsSubscriptionApi: false,
+            supportsStreamingApi: false,
+          ),
+        );
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+      );
+
+      final streamChunks = await service
+          .generateImageStream(const ImageParams(prompt: 'compatibility'))
+          .toList();
+      expect(adapter.requests, isEmpty);
+      expect(streamChunks, hasLength(1));
+      expect(streamChunks.single.error, contains('Streaming is not allowed'));
+
+      final resultFuture = service.generateImage(
+        const ImageParams(prompt: 'compatibility'),
+      );
+      await _waitForRequestCount(adapter, 1);
+      final request = adapter.requests.single.options;
+      expect(
+        request.uri.toString(),
+        'https://images.gateway.example/nai/ai/generate-image',
+      );
+      expect(request.data, isA<Map<String, dynamic>>());
+      final requestData = request.data as Map<String, dynamic>;
+      expect(requestData['action'], 'generate');
+      expect(requestData['parameters'], isA<Map<String, dynamic>>());
+
+      adapter.requests.single.completeWithZipImage(
+        _solidPng(width: 64, height: 64, r: 1, g: 2, b: 3),
+      );
+      final result = await resultFuture;
+      expect(result.$1, hasLength(1));
+    },
+  );
+
   test('completed older request must not clear newer cancel token', () async {
     final adapter = _PendingDioAdapter();
     final dio = Dio()..httpClientAdapter = adapter;

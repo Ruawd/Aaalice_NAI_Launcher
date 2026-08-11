@@ -395,7 +395,9 @@ Future<void> _bootstrapApplication() async {
 
   try {
     // V2 架构：DatabaseManagerV2 自动处理热重启检测
-    final manager = await DatabaseManager.initialize();
+    final manager = await DatabaseManager.initialize(
+      maxConnections: Platform.isAndroid || Platform.isIOS ? 4 : 20,
+    );
     await manager.initialized;
 
     // 检查核心资产库完整性。翻译和共现数据已迁移到独立资产数据库，

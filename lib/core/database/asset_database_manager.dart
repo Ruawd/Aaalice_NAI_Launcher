@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../utils/app_logger.dart';
+import 'app_database_factory.dart';
 
 class AssetDatabaseManager {
   static final AssetDatabaseManager _instance = AssetDatabaseManager._();
@@ -188,7 +189,7 @@ class AssetDatabaseManager {
       throw StateError('Invalid SQLite header: $path');
     }
 
-    final db = await databaseFactoryFfi.openDatabase(
+    final db = await appDatabaseFactory.openDatabase(
       path,
       options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
     );
@@ -276,7 +277,7 @@ class AssetDatabaseManager {
 
   Future<Database> _openReadOnlyDatabase(String path, String name) async {
     AppLogger.d('Opening $name database (read-only): $path');
-    return databaseFactoryFfi.openDatabase(
+    return appDatabaseFactory.openDatabase(
       path,
       options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
     );

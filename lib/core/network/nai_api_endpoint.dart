@@ -8,10 +8,14 @@ import '../constants/api_constants.dart';
 class NaiApiEndpointConfig {
   final String mainBaseUrl;
   final String imageBaseUrl;
+  final bool supportsSubscriptionApi;
+  final bool supportsStreamingApi;
 
   const NaiApiEndpointConfig({
     required this.mainBaseUrl,
     required this.imageBaseUrl,
+    this.supportsSubscriptionApi = true,
+    this.supportsStreamingApi = true,
   });
 
   static const official = NaiApiEndpointConfig(
@@ -22,6 +26,8 @@ class NaiApiEndpointConfig {
   factory NaiApiEndpointConfig.fromInput({
     required String mainBaseUrl,
     String? imageBaseUrl,
+    bool supportsSubscriptionApi = true,
+    bool supportsStreamingApi = true,
   }) {
     final normalizedMain = _normalizeBaseUrl(mainBaseUrl);
     final normalizedImage = imageBaseUrl == null || imageBaseUrl.trim().isEmpty
@@ -31,6 +37,8 @@ class NaiApiEndpointConfig {
     return NaiApiEndpointConfig(
       mainBaseUrl: normalizedMain,
       imageBaseUrl: normalizedImage,
+      supportsSubscriptionApi: supportsSubscriptionApi,
+      supportsStreamingApi: supportsStreamingApi,
     );
   }
 
@@ -39,17 +47,23 @@ class NaiApiEndpointConfig {
       mainBaseUrl: json['mainBaseUrl'] as String? ?? ApiConstants.baseUrl,
       imageBaseUrl:
           json['imageBaseUrl'] as String? ?? ApiConstants.imageBaseUrl,
+      supportsSubscriptionApi: json['supportsSubscriptionApi'] as bool? ?? true,
+      supportsStreamingApi: json['supportsStreamingApi'] as bool? ?? true,
     );
   }
 
   Map<String, dynamic> toJson() => {
     'mainBaseUrl': mainBaseUrl,
     'imageBaseUrl': imageBaseUrl,
+    'supportsSubscriptionApi': supportsSubscriptionApi,
+    'supportsStreamingApi': supportsStreamingApi,
   };
 
   bool get isOfficial =>
       mainBaseUrl == ApiConstants.baseUrl &&
-      imageBaseUrl == ApiConstants.imageBaseUrl;
+      imageBaseUrl == ApiConstants.imageBaseUrl &&
+      supportsSubscriptionApi &&
+      supportsStreamingApi;
 
   bool get isThirdParty => !isOfficial;
 
@@ -65,6 +79,21 @@ class NaiApiEndpointConfig {
   String userUrl(String endpoint) {
     return isOfficial ? imageUrl(endpoint) : mainUrl(endpoint);
   }
+
+  /// Conservative local subscription state for generation-only gateways.
+  ///
+  /// Some NAI-compatible providers only implement image endpoints. They can
+  /// still be used without fabricating an Opus entitlement or a positive
+  /// Anlas balance in the client.
+  Map<String, dynamic> get compatibilitySubscriptionInfo => {
+    'tier': 0,
+    'active': true,
+    'trainingStepsLeft': {
+      'fixedTrainingStepsLeft': 0,
+      'purchasedTrainingSteps': 0,
+    },
+    'perks': {'imageGeneration': true, 'unlimitedImageGeneration': false},
+  };
 
   static String _appendEndpoint(String baseUrl, String endpoint) {
     final normalizedEndpoint = endpoint.startsWith('/')
@@ -120,13 +149,23 @@ class NaiApiEndpointConfig {
       other is NaiApiEndpointConfig &&
           runtimeType == other.runtimeType &&
           mainBaseUrl == other.mainBaseUrl &&
-          imageBaseUrl == other.imageBaseUrl;
+          imageBaseUrl == other.imageBaseUrl &&
+          supportsSubscriptionApi == other.supportsSubscriptionApi &&
+          supportsStreamingApi == other.supportsStreamingApi;
 
   @override
-  int get hashCode => Object.hash(mainBaseUrl, imageBaseUrl);
+  int get hashCode => Object.hash(
+    mainBaseUrl,
+    imageBaseUrl,
+    supportsSubscriptionApi,
+    supportsStreamingApi,
+  );
 
   @override
   String toString() {
-    return 'NaiApiEndpointConfig(mainBaseUrl: $mainBaseUrl, imageBaseUrl: $imageBaseUrl)';
+    return 'NaiApiEndpointConfig(mainBaseUrl: $mainBaseUrl, '
+        'imageBaseUrl: $imageBaseUrl, '
+        'supportsSubscriptionApi: $supportsSubscriptionApi, '
+        'supportsStreamingApi: $supportsStreamingApi)';
   }
 }

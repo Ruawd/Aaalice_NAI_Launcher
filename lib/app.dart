@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -26,6 +28,7 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
   final ProviderListenable<dynamic>? anlasWatcher;
   final ProviderListenable<dynamic>? backgroundRefresh;
   final ProviderListenable<dynamic>? kritaBridge;
+  final bool enableKritaBridge;
 
   const AppBootstrapEffects({
     super.key,
@@ -33,6 +36,7 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
     this.anlasWatcher,
     this.backgroundRefresh,
     this.kritaBridge,
+    this.enableKritaBridge = true,
   });
 
   @override
@@ -56,10 +60,12 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects> {
       widget.backgroundRefresh ?? backgroundRefreshNotifierProvider,
       (_, __) {},
     );
-    _kritaBridgeSubscription = ref.listenManual(
-      widget.kritaBridge ?? kritaBridgeNotifierProvider,
-      (_, __) {},
-    );
+    if (widget.enableKritaBridge) {
+      _kritaBridgeSubscription = ref.listenManual(
+        widget.kritaBridge ?? kritaBridgeNotifierProvider,
+        (_, __) {},
+      );
+    }
   }
 
   @override
@@ -81,6 +87,8 @@ class NAILauncherApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDesktop =
+        Platform.isWindows || Platform.isLinux || Platform.isMacOS;
     final themeType = ref.watch(themeNotifierProvider);
     final fontType = ref.watch(fontNotifierProvider);
     final fontScale = ref.watch(fontScaleNotifierProvider);
@@ -119,11 +127,13 @@ class NAILauncherApp extends ConsumerWidget {
       ShortcutIds.showShortcutHelp: () {
         ShortcutHelpDialog.show(context);
       },
-      ShortcutIds.minimizeToTray: () {
-        windowManager.hide();
-      },
-      ShortcutIds.quitApp: () {
-        windowManager.close();
+      if (isDesktop) ...{
+        ShortcutIds.minimizeToTray: () {
+          windowManager.hide();
+        },
+        ShortcutIds.quitApp: () {
+          windowManager.close();
+        },
       },
       ShortcutIds.toggleQueue: () {
         final isVisible = ref.read(queueManagementVisibleProvider);
@@ -143,6 +153,7 @@ class NAILauncherApp extends ConsumerWidget {
     };
 
     return AppBootstrapEffects(
+      enableKritaBridge: isDesktop,
       child: GlobalShortcuts(
         shortcuts: globalShortcuts,
         child: MaterialApp.router(
@@ -161,7 +172,6 @@ class NAILauncherApp extends ConsumerWidget {
             fontConfig: fontType.fontFamily.isEmpty ? null : fontType,
           ),
           themeMode: ThemeMode.dark, // 默认深色模式
-
           // 国际化
           locale: locale,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -173,9 +183,9 @@ class NAILauncherApp extends ConsumerWidget {
           // 字体缩放全局应用
           builder: (context, child) {
             return MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(fontScale),
-              ),
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(fontScale)),
               child: child!,
             );
           },

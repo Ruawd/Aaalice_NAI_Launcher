@@ -9,18 +9,18 @@
 </p>
 
 <p align="center">
-  <strong>A third-party desktop client for NovelAI image generation</strong>
+  <strong>A cross-platform third-party client for NovelAI image generation</strong>
 </p>
 
 <p align="center">
   <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases"><img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"></a>
   <img src="https://img.shields.io/badge/Flutter-3.44.2-blue?logo=flutter" alt="Flutter">
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey" alt="Platforms">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20iOS-lightgrey" alt="Platforms">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <a href="https://discord.gg/R48n6GwXzD"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
-NAI Launcher is a third-party client for NovelAI built with Flutter. It integrates image generation, image-to-image, inpainting, Vibe / Precise Reference, local gallery, online gallery, generation queues, Krita integration, and statistical tools into a single desktop application, making it ideal for daily generation, batch processing, and long-term management of local artwork.
+NAI Launcher is a third-party client for NovelAI built with Flutter. It integrates image generation, image-to-image, inpainting, Vibe / Precise Reference, local gallery, online gallery, generation queues, Krita integration, and statistical tools into a single application, making it ideal for daily generation, batch processing, and long-term management of local artwork.
 
 > This project is not an official NovelAI product. Please ensure you have your own NovelAI account and comply with NovelAI's Terms of Service before use.
 
@@ -36,6 +36,8 @@ NAI Launcher is a third-party client for NovelAI built with Flutter. It integrat
 | 🌐 Online Gallery | Supports Danbooru / Safebooru / Gelbooru / AI TAG search, native rankings, multi-image details, metadata reuse, and batch downloads. |
 | 📦 Generation Queue | Supports task sorting, batch generation, pause/resume, failure handling strategies, progress statistics, and queue import/export. |
 | 🔌 External Integration | Supports local Krita integration, local ComfyUI workflows, system proxy, cross-platform image copying, and file location. |
+
+In addition to the official NovelAI service, the login screen supports configurable NovelAI-compatible third-party providers. Main and image API URLs can be set separately, while `/user/subscription` validation and streaming can be disabled for generation-only gateways. Image requests retain NovelAI-native paths, JSON/MessagePack payloads, ZIP/image responses, and Bearer-token authentication.
 
 ### Online Gallery Sources
 
@@ -81,6 +83,7 @@ NAI Launcher is a third-party client for NovelAI built with Flutter. It integrat
 | --- | --- | --- |
 | Windows | Available | Primary development and release platform. Supports system tray, window state persistence, video playback, clipboard, and file location. |
 | macOS | Minimal Support | Supports building, launching, login, local database, video playback, Keychain, system proxy, image copying, and file location. System tray support to be added later. |
+| iOS | Beta | Supports touch layouts, official/third-party provider login, text-to-image, img2img, inpainting, references, local gallery, file export, and sharing. A TrollStore IPA is provided. Desktop tray, Krita integration, and desktop auto-update are unavailable. |
 | Linux | Unreleased | Desktop code branches exist, but official packages are not currently provided. |
 | Android | Planned | Still in the adaptation/planning phase. |
 
@@ -93,8 +96,9 @@ Download the latest version from [Releases](https://github.com/Aaalice233/Aaalic
 | Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | Installer version, recommended for general users. Installs to the current user directory and supports one-click in-app updates. |
 | Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | Portable version. Extract and run `nai_launcher.exe`; in-app updates can download the package, replace files, and restart automatically. |
 | macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | Portable version. Extract and open `Aaalice NAI Launcher.app`. If the notarized version is blocked, you can allow it to open in System Settings > Privacy & Security. |
+| iOS | `NAI_Launcher_iOS_<version>_TrollStore.ipa` | Ad-hoc signed beta for TrollStore. App documents are accessible in Files, and tokens are stored in the iOS Keychain. |
 
-You can log in for the first time using your NovelAI account credentials or an API Token. Account data is stored locally on the device only. The desktop app uses the system's secure storage for sensitive information.
+You can log in using NovelAI account credentials, an API Token, or a NovelAI-compatible third-party provider. Account data is stored locally on the device only, with sensitive values kept in system secure storage, including the iOS Keychain.
 
 ### Autocomplete Data & Privacy
 
@@ -111,7 +115,7 @@ You can log in for the first time using your NovelAI account credentials or an A
 - Git LFS, required for pulling `assets/databases/*.db`
 - Windows Build: Visual Studio 2022 with Desktop development with C++
 - Windows Build: [NuGet CLI](https://learn.microsoft.com/nuget/install-nuget-client-tools), the directory containing `nuget.exe` must be added to `PATH`
-- macOS Build: Full Xcode, CocoaPods, Git LFS
+- macOS / iOS Build: Full Xcode, CocoaPods, and Git LFS
 
 ### General Steps
 
@@ -184,6 +188,25 @@ scripts/create_macos_dev_cert.sh
 scripts/dev_run_macos_signed.sh debug
 ```
 
+### iOS / TrollStore IPA
+
+iOS must be built on macOS with full Xcode:
+
+```bash
+flutter config --no-enable-swift-package-manager
+cd ios && pod install --repo-update && cd ..
+flutter build ios --release --no-codesign
+./scripts/package_ios_ipa.sh
+```
+
+Output path:
+
+```text
+dist/NAI_Launcher_iOS_<version>_TrollStore.ipa
+```
+
+You can also run the `Build iOS IPA` GitHub Actions workflow. Pushing an `ios-v*` tag creates a prerelease with the IPA after a successful build.
+
 ## 🚀 Release Process
 
 Releases are handled by the `Release` workflow in GitHub Actions. After pushing a `v*` tag, the workflow will build the Windows installer, Windows portable, and macOS portable versions separately, and generate `release_manifest.json`, `checksums.txt`, and Release notes.
@@ -214,6 +237,7 @@ nai_launcher/
 │   ├── l10n/               # Chinese, English, and Japanese UI strings and generated files
 │   └── presentation/       # Pages, components, state management, themes, and routing
 ├── macos/                  # macOS runner
+├── ios/                    # iOS runner
 ├── scripts/                # Build, signing, database, and testing helper scripts
 ├── test/                   # Unit tests and widget tests
 ├── tool/                   # Dev tools, data processing, icon generation, and diagnostic scripts

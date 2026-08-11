@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../../utils/app_logger.dart';
+import '../app_database_factory.dart';
 import '../data_source.dart';
 import '../utils/lru_cache.dart';
 
@@ -199,7 +200,7 @@ class TranslationDataSource {
     final path = _path;
     if (path == null || !await File(path).exists()) return false;
     try {
-      _database = await databaseFactoryFfi.openDatabase(
+      _database = await appDatabaseFactory.openDatabase(
         path,
         options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
       );

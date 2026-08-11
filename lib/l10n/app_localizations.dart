@@ -757,8 +757,32 @@ abstract class AppLocalizations {
   /// No description provided for @auth_thirdPartyCompatibilityHint.
   ///
   /// In en, this message translates to:
-  /// **'The third-party site must be compatible with NovelAI subscription and image-generation APIs. The token will be sent as a Bearer token.'**
+  /// **'Requests use NovelAI-native paths, JSON/MessagePack payloads, and ZIP/image responses. The token is sent as a Bearer token. HTTPS is recommended.'**
   String get auth_thirdPartyCompatibilityHint;
+
+  /// No description provided for @auth_thirdPartySubscriptionApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Supports subscription API'**
+  String get auth_thirdPartySubscriptionApi;
+
+  /// No description provided for @auth_thirdPartySubscriptionApiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable when /user/subscription is available; disable for generation-only gateways'**
+  String get auth_thirdPartySubscriptionApiHint;
+
+  /// No description provided for @auth_thirdPartyStreamingApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Supports streaming API'**
+  String get auth_thirdPartyStreamingApi;
+
+  /// No description provided for @auth_thirdPartyStreamingApiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable when /ai/generate-image-stream is available; otherwise non-stream generation is used automatically'**
+  String get auth_thirdPartyStreamingApiHint;
 
   /// No description provided for @auth_thirdPartyApiSiteRequired.
   ///

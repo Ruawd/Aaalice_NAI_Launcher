@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../utils/app_logger.dart';
+import 'app_database_factory.dart';
 
 /// 数据库连接池
 ///
@@ -76,7 +77,7 @@ class ConnectionPool {
       return connectionFactory();
     }
 
-    return await databaseFactoryFfi.openDatabase(
+    return await appDatabaseFactory.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
         version: 1,

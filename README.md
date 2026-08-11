@@ -9,18 +9,18 @@
 </p>
 
 <p align="center">
-  <strong>面向 NovelAI 图像生成的第三方桌面客户端</strong>
+  <strong>面向 NovelAI 图像生成的跨平台第三方客户端</strong>
 </p>
 
 <p align="center">
   <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases"><img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"></a>
   <img src="https://img.shields.io/badge/Flutter-3.44.2-blue?logo=flutter" alt="Flutter">
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey" alt="Platforms">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20iOS-lightgrey" alt="Platforms">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <a href="https://discord.gg/R48n6GwXzD"><img src="https://img.shields.io/badge/Discord-加入服务器-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
-NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它把图像生成、图生图、局部重绘、Vibe / Precise Reference、本地图库、在线图库、生成队列、Krita 联动和统计工具整合在一个桌面应用里，适合日常生成、批量出图和长期管理本地作品。
+NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它把图像生成、图生图、局部重绘、Vibe / Precise Reference、本地图库、在线图库、生成队列、Krita 联动和统计工具整合在一个应用里，适合日常生成、批量出图和长期管理本地作品。
 
 > 本项目不是 NovelAI 官方产品。使用前请确保你拥有自己的 NovelAI 账号，并遵守 NovelAI 的服务条款。
 
@@ -36,6 +36,8 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 | 🌐 在线图库 | 支持 Danbooru / Safebooru / Gelbooru / AI TAG 搜索、真实排行榜、多图详情、元数据复用和批量下载。 |
 | 📦 生成队列 | 支持任务排序、批量生成、暂停/继续、失败策略、进度统计和队列导入导出。 |
 | 🔌 外部联动 | 支持 Krita 本地联动、ComfyUI 本地工作流、系统代理、跨平台图片复制和文件定位。 |
+
+除 NovelAI 官方服务外，登录页还支持可配置的 NovelAI 兼容第三方 Provider。可分别填写主 API 与图像 API 地址，并针对纯生图网关关闭 `/user/subscription` 校验或流式接口。生图请求继续使用 NovelAI 原生路径、JSON/MessagePack 请求结构以及 ZIP/图片响应格式，Token 通过 Bearer 方式发送。
 
 ### 在线画廊来源
 
@@ -81,6 +83,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 | --- | --- | --- |
 | Windows | 可用 | 主要开发和发布平台，支持系统托盘、窗口状态保存、视频播放、剪贴板和文件定位。 |
 | macOS | 最小适配 | 支持构建、启动、登录、本地数据库、视频播放、Keychain、系统代理、图片复制和文件定位；系统托盘后续再补。 |
+| iOS | 测试版 | 支持触控布局、官方/第三方 Provider 登录、文生图、图生图、局部重绘、参考图、本地图库、文件导出与分享；提供 TrollStore IPA。桌面托盘、Krita 联动和桌面自动更新不可用。 |
 | Linux | 未发布 | 部分桌面代码已有分支，但当前不提供正式包。 |
 | Android | 计划中 | 仍处于后续适配阶段。 |
 
@@ -93,8 +96,9 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 | Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | 安装版，推荐普通用户，安装到当前用户目录，支持应用内一键更新。 |
 | Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | 便携版，解压后运行 `nai_launcher.exe`，支持应用内下载更新、自动覆盖文件并重启。 |
 | macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | 便携版，解压后打开 `Aaalice NAI Launcher.app`。未公证版本如被拦截，可在系统设置的隐私与安全中允许打开。 |
+| iOS | `NAI_Launcher_iOS_<version>_TrollStore.ipa` | 使用 TrollStore 安装的 ad-hoc 签名测试版。应用文档可通过“文件”App访问，Token 保存在 iOS Keychain。 |
 
-首次登录可以使用 NovelAI 账号密码或 API Token。账号数据仅保存在本地设备，桌面端使用系统安全存储保存敏感信息。
+首次登录可以使用 NovelAI 账号密码、API Token 或 NovelAI 兼容第三方 Provider。账号数据仅保存在本地设备，并使用系统安全存储（包括 iOS Keychain）保存敏感信息。
 
 ### 补全数据与隐私
 
@@ -111,7 +115,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 - Git LFS，用于拉取 `assets/databases/*.db`
 - Windows 构建：Visual Studio 2022 Desktop development with C++
 - Windows 构建：[NuGet CLI](https://learn.microsoft.com/nuget/install-nuget-client-tools)，`nuget.exe` 所在目录必须加入 `PATH`
-- macOS 构建：完整 Xcode、CocoaPods、Git LFS
+- macOS / iOS 构建：完整 Xcode、CocoaPods、Git LFS
 
 ### 通用步骤
 
@@ -184,6 +188,25 @@ scripts/create_macos_dev_cert.sh
 scripts/dev_run_macos_signed.sh debug
 ```
 
+### iOS / TrollStore IPA
+
+iOS 必须在 macOS 与完整 Xcode 环境构建：
+
+```bash
+flutter config --no-enable-swift-package-manager
+cd ios && pod install --repo-update && cd ..
+flutter build ios --release --no-codesign
+./scripts/package_ios_ipa.sh
+```
+
+产物路径：
+
+```text
+dist/NAI_Launcher_iOS_<version>_TrollStore.ipa
+```
+
+也可运行 GitHub Actions 的 `Build iOS IPA` workflow。推送 `ios-v*` tag 会在构建通过后创建带 IPA 的预发布版本。
+
 ## 🚀 发布流程
 
 发布由 GitHub Actions 的 `Release` workflow 处理。推送 `v*` tag 后，工作流会分别构建 Windows 安装版、Windows 便携版和 macOS 便携版，并生成 `release_manifest.json`、`checksums.txt` 与 Release notes。
@@ -214,6 +237,7 @@ nai_launcher/
 │   ├── l10n/               # 中/英/日界面文案与生成文件
 │   └── presentation/       # 页面、组件、状态管理、主题和路由
 ├── macos/                  # macOS runner
+├── ios/                    # iOS runner
 ├── scripts/                # 构建、签名、数据库和测试辅助脚本
 ├── test/                   # 单元测试和组件测试
 ├── tool/                   # 开发工具、数据处理、图标生成和诊断脚本

@@ -349,7 +349,21 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get auth_thirdPartyCompatibilityHint =>
-      'サードパーティ サイトは、NovelAI サブスクリプション API およびイメージ生成 API と互換性がある必要があります。トークンはベアラー トークンとして送信されます。';
+      'リクエストには NovelAI ネイティブのパス、JSON/MessagePack 形式、ZIP/画像レスポンスを使用します。トークンは Bearer 方式で送信されます。HTTPS を推奨します。';
+
+  @override
+  String get auth_thirdPartySubscriptionApi => 'サブスクリプション API に対応';
+
+  @override
+  String get auth_thirdPartySubscriptionApiHint =>
+      '/user/subscription が利用できる場合に有効化し、画像生成専用ゲートウェイでは無効化してください';
+
+  @override
+  String get auth_thirdPartyStreamingApi => 'ストリーミング API に対応';
+
+  @override
+  String get auth_thirdPartyStreamingApiHint =>
+      '/ai/generate-image-stream が利用できる場合に有効化し、それ以外では非ストリーミング生成を使用します';
 
   @override
   String get auth_thirdPartyApiSiteRequired => 'サードパーティ API サイトの URL を入力してください';

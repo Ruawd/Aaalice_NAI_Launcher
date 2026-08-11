@@ -27,6 +27,8 @@ class _ThirdPartyApiLoginCardState
   final _tokenController = TextEditingController();
   final _nicknameController = TextEditingController();
   bool _obscureToken = true;
+  bool _supportsSubscriptionApi = true;
+  bool _supportsStreamingApi = true;
 
   @override
   void initState() {
@@ -130,6 +132,25 @@ class _ThirdPartyApiLoginCardState
             },
           ),
           const SizedBox(height: 12),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: Text(l10n.auth_thirdPartySubscriptionApi),
+            subtitle: Text(l10n.auth_thirdPartySubscriptionApiHint),
+            value: _supportsSubscriptionApi,
+            onChanged: (value) {
+              setState(() => _supportsSubscriptionApi = value);
+            },
+          ),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: Text(l10n.auth_thirdPartyStreamingApi),
+            subtitle: Text(l10n.auth_thirdPartyStreamingApiHint),
+            value: _supportsStreamingApi,
+            onChanged: (value) {
+              setState(() => _supportsStreamingApi = value);
+            },
+          ),
+          const SizedBox(height: 4),
           Text(
             l10n.auth_thirdPartyCompatibilityHint,
             style: theme.textTheme.bodySmall?.copyWith(
@@ -229,6 +250,8 @@ class _ThirdPartyApiLoginCardState
     final endpoint = NaiApiEndpointConfig.fromInput(
       mainBaseUrl: _mainApiController.text,
       imageBaseUrl: _imageApiController.text,
+      supportsSubscriptionApi: _supportsSubscriptionApi,
+      supportsStreamingApi: _supportsStreamingApi,
     );
     final token = _tokenController.text.trim();
     final nickname = _nicknameController.text.trim();

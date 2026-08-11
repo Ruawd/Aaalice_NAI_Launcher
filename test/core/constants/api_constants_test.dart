@@ -126,6 +126,31 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    test('persists generation-only provider capabilities', () {
+      final endpoint = NaiApiEndpointConfig.fromInput(
+        mainBaseUrl: 'https://gateway.example/nai',
+        supportsSubscriptionApi: false,
+        supportsStreamingApi: false,
+      );
+
+      final restored = NaiApiEndpointConfig.fromJson(endpoint.toJson());
+      expect(restored, endpoint);
+      expect(restored.supportsSubscriptionApi, isFalse);
+      expect(restored.supportsStreamingApi, isFalse);
+      expect(restored.compatibilitySubscriptionInfo['active'], isTrue);
+      expect(restored.isThirdParty, isTrue);
+    });
+
+    test('defaults legacy endpoint records to full compatibility', () {
+      final endpoint = NaiApiEndpointConfig.fromJson({
+        'mainBaseUrl': 'https://legacy.example',
+        'imageBaseUrl': 'https://legacy.example',
+      });
+
+      expect(endpoint.supportsSubscriptionApi, isTrue);
+      expect(endpoint.supportsStreamingApi, isTrue);
+    });
   });
 
   group('UcPresets', () {
