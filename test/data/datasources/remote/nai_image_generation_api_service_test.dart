@@ -17,7 +17,7 @@ import 'package:nai_launcher/data/models/image/image_params.dart';
 
 void main() {
   test(
-    'Sugar Cloud posts to the full /novelai endpoint and downloads JSON URL',
+    'Sugar Cloud follows /generate task events and downloads final URL',
     () async {
       final adapter = _PendingDioAdapter();
       final dio = Dio()..httpClientAdapter = adapter;
@@ -32,6 +32,7 @@ void main() {
         dio,
         NAIImageEnhancementApiService(dio, endpointService),
         endpointService,
+        accessTokenProvider: () async => 'STD-test-token',
       );
 
       final streamChunks = await service
@@ -48,16 +49,24 @@ void main() {
       final generationRequest = adapter.requests[0].options;
       expect(
         generationRequest.uri.toString(),
-        'https://std.loliyc.com/novelai',
+        'https://std.loliyc.com/generate',
       );
-      expect(generationRequest.data, isA<Map<String, dynamic>>());
-      expect(generationRequest.responseType, ResponseType.json);
-      adapter.requests[0].completeWithJson({
-        'data': [
-          {'url': '/img/generated.png'},
-        ],
-        'original_response': {'status': 'success', 'url': '/img/generated.png'},
-      });
+      expect(generationRequest.data, isA<String>());
+      final requestData = Map<String, dynamic>.from(
+        jsonDecode(generationRequest.data as String) as Map,
+      );
+      expect(requestData['token'], 'STD-test-token');
+      expect(requestData['tag'], contains('sugar test'));
+      expect(requestData['size'], '竖图');
+      expect(requestData['stream'], 1);
+      expect(generationRequest.responseType, ResponseType.stream);
+      expect(generationRequest.headers['Content-Type'], 'text/event-stream');
+      expect(generationRequest.extra['skipAuth'], isTrue);
+      adapter.requests[0].completeWithTextStream(
+        '{"status":"wait","data":"已连接"}\n\n'
+        '{"status":"wait","data":"生成中 50%"}\n\n'
+        '{"status":"success","url":"/img/generated.png"}\n\n',
+      );
 
       await _waitForRequestCount(adapter, 2);
       final imageRequest = adapter.requests[1].options;
@@ -74,6 +83,39 @@ void main() {
       expect(result.$1.single, orderedEquals(png));
     },
   );
+
+  test('Sugar Cloud failed task event becomes a visible exception', () async {
+    final adapter = _PendingDioAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    final endpointService = NaiApiEndpointService()
+      ..setCurrent(
+        NaiApiEndpointConfig.fromInput(
+          mainBaseUrl: 'https://std.loliyc.com/novelai',
+          providerType: NaiApiProviderType.shatangyun,
+        ),
+      );
+    final service = NAIImageGenerationApiService(
+      dio,
+      NAIImageEnhancementApiService(dio, endpointService),
+      endpointService,
+      accessTokenProvider: () async => 'STD-test-token',
+    );
+
+    final result = service.generateImage(
+      const ImageParams(prompt: 'surface sugar error'),
+    );
+    await _waitForRequestCount(adapter, 1);
+    adapter.requests.single.completeWithTextStream(
+      '{"status":"wait","data":"已连接"}\n\n'
+      '{"status":"failed","data":"授权 Key 已失效"}\n\n',
+    );
+
+    await expectLater(
+      result,
+      throwsA(predicate((error) => error.toString().contains('授权 Key 已失效'))),
+    );
+    expect(adapter.requests, hasLength(1));
+  });
 
   test(
     'generation-only provider skips stream and uses NovelAI ZIP endpoint',
@@ -827,6 +869,18 @@ class _PendingRequest {
         200,
         headers: {
           Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      ),
+    );
+  }
+
+  void completeWithTextStream(String data) {
+    response.complete(
+      ResponseBody.fromString(
+        data,
+        200,
+        headers: {
+          Headers.contentTypeHeader: ['text/plain; charset=utf-8'],
         },
       ),
     );

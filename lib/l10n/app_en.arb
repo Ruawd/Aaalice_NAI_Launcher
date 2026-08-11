@@ -140,7 +140,7 @@
   "auth_thirdPartyNicknameHint": "For example: self-hosted site / mirror site",
   "auth_thirdPartyTokenHint": "Enter the API token from the third-party site",
   "auth_thirdPartyCompatibilityHint": "Requests use NovelAI-native paths, JSON/MessagePack payloads, and ZIP/image responses. The token is sent as a Bearer token. HTTPS is recommended.",
-  "auth_shatangyunCompatibilityHint": "Compatible with Sugar Cloud /novelai and /api/generate URLs and the same token used by AstrBot. The app automatically uses the non-stream /novelai endpoint and downloads the final image; MessagePack streaming is disabled.",
+  "auth_shatangyunCompatibilityHint": "Compatible with Sugar Cloud /novelai and /api/generate URLs and the same token used by AstrBot. The app automatically uses the /generate web task stream, parses status events, and downloads the final image; MessagePack streaming is not required.",
   "auth_thirdPartySubscriptionApi": "Supports subscription API",
   "auth_thirdPartySubscriptionApiHint": "Enable when /user/subscription is available; disable for generation-only gateways",
   "auth_thirdPartyStreamingApi": "Supports streaming API",

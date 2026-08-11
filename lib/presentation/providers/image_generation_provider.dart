@@ -17,6 +17,7 @@ import '../../core/utils/nai_resolution_adapter.dart';
 import '../../core/utils/pica_lanczos_resizer.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
 import '../../core/services/character_conversion_service.dart';
+import '../../core/network/nai_api_endpoint_service.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
@@ -1014,8 +1015,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       for (final image in images) {
         try {
           // 从图片元数据中提取实际的 seed（文件名与元数据嵌入共用）
-          final hasEmbeddedMetadata =
-              ImageSaveUtils.hasEmbeddedNovelAiMetadata(image.bytes);
+          final hasEmbeddedMetadata = ImageSaveUtils.hasEmbeddedNovelAiMetadata(
+            image.bytes,
+          );
           int actualSeed = params.seed;
           if (actualSeed < 0 || hasEmbeddedMetadata) {
             final extractedMeta = await ImageMetadataService()
@@ -1160,8 +1162,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   ) async {
     final apiService = ref.read(naiImageGenerationApiServiceProvider);
     final workflow = ref.read(imageWorkflowControllerProvider);
+    final retryLimit =
+        ref.read(naiApiEndpointServiceProvider).current.isShatangyun
+        ? 0
+        : _maxRetries;
 
-    for (int retry = 0; retry <= _maxRetries; retry++) {
+    for (int retry = 0; retry <= retryLimit; retry++) {
       try {
         if (_shouldAbortGenerationRun(generationRunId)) {
           throw StateError('Generation cancelled');
@@ -1169,7 +1175,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
         final result = await apiService.generateImage(
           params,
-          onProgress: (_, __) {},
+          onProgress: (received, total) {
+            if (_shouldAbortGenerationRun(generationRunId) || total <= 0) {
+              return;
+            }
+            state = state.copyWith(
+              progress: (received / total).clamp(0.0, 0.99).toDouble(),
+            );
+          },
           focusedInpaintEnabled: workflow.focusedInpaintEnabled,
           minimumContextMegaPixels: workflow.minimumContextMegaPixels,
           focusedSelectionRect: workflow.focusedSelectionRect,
@@ -1183,9 +1196,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         if (_isRemoteCancelledError(e, generationRunId)) rethrow;
         if (_isConcurrencyLimited(e)) rethrow; // 交给上层等待并发额度释放
 
-        if (retry < _maxRetries) {
+        if (retry < retryLimit) {
           AppLogger.w(
-            '生成失败，${_retryDelays[retry]}ms 后重试 (${retry + 1}/$_maxRetries): $e',
+            '生成失败，${_retryDelays[retry]}ms 后重试 (${retry + 1}/$retryLimit): $e',
           );
           await Future.delayed(Duration(milliseconds: _retryDelays[retry]));
           if (_shouldAbortGenerationRun(generationRunId)) {
@@ -1236,6 +1249,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   ) async {
     final apiService = ref.read(naiImageGenerationApiServiceProvider);
     final workflow = ref.read(imageWorkflowControllerProvider);
+    final retryLimit =
+        ref.read(naiApiEndpointServiceProvider).current.isShatangyun
+        ? 0
+        : _maxRetries;
     final requestParams = _materializeRandomSeed(params);
     final batchSize = max(1, requestParams.nSamples);
     var useNonStreamFallback = false;
@@ -1301,7 +1318,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     );
 
     try {
-      for (int retry = 0; retry <= _maxRetries; retry++) {
+      for (int retry = 0; retry <= retryLimit; retry++) {
         final finalImages = <int, Uint8List>{};
 
         try {
@@ -1458,9 +1475,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             break;
           }
 
-          if (retry < _maxRetries) {
+          if (retry < retryLimit) {
             AppLogger.w(
-              '生成失败，${_retryDelays[retry]}ms 后重试 (${retry + 1}/$_maxRetries): $e',
+              '生成失败，${_retryDelays[retry]}ms 后重试 (${retry + 1}/$retryLimit): $e',
             );
             await Future.delayed(Duration(milliseconds: _retryDelays[retry]));
             if (_shouldAbortGenerationRun(generationRunId)) {

@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore beta 6: fixes ffdkj Simplified Chinese dictionary installation by normalizing the upstream standalone WAL database before iOS read-only validation; also includes beta 5 local-gallery database recovery and the earlier mobile UI fixes."
+            --notes "iOS/TrollStore beta 7: fixes Sugar Cloud generations getting stuck by following the /generate task-event stream, sending its token in the provider JSON body, surfacing upstream failures immediately, enforcing a five-minute timeout, and avoiding duplicate retries. Also includes the beta 6 ffdkj dictionary fix and earlier mobile UI/gallery fixes."

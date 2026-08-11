@@ -373,7 +373,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_shatangyunCompatibilityHint =>
-      'Compatible with Sugar Cloud /novelai and /api/generate URLs and the same token used by AstrBot. The app automatically uses the non-stream /novelai endpoint and downloads the final image; MessagePack streaming is disabled.';
+      'Compatible with Sugar Cloud /novelai and /api/generate URLs and the same token used by AstrBot. The app automatically uses the /generate web task stream, parses status events, and downloads the final image; MessagePack streaming is not required.';
 
   @override
   String get auth_thirdPartySubscriptionApi => 'Supports subscription API';

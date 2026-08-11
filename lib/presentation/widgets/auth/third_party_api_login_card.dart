@@ -94,7 +94,7 @@ class _ThirdPartyApiLoginCardState
                 : l10n.auth_thirdPartyApiSite,
             controller: _mainApiController,
             hintText: _providerType == NaiApiProviderType.shatangyun
-                ? 'https://std.loliyc.com/novelai'
+                ? 'https://std.loliyc.com/api/generate'
                 : 'https://example.com/api',
             prefixIcon: Icons.public_outlined,
             keyboardType: TextInputType.url,
@@ -295,7 +295,7 @@ class _ThirdPartyApiLoginCardState
       _providerType = value;
       if (value == NaiApiProviderType.shatangyun) {
         if (_mainApiController.text.trim().isEmpty) {
-          _mainApiController.text = 'https://std.loliyc.com/novelai';
+          _mainApiController.text = 'https://std.loliyc.com/api/generate';
         }
         _supportsSubscriptionApi = false;
         _supportsStreamingApi = false;
