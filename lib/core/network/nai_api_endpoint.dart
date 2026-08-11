@@ -8,8 +8,8 @@ enum NaiApiProviderType {
 
   /// Sugar Cloud's single NovelAI-compatible generation endpoint.
   ///
-  /// It accepts the regular NovelAI JSON payload at `/novelai`, but returns a
-  /// JSON image URL instead of NovelAI's ZIP response.
+  /// Its web `/generate` task flow returns newline-delimited JSON status
+  /// events followed by a final image URL instead of NovelAI's ZIP response.
   shatangyun,
 }
 
@@ -191,11 +191,11 @@ class NaiApiEndpointConfig {
     final lowerPath = path.toLowerCase();
     if (lowerPath.endsWith('/api/generate')) {
       path =
-          '${path.substring(0, path.length - '/api/generate'.length)}/novelai';
-    } else if (lowerPath.endsWith('/generate')) {
-      path = '${path.substring(0, path.length - '/generate'.length)}/novelai';
-    } else if (!lowerPath.endsWith('/novelai')) {
-      path = '$path/novelai';
+          '${path.substring(0, path.length - '/api/generate'.length)}/generate';
+    } else if (lowerPath.endsWith('/novelai')) {
+      path = '${path.substring(0, path.length - '/novelai'.length)}/generate';
+    } else if (!lowerPath.endsWith('/generate')) {
+      path = '$path/generate';
     }
     return uri.replace(path: path).toString();
   }

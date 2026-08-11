@@ -14,6 +14,7 @@ import '../../../core/models/image_generation_artifact.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
 import '../../../core/network/request_builders/nai_image_request_builder.dart';
+import '../../../core/storage/secure_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/inpaint_mask_utils.dart';
@@ -28,6 +29,7 @@ part 'nai_image_generation_api_service.g.dart';
 
 // 管道计时开关（false=关闭，true=打开日志）
 const bool _enablePipelineTracing = true;
+const Duration _shatangyunGenerationTimeout = Duration(minutes: 5);
 
 /// NovelAI Image Generation API 服务
 /// 处理图像生成相关的 API 调用，包括流式和非流式生成
@@ -35,12 +37,14 @@ class NAIImageGenerationApiService {
   final Dio _dio;
   final NAIImageEnhancementApiService _enhancementService;
   final NaiApiEndpointService _endpointService;
+  final Future<String?> Function()? _accessTokenProvider;
 
   NAIImageGenerationApiService(
     this._dio,
     this._enhancementService,
-    this._endpointService,
-  );
+    this._endpointService, {
+    Future<String?> Function()? accessTokenProvider,
+  }) : _accessTokenProvider = accessTokenProvider;
 
   // ==================== 采样器映射 ====================
 
@@ -287,8 +291,8 @@ class NAIImageGenerationApiService {
         AppLogger.d('==========================================', 'ImgGen');
       }
 
-      // 5. 发送请求。砂糖云接受 NAI 官方 JSON 参数，但返回图片 URL
-      // JSON；其余兼容服务继续按 NovelAI ZIP 响应处理。
+      // 5. 发送请求。砂糖云需要把 NAI 参数转成网页任务流请求；
+      // 其余兼容服务继续按 NovelAI ZIP 响应处理。
       final endpoint = _endpointService.current;
       if (endpoint.isShatangyun) {
         final images = await _generateWithShatangyun(
@@ -348,27 +352,129 @@ class NAIImageGenerationApiService {
     required CancelToken cancelToken,
     void Function(int, int)? onProgress,
   }) async {
-    AppLogger.i('Using Sugar Cloud NovelAI response adapter', 'ImgGen');
-    final response = await _dio.post<dynamic>(
+    AppLogger.i('Using Sugar Cloud web task-stream adapter', 'ImgGen');
+    try {
+      return await _runShatangyunTask(
+        generationUrl,
+        requestData,
+        cancelToken: cancelToken,
+        onProgress: onProgress,
+      ).timeout(_shatangyunGenerationTimeout);
+    } on TimeoutException {
+      cancelToken.cancel('Sugar Cloud generation timed out');
+      throw Exception('砂糖云生成超过 5 分钟，任务已停止，请稍后重试');
+    }
+  }
+
+  Future<List<Uint8List>> _runShatangyunTask(
+    String generationUrl,
+    Map<String, dynamic> requestData, {
+    required CancelToken cancelToken,
+    void Function(int, int)? onProgress,
+  }) async {
+    final action = requestData['action']?.toString() ?? 'generate';
+    if (action != 'generate') {
+      throw Exception('砂糖云网页任务流当前仅支持文生图');
+    }
+
+    final token = _normalizeProviderToken(await _accessTokenProvider?.call());
+    if (token.isEmpty) {
+      throw Exception('未读取到砂糖云 Token，请重新登录该账号');
+    }
+
+    final parameters = Map<String, dynamic>.from(
+      requestData['parameters'] as Map? ?? const <String, dynamic>{},
+    );
+    final payload = <String, dynamic>{
+      'ch': false,
+      'tag': requestData['input']?.toString() ?? '',
+      'token': token,
+      'model': requestData['model']?.toString() ?? 'nai-diffusion-4-5-full',
+      'artist': '',
+      'size': _shatangyunSize(parameters),
+      'steps': '${parameters['steps'] ?? 28}',
+      'scale': '${parameters['scale'] ?? 5}',
+      'cfg': '0',
+      'sampler': parameters['sampler']?.toString() ?? 'k_euler_ancestral',
+      'negative': parameters['negative_prompt']?.toString() ?? '',
+      'seed': '${parameters['seed'] ?? ''}',
+      'other': '0',
+      'varity': '0',
+      'decrisp': '0',
+      'nocache': 1,
+      'noise_schedule': parameters['noise_schedule']?.toString() ?? 'karras',
+      'stream': 1,
+      'addition': const <String, dynamic>{},
+      'i2i_force': '1',
+      'i2i_cl': '',
+      'git_token': '',
+      'git_repo': '',
+    };
+
+    final response = await _dio.post<ResponseBody>(
       generationUrl,
-      data: requestData,
+      // Sugar Cloud expects a JSON body even though its web client labels the
+      // request as text/event-stream. Dio would otherwise URL-encode a Map for
+      // this content type, which makes /generate return HTTP 500.
+      data: jsonEncode(payload),
       cancelToken: cancelToken,
       options: Options(
-        responseType: ResponseType.json,
-        headers: {'Accept': 'application/json'},
+        responseType: ResponseType.stream,
+        receiveTimeout: _shatangyunGenerationTimeout,
+        sendTimeout: const Duration(seconds: 30),
+        headers: const {
+          'Accept': 'text/plain, application/json, text/event-stream',
+          'Content-Type': 'text/event-stream',
+          'Origin': 'https://www.loliyc.com',
+          'Referer': 'https://www.loliyc.com/std/image.html',
+        },
+        // The provider reads its token from the JSON body. Do not also attach
+        // NovelAI's Authorization header to this provider-specific request.
+        extra: const {'skipAuth': true},
       ),
     );
 
-    final responseData = _decodeJsonResponse(response.data);
-    final locations = _extractShatangyunImageLocations(responseData);
-    if (locations.isEmpty) {
-      final detail = _extractProviderError(responseData);
-      throw Exception(detail.isEmpty ? '砂糖云没有返回图片地址' : '砂糖云生图失败：$detail');
+    final body = response.data;
+    if (body == null) throw Exception('砂糖云返回了空响应');
+
+    var pendingText = '';
+    var receivedEvents = 0;
+    String? imageLocation;
+
+    void processBlock(String block) {
+      for (final event in _decodeShatangyunEventBlock(block)) {
+        receivedEvents++;
+        final status = event['status']?.toString().toLowerCase() ?? '';
+        AppLogger.d(
+          'Sugar Cloud event #$receivedEvents: status=$status',
+          'ImgGen',
+        );
+        if (status == 'success') {
+          final locations = _extractShatangyunImageLocations(event);
+          if (locations.isEmpty) {
+            throw Exception('砂糖云任务成功但没有返回图片地址');
+          }
+          imageLocation = locations.first;
+          onProgress?.call(100, 100);
+          return;
+        }
+        if (status == 'failed' ||
+            status == 'fail' ||
+            status == 'error' ||
+            event.containsKey('error')) {
+          final detail = _extractProviderError(event);
+          throw Exception(detail.isEmpty ? '砂糖云生成失败' : '砂糖云生成失败：$detail');
+        }
+
+        final progress = _shatangyunEventProgress(event, receivedEvents);
+        onProgress?.call(progress, 100);
+      }
     }
 
-    final baseUri = Uri.parse(generationUrl);
-    final images = <Uint8List>[];
-    for (var index = 0; index < locations.length; index++) {
+    final textStream = body.stream
+        .map<List<int>>((chunk) => chunk)
+        .transform(utf8.decoder);
+    await for (final textChunk in textStream) {
       if (cancelToken.isCancelled) {
         throw DioException(
           requestOptions: response.requestOptions,
@@ -376,27 +482,103 @@ class NAIImageGenerationApiService {
           error: 'User cancelled',
         );
       }
-      final bytes = await _loadShatangyunImage(
-        locations[index],
-        baseUri: baseUri,
-        cancelToken: cancelToken,
-        onProgress: onProgress,
-      );
-      images.add(bytes);
+      pendingText += textChunk;
+      final blocks = pendingText.split(RegExp(r'\r?\n\r?\n'));
+      pendingText = blocks.removeLast();
+      for (final block in blocks) {
+        processBlock(block);
+        if (imageLocation != null) break;
+      }
+      if (imageLocation != null) break;
     }
-    return images;
+
+    if (imageLocation == null && pendingText.trim().isNotEmpty) {
+      processBlock(pendingText);
+    }
+    if (imageLocation == null) {
+      throw Exception(
+        receivedEvents == 0 ? '砂糖云没有返回可识别的生成状态' : '砂糖云任务结束但没有返回最终图片',
+      );
+    }
+
+    final image = await _loadShatangyunImage(
+      imageLocation!,
+      baseUri: Uri.parse(generationUrl),
+      cancelToken: cancelToken,
+      onProgress: onProgress,
+    );
+    return [image];
   }
 
-  dynamic _decodeJsonResponse(dynamic data) {
-    if (data is String) {
-      try {
-        return jsonDecode(data);
-      } on FormatException {
-        return data;
+  List<Map<String, dynamic>> _decodeShatangyunEventBlock(String block) {
+    final payloadLines = <String>[];
+    for (final rawLine in const LineSplitter().convert(block)) {
+      final line = rawLine.trim();
+      if (line.isEmpty ||
+          line.startsWith(':') ||
+          line.startsWith('event:') ||
+          line.startsWith('id:') ||
+          line.startsWith('retry:')) {
+        continue;
       }
+      payloadLines.add(
+        line.startsWith('data:') ? line.substring(5).trim() : line,
+      );
     }
-    return data;
+    if (payloadLines.isEmpty) return const [];
+
+    final joined = payloadLines.join('\n');
+    final decoded = _tryDecodeShatangyunJson(joined);
+    if (decoded != null) return decoded;
+
+    return [
+      for (final line in payloadLines) ...?_tryDecodeShatangyunJson(line),
+    ];
   }
+
+  List<Map<String, dynamic>>? _tryDecodeShatangyunJson(String value) {
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map) {
+        return [Map<String, dynamic>.from(decoded)];
+      }
+      if (decoded is List) {
+        return [
+          for (final item in decoded)
+            if (item is Map) Map<String, dynamic>.from(item),
+        ];
+      }
+    } on FormatException {
+      return null;
+    }
+    return null;
+  }
+
+  int _shatangyunEventProgress(Map<String, dynamic> event, int eventCount) {
+    final raw = event['progress'] ?? event['percent'];
+    if (raw is num) {
+      final value = raw <= 1 ? raw * 100 : raw;
+      return value.round().clamp(1, 95);
+    }
+    final data = event['data']?.toString() ?? '';
+    final match = RegExp(r'(\d{1,3})\s*%').firstMatch(data);
+    if (match != null) {
+      return (int.tryParse(match.group(1)!) ?? 1).clamp(1, 95);
+    }
+    return (eventCount * 10).clamp(5, 90);
+  }
+
+  String _shatangyunSize(Map<String, dynamic> parameters) {
+    final width = (parameters['width'] as num?)?.toInt() ?? 1024;
+    final height = (parameters['height'] as num?)?.toInt() ?? 1024;
+    if (width == height) return '方图';
+    return width > height ? '横图' : '竖图';
+  }
+
+  String _normalizeProviderToken(String? value) => (value ?? '')
+      .trim()
+      .replaceFirst(RegExp(r'^Bearer\s+', caseSensitive: false), '')
+      .replaceAll(RegExp(r'\s+'), '');
 
   List<String> _extractShatangyunImageLocations(dynamic responseData) {
     final result = <String>[];
@@ -1355,5 +1537,11 @@ NAIImageGenerationApiService naiImageGenerationApiService(Ref ref) {
   final dio = ref.watch(imageGenerationDioClientProvider);
   final enhancementService = ref.watch(naiImageEnhancementApiServiceProvider);
   final endpointService = ref.watch(naiApiEndpointServiceProvider);
-  return NAIImageGenerationApiService(dio, enhancementService, endpointService);
+  final secureStorage = ref.watch(secureStorageServiceProvider);
+  return NAIImageGenerationApiService(
+    dio,
+    enhancementService,
+    endpointService,
+    accessTokenProvider: secureStorage.getAccessToken,
+  );
 }

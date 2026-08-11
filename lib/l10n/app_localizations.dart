@@ -787,7 +787,7 @@ abstract class AppLocalizations {
   /// No description provided for @auth_shatangyunCompatibilityHint.
   ///
   /// In en, this message translates to:
-  /// **'Compatible with Sugar Cloud /novelai and /api/generate URLs and the same token used by AstrBot. The app automatically uses the non-stream /novelai endpoint and downloads the final image; MessagePack streaming is disabled.'**
+  /// **'Compatible with Sugar Cloud /novelai and /api/generate URLs and the same token used by AstrBot. The app automatically uses the /generate web task stream, parses status events, and downloads the final image; MessagePack streaming is not required.'**
   String get auth_shatangyunCompatibilityHint;
 
   /// No description provided for @auth_thirdPartySubscriptionApi.

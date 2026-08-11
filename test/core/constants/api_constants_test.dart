@@ -158,9 +158,9 @@ void main() {
         providerType: NaiApiProviderType.shatangyun,
       );
 
-      expect(endpoint.mainBaseUrl, 'https://std.loliyc.com/novelai');
-      expect(endpoint.imageBaseUrl, 'https://std.loliyc.com/novelai');
-      expect(endpoint.imageGenerationUrl, 'https://std.loliyc.com/novelai');
+      expect(endpoint.mainBaseUrl, 'https://std.loliyc.com/generate');
+      expect(endpoint.imageBaseUrl, 'https://std.loliyc.com/generate');
+      expect(endpoint.imageGenerationUrl, 'https://std.loliyc.com/generate');
       expect(endpoint.supportsSubscriptionApi, isFalse);
       expect(endpoint.supportsStreamingApi, isFalse);
       expect(endpoint.isShatangyun, isTrue);
@@ -183,7 +183,7 @@ void main() {
       expect(endpoint.providerType, NaiApiProviderType.shatangyun);
       expect(endpoint.supportsSubscriptionApi, isFalse);
       expect(endpoint.supportsStreamingApi, isFalse);
-      expect(endpoint.imageGenerationUrl, 'https://std.loliyc.com/novelai');
+      expect(endpoint.imageGenerationUrl, 'https://std.loliyc.com/generate');
     });
   });
 

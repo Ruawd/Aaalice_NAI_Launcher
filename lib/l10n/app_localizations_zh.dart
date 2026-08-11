@@ -361,7 +361,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get auth_shatangyunCompatibilityHint =>
-      '兼容砂糖云 /novelai、/api/generate 与 AstrBot 中使用的同一 Token。应用会自动使用 /novelai 非流式接口并下载最终图片，不要开启 MessagePack 流式生图。';
+      '兼容砂糖云 /novelai、/api/generate 与 AstrBot 中使用的同一 Token。应用会自动使用 /generate 网页任务流、解析生成状态并下载最终图片，无需开启 MessagePack 流式生图。';
 
   @override
   String get auth_thirdPartySubscriptionApi => '支持订阅信息接口';

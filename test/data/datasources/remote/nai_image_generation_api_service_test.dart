@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
@@ -8,7 +9,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
-import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
@@ -16,36 +16,155 @@ import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_se
 import 'package:nai_launcher/data/models/image/image_params.dart';
 
 void main() {
-  test('maps DDIM onto Euler Ancestral for every v4-structure model', () {
-    // V5 之前的判定是 contains('diffusion-4')，V5 会漏掉并把 ddim 原样发出。
-    for (final model in [
-      ImageModels.animeDiffusionV4Full,
-      ImageModels.animeDiffusionV45Full,
-      ImageModels.animeDiffusionV5Curated,
-      ImageModels.animeDiffusionV5Full,
-    ]) {
-      expect(
-        NAIImageGenerationApiService.mapSamplerForModel(Samplers.ddim, model),
-        Samplers.kEulerAncestral,
-        reason: model,
+  test(
+    'Sugar Cloud follows /generate task events and downloads final URL',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService()
+        ..setCurrent(
+          NaiApiEndpointConfig.fromInput(
+            mainBaseUrl: 'https://std.loliyc.com/api/generate',
+            providerType: NaiApiProviderType.shatangyun,
+          ),
+        );
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+        accessTokenProvider: () async => 'STD-test-token',
       );
-    }
 
-    expect(
-      NAIImageGenerationApiService.mapSamplerForModel(
-        Samplers.ddim,
-        ImageModels.animeDiffusionV3,
-      ),
-      Samplers.ddimV3,
+      final streamChunks = await service
+          .generateImageStream(const ImageParams(prompt: 'sugar stream'))
+          .toList();
+      expect(streamChunks.single.error, contains('Streaming is not allowed'));
+      expect(adapter.requests, isEmpty);
+
+      final resultFuture = service.generateImage(
+        const ImageParams(prompt: 'sugar test'),
+      );
+      await _waitForRequestCount(adapter, 1);
+
+      final generationRequest = adapter.requests[0].options;
+      expect(
+        generationRequest.uri.toString(),
+        'https://std.loliyc.com/generate',
+      );
+      expect(generationRequest.data, isA<String>());
+      final requestData = Map<String, dynamic>.from(
+        jsonDecode(generationRequest.data as String) as Map,
+      );
+      expect(requestData['token'], 'STD-test-token');
+      expect(requestData['tag'], contains('sugar test'));
+      expect(requestData['size'], '竖图');
+      expect(requestData['stream'], 1);
+      expect(generationRequest.responseType, ResponseType.stream);
+      expect(generationRequest.headers['Content-Type'], 'text/event-stream');
+      expect(generationRequest.extra['skipAuth'], isTrue);
+      adapter.requests[0].completeWithTextStream(
+        '{"status":"wait","data":"已连接"}\n\n'
+        '{"status":"wait","data":"生成中 50%"}\n\n'
+        '{"status":"success","url":"/img/generated.png"}\n\n',
+      );
+
+      await _waitForRequestCount(adapter, 2);
+      final imageRequest = adapter.requests[1].options;
+      expect(
+        imageRequest.uri.toString(),
+        'https://std.loliyc.com/img/generated.png',
+      );
+      expect(imageRequest.extra['skipAuth'], isTrue);
+      final png = _solidPng(width: 64, height: 64, r: 8, g: 9, b: 10);
+      adapter.requests[1].completeWithImage(png);
+
+      final result = await resultFuture;
+      expect(result.$1, hasLength(1));
+      expect(result.$1.single, orderedEquals(png));
+    },
+  );
+
+  test('Sugar Cloud failed task event becomes a visible exception', () async {
+    final adapter = _PendingDioAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    final endpointService = NaiApiEndpointService()
+      ..setCurrent(
+        NaiApiEndpointConfig.fromInput(
+          mainBaseUrl: 'https://std.loliyc.com/novelai',
+          providerType: NaiApiProviderType.shatangyun,
+        ),
+      );
+    final service = NAIImageGenerationApiService(
+      dio,
+      NAIImageEnhancementApiService(dio, endpointService),
+      endpointService,
+      accessTokenProvider: () async => 'STD-test-token',
     );
-    expect(
-      NAIImageGenerationApiService.mapSamplerForModel(
-        Samplers.kEulerAncestral,
-        ImageModels.animeDiffusionV5Curated,
-      ),
-      Samplers.kEulerAncestral,
+
+    final result = service.generateImage(
+      const ImageParams(prompt: 'surface sugar error'),
     );
+    await _waitForRequestCount(adapter, 1);
+    adapter.requests.single.completeWithTextStream(
+      '{"status":"wait","data":"已连接"}\n\n'
+      '{"status":"failed","data":"授权 Key 已失效"}\n\n',
+    );
+
+    await expectLater(
+      result,
+      throwsA(predicate((error) => error.toString().contains('授权 Key 已失效'))),
+    );
+    expect(adapter.requests, hasLength(1));
   });
+
+  test(
+    'generation-only provider skips stream and uses NovelAI ZIP endpoint',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService()
+        ..setCurrent(
+          NaiApiEndpointConfig.fromInput(
+            mainBaseUrl: 'https://gateway.example/nai',
+            imageBaseUrl: 'https://images.gateway.example/nai',
+            supportsSubscriptionApi: false,
+            supportsStreamingApi: false,
+          ),
+        );
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+      );
+
+      final streamChunks = await service
+          .generateImageStream(const ImageParams(prompt: 'compatibility'))
+          .toList();
+      expect(adapter.requests, isEmpty);
+      expect(streamChunks, hasLength(1));
+      expect(streamChunks.single.error, contains('Streaming is not allowed'));
+
+      final resultFuture = service.generateImage(
+        const ImageParams(prompt: 'compatibility'),
+      );
+      await _waitForRequestCount(adapter, 1);
+      final request = adapter.requests.single.options;
+      expect(
+        request.uri.toString(),
+        'https://images.gateway.example/nai/ai/generate-image',
+      );
+      expect(request.data, isA<Map<String, dynamic>>());
+      final requestData = request.data as Map<String, dynamic>;
+      expect(requestData['action'], 'generate');
+      expect(requestData['parameters'], isA<Map<String, dynamic>>());
+
+      adapter.requests.single.completeWithZipImage(
+        _solidPng(width: 64, height: 64, r: 1, g: 2, b: 3),
+      );
+      final result = await resultFuture;
+      expect(result.$1, hasLength(1));
+    },
+  );
 
   test('completed older request must not clear newer cancel token', () async {
     final adapter = _PendingDioAdapter();
@@ -738,6 +857,42 @@ class _PendingRequest {
         200,
         headers: {
           Headers.contentTypeHeader: ['application/x-zip-compressed'],
+        },
+      ),
+    );
+  }
+
+  void completeWithJson(Map<String, dynamic> data) {
+    response.complete(
+      ResponseBody.fromString(
+        jsonEncode(data),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      ),
+    );
+  }
+
+  void completeWithTextStream(String data) {
+    response.complete(
+      ResponseBody.fromString(
+        data,
+        200,
+        headers: {
+          Headers.contentTypeHeader: ['text/plain; charset=utf-8'],
+        },
+      ),
+    );
+  }
+
+  void completeWithImage(Uint8List imageBytes) {
+    response.complete(
+      ResponseBody.fromBytes(
+        imageBytes,
+        200,
+        headers: {
+          Headers.contentTypeHeader: ['image/png'],
         },
       ),
     );
