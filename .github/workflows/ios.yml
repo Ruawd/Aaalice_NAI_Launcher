@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore beta 8: makes the local gallery load saved files directly from the iOS sandbox without waiting for SQLite, prevents cache statistics from remaining stuck on loading, bounds database connection waits, and shows the real Hive sandbox path instead of %APPDATA%. Note: enable Auto Save in Settings for newly generated images to enter the local gallery."
+          --notes "iOS/TrollStore beta 9: adapts Add to Library dialogs, the library picker, and the full tag-library page for iPhone widths. Forms use a scrollable single-column layout, picker cards use an adaptive two-column grid, and categories open from a mobile bottom sheet."
