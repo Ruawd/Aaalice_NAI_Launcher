@@ -574,6 +574,12 @@ abstract class AppLocalizations {
   /// **'Dictionary'**
   String get nav_dictionary;
 
+  /// No description provided for @nav_more.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get nav_more;
+
   /// No description provided for @nav_discordCommunity.
   ///
   /// In en, this message translates to:

@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore beta 11: each local-gallery image now has an always-visible More button on iPhone. Open it to delete that image directly; the action works in both the normal gallery and date-grouped gallery."
+            --notes "iOS/TrollStore beta 12: portrait navigation now keeps Local Gallery and Online Gallery separate. A new More destination exposes every item from the landscape sidebar, including Vibe Library, Precise Reference, Random Config, Dictionary, Statistics, Settings, Discord, and GitHub."

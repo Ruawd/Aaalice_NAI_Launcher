@@ -256,6 +256,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get nav_dictionary => '辞書';
 
   @override
+  String get nav_more => 'その他';
+
+  @override
   String get nav_discordCommunity => 'Discord コミュニティ';
 
   @override

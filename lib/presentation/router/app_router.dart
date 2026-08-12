@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/utils/localization_extension.dart';
 import '../../core/shortcuts/default_shortcuts.dart';
@@ -505,7 +506,7 @@ class DesktopShell extends ConsumerWidget {
 }
 
 /// 移动端布局
-class MobileShell extends ConsumerWidget {
+class MobileShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
   final Widget content;
 
@@ -516,7 +517,12 @@ class MobileShell extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MobileShell> createState() => _MobileShellState();
+}
+
+class _MobileShellState extends ConsumerState<MobileShell> {
+  @override
+  Widget build(BuildContext context) {
     final isQueueVisible = ref.watch(queueManagementVisibleProvider);
     final showUpdateBadge = ref.watch(
       updateStateProvider.select((state) => state.hasNewVersion),
@@ -528,7 +534,7 @@ class MobileShell extends ConsumerWidget {
           return Stack(
             clipBehavior: Clip.none,
             children: [
-              content,
+              widget.content,
               const Positioned(
                 top: 0,
                 left: 0,
@@ -556,10 +562,11 @@ class MobileShell extends ConsumerWidget {
         },
       ),
       bottomNavigationBar: NavigationBar(
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         selectedIndex: mobileNavigationIndexForBranch(
-          navigationShell.currentIndex,
+          widget.navigationShell.currentIndex,
         ),
-        onDestinationSelected: (index) => _onNavigate(index),
+        onDestinationSelected: (index) => _onNavigate(context, index),
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.auto_awesome_outlined),
@@ -567,9 +574,14 @@ class MobileShell extends ConsumerWidget {
             label: context.l10n.nav_generate,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.photo_library_outlined),
-            selectedIcon: const Icon(Icons.photo_library),
-            label: context.l10n.nav_gallery,
+            icon: const Icon(Icons.folder_outlined),
+            selectedIcon: const Icon(Icons.folder),
+            label: context.l10n.localGallery_title,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.public_outlined),
+            selectedIcon: const Icon(Icons.public),
+            label: context.l10n.nav_onlineGallery,
           ),
           NavigationDestination(
             icon: const Icon(Icons.book_outlined),
@@ -589,18 +601,163 @@ class MobileShell extends ConsumerWidget {
             ),
             label: context.l10n.nav_settings,
           ),
+          NavigationDestination(
+            icon: const Icon(Icons.more_horiz),
+            selectedIcon: const Icon(Icons.more),
+            label: context.l10n.nav_more,
+          ),
         ],
       ),
     );
   }
 
   /// 映射 mobile navigation index 到 branch index
-  void _onNavigate(int mobileIndex) {
-    final branch =
-        mobileIndex >= 0 && mobileIndex < mobileNavigationBranches.length
-        ? mobileNavigationBranches[mobileIndex]
-        : AppBranch.generation;
-    navigationShell.goBranch(branch.index);
+  void _onNavigate(BuildContext context, int mobileIndex) {
+    if (mobileIndex == mobileNavigationBranches.length) {
+      _showAllDestinations(context);
+      return;
+    }
+
+    if (mobileIndex >= 0 && mobileIndex < mobileNavigationBranches.length) {
+      widget.navigationShell.goBranch(
+        mobileNavigationBranches[mobileIndex].index,
+      );
+    }
+  }
+
+  void _showAllDestinations(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => FractionallySizedBox(
+        heightFactor: 0.86,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 12, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      context.l10n.nav_more,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    icon: const Icon(Icons.close),
+                    tooltip: context.l10n.common_close,
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView(
+                key: const ValueKey('mobile-all-destinations'),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                children: [
+                  for (final branch in allNavigationBranches)
+                    _mobileDestination(
+                      sheetContext,
+                      branch,
+                      _mobileDestinationIcon(branch),
+                      _mobileDestinationLabel(context, branch),
+                    ),
+                  const Divider(),
+                  _mobileExternalDestination(
+                    sheetContext,
+                    Icons.discord,
+                    context.l10n.nav_discordCommunity,
+                    'https://discord.gg/R48n6GwXzD',
+                    color: const Color(0xFF5865F2),
+                  ),
+                  _mobileExternalDestination(
+                    sheetContext,
+                    Icons.code,
+                    context.l10n.nav_githubRepo,
+                    'https://github.com/Aaalice233/Aaalice_NAI_Launcher',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _mobileDestination(
+    BuildContext sheetContext,
+    AppBranch branch,
+    IconData icon,
+    String label,
+  ) {
+    final selected = widget.navigationShell.currentIndex == branch.index;
+    return ListTile(
+      key: ValueKey('mobile-destination-${branch.name}'),
+      selected: selected,
+      leading: Icon(icon),
+      title: Text(label),
+      trailing: selected ? const Icon(Icons.check) : null,
+      onTap: () {
+        Navigator.of(sheetContext).pop();
+        widget.navigationShell.goBranch(branch.index);
+      },
+    );
+  }
+
+  IconData _mobileDestinationIcon(AppBranch branch) => switch (branch) {
+    AppBranch.generation => Icons.brush,
+    AppBranch.localGallery => Icons.folder,
+    AppBranch.onlineGallery => Icons.photo_library,
+    AppBranch.vibeLibrary => Icons.auto_awesome,
+    AppBranch.preciseRefLibrary => Icons.center_focus_strong,
+    AppBranch.promptConfig => Icons.casino,
+    AppBranch.tagLibrary => Icons.book,
+    AppBranch.statistics => Icons.bar_chart,
+    AppBranch.settings => Icons.settings,
+  };
+
+  String _mobileDestinationLabel(BuildContext context, AppBranch branch) =>
+      switch (branch) {
+        AppBranch.generation => context.l10n.nav_canvas,
+        AppBranch.localGallery => context.l10n.localGallery_title,
+        AppBranch.onlineGallery => context.l10n.nav_onlineGallery,
+        AppBranch.vibeLibrary => context.l10n.vibeLibrary_title,
+        AppBranch.preciseRefLibrary => context.l10n.nav_preciseRefLibrary,
+        AppBranch.promptConfig => context.l10n.nav_randomConfig,
+        AppBranch.tagLibrary => context.l10n.nav_dictionary,
+        AppBranch.statistics => context.l10n.statistics_title,
+        AppBranch.settings => context.l10n.nav_settings,
+      };
+
+  Widget _mobileExternalDestination(
+    BuildContext sheetContext,
+    IconData icon,
+    String label,
+    String url, {
+    Color? color,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(label),
+      trailing: const Icon(Icons.open_in_new, size: 18),
+      onTap: () async {
+        final uri = Uri.parse(url);
+        final launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (launched && sheetContext.mounted) {
+          Navigator.of(sheetContext).pop();
+        }
+      },
+    );
   }
 }
 
