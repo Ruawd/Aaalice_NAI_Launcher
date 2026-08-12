@@ -451,43 +451,46 @@ class DesktopShell extends ConsumerWidget {
     final isQueueVisible = ref.watch(queueManagementVisibleProvider);
 
     return Scaffold(
-      body: Row(
-        children: [
-          // 侧边导航栏
-          MainNavRail(navigationShell: navigationShell),
+      body: SafeArea(
+        key: const ValueKey('desktop-shell-safe-area'),
+        child: Row(
+          children: [
+            // 侧边导航栏
+            MainNavRail(navigationShell: navigationShell),
 
-          // 主内容区
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    content,
-                    // 队列悬浮球 - 传入实际可用区域大小
-                    FloatingQueueButton(
-                      onTap: () =>
-                          ref
-                                  .read(queueManagementVisibleProvider.notifier)
-                                  .state =
-                              !isQueueVisible,
-                      containerSize: Size(
-                        constraints.maxWidth,
-                        constraints.maxHeight,
+            // 主内容区
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      content,
+                      // 队列悬浮球 - 传入实际可用区域大小
+                      FloatingQueueButton(
+                        onTap: () =>
+                            ref
+                                    .read(queueManagementVisibleProvider.notifier)
+                                    .state =
+                                !isQueueVisible,
+                        containerSize: Size(
+                          constraints.maxWidth,
+                          constraints.maxHeight,
+                        ),
                       ),
-                    ),
-                    // 队列管理面板
-                    _QueuePanel(
-                      isVisible: isQueueVisible,
-                      maxWidth: 650,
-                      heightFactor: 0.85,
-                    ),
-                  ],
-                );
-              },
+                      // 队列管理面板
+                      _QueuePanel(
+                        isVisible: isQueueVisible,
+                        maxWidth: 650,
+                        heightFactor: 0.85,
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -514,31 +517,35 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     final isQueueVisible = ref.watch(queueManagementVisibleProvider);
 
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return Stack(
-            clipBehavior: Clip.none,
-            children: [
-              widget.content,
-              // 队列悬浮球 - 传入实际可用区域大小
-              FloatingQueueButton(
-                onTap: () =>
-                    ref.read(queueManagementVisibleProvider.notifier).state =
-                        !isQueueVisible,
-                containerSize: Size(
-                  constraints.maxWidth,
-                  constraints.maxHeight,
+      body: SafeArea(
+        key: const ValueKey('mobile-shell-safe-area'),
+        bottom: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                widget.content,
+                // 队列悬浮球 - 传入实际可用区域大小
+                FloatingQueueButton(
+                  onTap: () =>
+                      ref.read(queueManagementVisibleProvider.notifier).state =
+                          !isQueueVisible,
+                  containerSize: Size(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  ),
                 ),
-              ),
-              // 队列管理面板
-              _QueuePanel(
-                isVisible: isQueueVisible,
-                maxWidth: double.infinity,
-                heightFactor: 0.85,
-              ),
-            ],
-          );
-        },
+                // 队列管理面板
+                _QueuePanel(
+                  isVisible: isQueueVisible,
+                  maxWidth: double.infinity,
+                  heightFactor: 0.85,
+                ),
+              ],
+            );
+          },
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,

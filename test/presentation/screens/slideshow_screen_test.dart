@@ -37,6 +37,35 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('keeps full-screen controls inside phone safe areas', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      _wrap(
+        SlideshowScreen(
+          images: [
+            LocalImageRecord(
+              path: 'C:\\tmp\\missing_slide.png',
+              size: 1,
+              modifiedAt: DateTime(2026),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final closeButton = find.byIcon(Icons.close);
+    final playButton = find.byIcon(Icons.play_arrow);
+    expect(tester.getTopLeft(closeButton).dy, greaterThanOrEqualTo(47));
+    expect(tester.getBottomRight(playButton).dy, lessThanOrEqualTo(852 - 34));
+  });
 }
 
 Widget _wrap(Widget child) {

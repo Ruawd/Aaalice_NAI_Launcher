@@ -3574,9 +3574,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nav_generate => 'Generate';
 
   @override
-  String get nav_gallery => 'Gallery';
-
-  @override
   String get nav_settings => 'Settings';
 
   @override

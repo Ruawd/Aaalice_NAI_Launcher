@@ -1562,7 +1562,6 @@
   "globalSettings_category_scene": "シーン",
   "globalSettings_category_style": "スタイル",
   "nav_generate": "生成",
-  "nav_gallery": "ギャラリー",
   "nav_settings": "設定",
   "download_completed": "{name} ダウンロードが完了しました",
   "@download_completed": {

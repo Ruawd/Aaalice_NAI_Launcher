@@ -91,34 +91,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWideScreen = constraints.maxWidth >= _wideScreenBreakpoint;
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWideScreen = constraints.maxWidth >= _wideScreenBreakpoint;
 
-          return Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _Header(theme: theme),
-                  const SizedBox(height: 32),
-                  _buildMainContent(
-                    context,
-                    theme,
-                    isWideScreen,
-                    isLoading,
-                    accounts,
-                  ),
-                  const SizedBox(height: 16),
-                  if (_showTroubleshootingButton) _TroubleshootingButton(),
-                  const SizedBox(height: 24),
-                  _LoginTip(theme: theme),
-                ],
+            return Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _Header(theme: theme),
+                    const SizedBox(height: 32),
+                    _buildMainContent(
+                      context,
+                      theme,
+                      isWideScreen,
+                      isLoading,
+                      accounts,
+                    ),
+                    const SizedBox(height: 16),
+                    if (_showTroubleshootingButton) _TroubleshootingButton(),
+                    const SizedBox(height: 24),
+                    _LoginTip(theme: theme),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

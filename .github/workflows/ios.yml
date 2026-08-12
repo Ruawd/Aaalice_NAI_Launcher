@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore beta 12: portrait navigation now keeps Local Gallery and Online Gallery separate. A new More destination exposes every item from the landscape sidebar, including Vibe Library, Precise Reference, Random Config, Dictionary, Statistics, Settings, Discord, and GitHub."
+            --notes "iOS/TrollStore beta 13: phone layouts now respect status-bar, notch, home-indicator, and landscape safe areas across startup, login, main pages, slideshow, and image comparison controls."

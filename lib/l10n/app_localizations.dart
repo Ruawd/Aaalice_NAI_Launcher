@@ -6482,12 +6482,6 @@ abstract class AppLocalizations {
   /// **'Generate'**
   String get nav_generate;
 
-  /// No description provided for @nav_gallery.
-  ///
-  /// In en, this message translates to:
-  /// **'Gallery'**
-  String get nav_gallery;
-
   /// No description provided for @nav_settings.
   ///
   /// In en, this message translates to:
