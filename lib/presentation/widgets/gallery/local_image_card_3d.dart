@@ -78,6 +78,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
   ThumbnailCacheService? _thumbnailService;
   _ImageLoadState _loadState = _ImageLoadState.idle;
   bool _isLoadingThumbnail = false;
+  bool _reloadThumbnailAfterCurrentLoad = false;
 
   @override
   void initState() {
@@ -95,12 +96,33 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
   @override
   void didUpdateWidget(LocalImageCard3D oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final sizeChanged = oldWidget.width != widget.width ||
+        oldWidget.height != widget.height;
+    if (oldWidget.record.path != widget.record.path || sizeChanged) {
+      _thumbnailPath = null;
+      _displayPath = null;
+      _loadState = _ImageLoadState.idle;
+      if (_isLoadingThumbnail) {
+        _reloadThumbnailAfterCurrentLoad = true;
+      } else {
+        _loadThumbnail();
+      }
+      return;
+    }
     if (oldWidget.priority != widget.priority ||
         (oldWidget.isVisible != widget.isVisible && widget.isVisible)) {
       if (_thumbnailPath == null && !_isLoadingThumbnail) {
         _loadThumbnail();
       }
     }
+  }
+
+  ThumbnailSize _thumbnailSizeForDisplay() {
+    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
+    return ThumbnailSize.forPhysicalSize(
+      width: widget.width * pixelRatio,
+      height: (widget.height ?? widget.width) * pixelRatio,
+    );
   }
 
   Future<void> _initAndLoadThumbnail() async {
@@ -134,7 +156,11 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
         return;
       }
 
-      final existingPath = await _thumbnailService?.getThumbnailPath(path);
+      final thumbnailSize = _thumbnailSizeForDisplay();
+      final existingPath = await _thumbnailService?.getThumbnailPath(
+        path,
+        size: thumbnailSize,
+      );
       if (existingPath != null && await File(existingPath).exists()) {
         // AppLogger.i('[CardLoad] Using existing thumbnail: $fileName', 'LocalImageCard3D');
         if (mounted) {
@@ -157,7 +183,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
 
       final generatedPath = await thumbnailService.getThumbnail(
         path,
-        size: ThumbnailSize.small,
+        size: thumbnailSize,
         priority: widget.priority,
       );
 
@@ -185,6 +211,10 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
       }
     } finally {
       _isLoadingThumbnail = false;
+      if (_reloadThumbnailAfterCurrentLoad && mounted) {
+        _reloadThumbnailAfterCurrentLoad = false;
+        unawaited(_loadThumbnail());
+      }
     }
   }
 
@@ -454,9 +484,9 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
 
   Widget _buildOptimizedImage(String imagePath) {
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
-    final cacheWidth = (widget.width * pixelRatio * 1.5).toInt();
+    final cacheWidth = (widget.width * pixelRatio).ceil();
     final cacheHeight =
-        ((widget.height ?? widget.width) * pixelRatio * 1.5).toInt();
+        ((widget.height ?? widget.width) * pixelRatio).ceil();
 
     return Image.file(
       File(imagePath),

@@ -71,6 +71,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
   bool _isHovering = false;
   double? _resolvedAspectRatio;
   String? _dimensionRequestUrl;
+  String? _gridImageUrl;
   ImageStream? _dimensionStream;
   ImageStreamListener? _dimensionListener;
   OverlayEntry? _overlayEntry;
@@ -79,17 +80,23 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _gridImageUrl = _gridImageUrlForCurrentDisplay();
     _resolveUnknownDimensions();
   }
 
   @override
   void didUpdateWidget(covariant DanbooruPostCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final gridImageUrl = _gridImageUrlForCurrentDisplay();
+    final gridImageChanged = _gridImageUrl != gridImageUrl;
+    _gridImageUrl = gridImageUrl;
     if (oldWidget.post.stableKey != widget.post.stableKey) {
       _removeOverlay();
       _isHovering = false;
     }
-    if (oldWidget.post.previewUrl != widget.post.previewUrl ||
+    if (gridImageChanged ||
+        oldWidget.post.previewUrl != widget.post.previewUrl ||
+        oldWidget.post.displayUrl != widget.post.displayUrl ||
         oldWidget.post.width != widget.post.width ||
         oldWidget.post.height != widget.post.height) {
       _resolvedAspectRatio = null;
@@ -99,13 +106,13 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
 
   void _resolveUnknownDimensions() {
     final post = widget.post;
+    final url = _gridImageUrl ?? post.previewUrl;
     if ((post.width > 0 && post.height > 0) ||
         _resolvedAspectRatio != null ||
-        post.previewUrl.isEmpty) {
+        url.isEmpty) {
       _detachDimensionListener();
       return;
     }
-    final url = post.previewUrl;
     if (_dimensionRequestUrl == url) return;
     _detachDimensionListener();
     _dimensionRequestUrl = url;
@@ -118,7 +125,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     final stream = provider.resolve(createLocalImageConfiguration(context));
     late final ImageStreamListener listener;
     listener = ImageStreamListener((imageInfo, _) {
-      if (!mounted || widget.post.previewUrl != url) return;
+      if (!mounted || _gridImageUrl != url) return;
       final width = imageInfo.image.width;
       final height = imageInfo.image.height;
       if (width > 0 && height > 0) {
@@ -210,6 +217,26 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     }
   }
 
+  Widget _imageErrorWidget(ThemeData theme) => Container(
+    color: theme.colorScheme.surfaceContainerHighest,
+    child: Icon(Icons.broken_image, color: theme.colorScheme.onSurfaceVariant),
+  );
+
+  String _gridImageUrlForCurrentDisplay() {
+    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final aspectRatio = widget.post.width > 0 && widget.post.height > 0
+        ? widget.post.width / widget.post.height
+        : _resolvedAspectRatio ?? 1.0;
+    final itemHeight = (widget.itemWidth / aspectRatio).clamp(
+      80.0,
+      widget.itemWidth * 2.5,
+    );
+    return widget.post.gridImageUrlForPhysicalWidth(
+      widget.itemWidth * pixelRatio,
+      requiredHeight: itemHeight * pixelRatio,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -224,6 +251,10 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
 
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final memCacheWidth = (widget.itemWidth * pixelRatio).toInt();
+    final gridImageUrl = widget.post.gridImageUrlForPhysicalWidth(
+      memCacheWidth.toDouble(),
+      requiredHeight: itemHeight * pixelRatio,
+    );
 
     // 根据图片宽高比决定按钮布局方向
     // 横图（宽高比大）：水平布局，因为高度小放不下垂直按钮
@@ -314,12 +345,12 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                       fit: StackFit.expand,
                       children: [
                         CachedNetworkImage(
-                          imageUrl: widget.post.previewUrl,
+                          imageUrl: gridImageUrl,
                           httpHeaders: onlineGalleryImageHeadersForUrl(
-                            widget.post.previewUrl,
+                            gridImageUrl,
                           ),
                           cacheKey: onlineGalleryImageCacheKeyForUrl(
-                            widget.post.previewUrl,
+                            gridImageUrl,
                           ),
                           fit: BoxFit.cover,
                           memCacheWidth: memCacheWidth,
@@ -333,13 +364,28 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             ),
                           ),
-                          errorWidget: (context, url, error) => Container(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            child: Icon(
-                              Icons.broken_image,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
+                          errorWidget: (context, url, error) {
+                            final previewUrl = widget.post.previewUrl;
+                            if (previewUrl.isNotEmpty &&
+                                previewUrl != gridImageUrl) {
+                              return CachedNetworkImage(
+                                imageUrl: previewUrl,
+                                httpHeaders: onlineGalleryImageHeadersForUrl(
+                                  previewUrl,
+                                ),
+                                cacheKey: onlineGalleryImageCacheKeyForUrl(
+                                  previewUrl,
+                                ),
+                                fit: BoxFit.cover,
+                                memCacheWidth: memCacheWidth,
+                                cacheManager:
+                                    DanbooruImageCacheManager.instance,
+                                errorWidget: (_, __, ___) =>
+                                    _imageErrorWidget(theme),
+                              );
+                            }
+                            return _imageErrorWidget(theme);
+                          },
                         ),
                         if (widget.selectionMode) ...[
                           // Selection Overlay

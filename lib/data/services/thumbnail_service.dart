@@ -227,7 +227,7 @@ class ThumbnailService {
   final PriorityQueue<ThumbnailTask> _taskQueue =
       PriorityQueue<ThumbnailTask>((a, b) => a.effectivePriority.compareTo(b.effectivePriority));
 
-  /// 活跃任务映射（路径 -> 任务）
+  /// 活跃任务映射（原图路径 + 尺寸 -> 任务）
   final Map<String, ThumbnailTask> _activeTasks = {};
 
   /// 活跃批次映射
@@ -363,7 +363,7 @@ class ThumbnailService {
     }
 
     // 检查是否已在队列中
-    if (_activeTasks.containsKey(originalPath)) {
+    if (_activeTasks.containsKey(_taskKey(originalPath, size))) {
       return; // 已在处理中
     }
 
@@ -493,6 +493,9 @@ class ThumbnailService {
 
   // ==================== 队列管理 ====================
 
+  String _taskKey(String originalPath, ThumbnailSize size) =>
+      '$originalPath#${size.name}';
+
   ThumbnailTask _createTask(
     String originalPath, {
     required ThumbnailSize size,
@@ -513,7 +516,7 @@ class ThumbnailService {
     }
 
     _taskQueue.add(task);
-    _activeTasks[task.originalPath] = task;
+    _activeTasks[_taskKey(task.originalPath, task.size)] = task;
 
     _taskController.add(task);
 
@@ -543,7 +546,9 @@ class ThumbnailService {
     // 标记为取消
     lowestPriorityTask.state = ThumbnailTaskState.cancelled;
     lowestPriorityTask.notifyComplete(null);
-    _activeTasks.remove(lowestPriorityTask.originalPath);
+    _activeTasks.remove(
+      _taskKey(lowestPriorityTask.originalPath, lowestPriorityTask.size),
+    );
 
     // AppLogger.d(
     //   'Evicted lowest priority task: ${lowestPriorityTask.originalPath}',
@@ -577,7 +582,7 @@ class ThumbnailService {
 
       _generateThumbnail(task).then((path) {
         _activeGenerationCount--;
-        _activeTasks.remove(task.originalPath);
+        _activeTasks.remove(_taskKey(task.originalPath, task.size));
 
         if (path != null) {
           task.state = ThumbnailTaskState.completed;
@@ -684,7 +689,7 @@ class ThumbnailService {
 
         task.state = ThumbnailTaskState.cancelled;
         task.notifyComplete(null);
-        _activeTasks.remove(task.originalPath);
+        _activeTasks.remove(_taskKey(task.originalPath, task.size));
 
         // AppLogger.d('Cancelled task: $taskId', 'ThumbnailService');
         return true;

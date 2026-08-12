@@ -1406,7 +1406,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     }
 
     final post = state.posts[index];
-    _prefetchImages(state, index);
+    _prefetchImages(state, index, itemWidth);
     if (post.sourceId == GallerySourceId.aiTag && !post.hasValidPreview) {
       return AnimatedSize(
         duration: const Duration(milliseconds: 180),
@@ -1551,16 +1551,36 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   /// 智能预加载图片
-  void _prefetchImages(OnlineGalleryState state, int currentIndex) {
+  void _prefetchImages(
+    OnlineGalleryState state,
+    int currentIndex,
+    double itemWidth,
+  ) {
     const prefetchCount = 10;
+    final physicalWidth =
+        itemWidth * MediaQuery.devicePixelRatioOf(context);
     for (var i = 1; i <= prefetchCount; i++) {
       final nextIndex = currentIndex + i;
       if (nextIndex < state.posts.length) {
         final nextPost = state.posts[nextIndex];
-        if (nextPost.previewUrl.isNotEmpty &&
-            shouldPrefetchOnlineGalleryImage(nextPost.previewUrl)) {
+        final aspectRatio = nextPost.width > 0 && nextPost.height > 0
+            ? nextPost.width / nextPost.height
+            : 1.0;
+        final physicalHeight =
+            (itemWidth / aspectRatio).clamp(80.0, itemWidth * 2.5) *
+            MediaQuery.devicePixelRatioOf(context);
+        final imageUrl = nextPost.gridImageUrlForPhysicalWidth(
+          physicalWidth,
+          requiredHeight: physicalHeight,
+        );
+        if (imageUrl.isNotEmpty && shouldPrefetchOnlineGalleryImage(imageUrl)) {
           precacheImage(
-            CachedNetworkImageProvider(nextPost.previewUrl),
+            CachedNetworkImageProvider(
+              imageUrl,
+              cacheManager: DanbooruImageCacheManager.instance,
+              cacheKey: onlineGalleryImageCacheKeyForUrl(imageUrl),
+              headers: onlineGalleryImageHeadersForUrl(imageUrl),
+            ),
             context,
           );
         }

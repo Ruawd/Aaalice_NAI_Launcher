@@ -22,6 +22,7 @@ DanbooruPost parseGelbooruPostJson(Map<String, dynamic> json) {
     fileUrl: fileUrl.isEmpty ? null : fileUrl,
     previewFileUrl: previewUrl.isEmpty ? null : previewUrl,
     largeFileUrl: sampleUrl.isEmpty ? null : sampleUrl,
+    sampleUrl: sampleUrl.isEmpty ? null : sampleUrl,
   );
 }
 
@@ -80,6 +81,10 @@ List<DanbooruPost> parseGelbooruHtmlPosts(String html) {
     final width = parseBooruInt(_htmlAttribute(imgTag, 'width')) ?? 0;
     final height = parseBooruInt(_htmlAttribute(imgTag, 'height')) ?? 0;
     final fileExt = _gelbooruHtmlFileExtension(previewUrl, tags);
+    final sampleUrl = _gelbooruSampleUrlFromThumbnail(
+      previewUrl,
+      fileExtension: fileExt,
+    );
 
     posts.add(
       DanbooruPost(
@@ -93,6 +98,8 @@ List<DanbooruPost> parseGelbooruHtmlPosts(String html) {
         tagString: tags.join(' '),
         fileExt: fileExt,
         previewFileUrl: previewUrl,
+        largeFileUrl: sampleUrl,
+        sampleUrl: sampleUrl,
       ),
     );
   }
@@ -161,6 +168,36 @@ String _gelbooruHtmlFileExtension(String previewUrl, List<String> tags) {
     return 'gif';
   }
   return fileExtensionFromUrl(previewUrl);
+}
+
+String? _gelbooruSampleUrlFromThumbnail(
+  String previewUrl, {
+  required String fileExtension,
+}) {
+  // The public HTML endpoint only exposes the thumbnail URL. Gelbooru's
+  // static layout has a deterministic sample path for still images, so the
+  // grid can request a sharp source on high-density screens without an extra
+  // detail-page request per card.
+  if (fileExtension == 'gif' ||
+      fileExtension == 'mp4' ||
+      fileExtension == 'webm') {
+    return null;
+  }
+  final uri = Uri.tryParse(previewUrl);
+  if (uri == null || uri.host.isEmpty) return null;
+  final match = RegExp(
+    r'^/thumbnails/+([0-9a-fA-F]{2})/([0-9a-fA-F]{2})/'
+    r'thumbnail_([0-9a-fA-F]{32})\.[^/]+$',
+  ).firstMatch(uri.path);
+  if (match == null) return null;
+  final hash = match.group(3)!;
+  return uri
+      .replace(
+        path: '/samples/${match.group(1)}/${match.group(2)}/sample_$hash.jpg',
+        query: null,
+        fragment: null,
+      )
+      .toString();
 }
 
 ({int width, int height})? decodeJpegDimensions(Uint8List bytes) {

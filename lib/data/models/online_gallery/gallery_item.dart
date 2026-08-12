@@ -218,9 +218,43 @@ class GalleryItem {
   }
 
   String get previewUrl => cover.previewUrl;
+  String get displayUrl => cover.displayUrl;
   String get bestQualityUrl => cover.downloadUrl.isNotEmpty
       ? cover.downloadUrl
       : (cover.displayUrl.isNotEmpty ? cover.displayUrl : cover.previewUrl);
+
+  /// Selects a grid image that is large enough for the rendered card.
+  ///
+  /// Booru preview URLs are usually only 180-350 physical pixels wide. On a
+  /// high-density phone they otherwise get stretched across a 450px+ card.
+  /// Prefer the source's display/sample asset when the preview is known to be
+  /// undersized, while retaining previews on ordinary low-density grids.
+  String gridImageUrlForPhysicalWidth(
+    double requiredWidth, {
+    double requiredHeight = 0,
+  }) {
+    final preview = previewUrl;
+    final display = displayUrl;
+    if (preview.isEmpty) return display.isNotEmpty ? display : bestQualityUrl;
+    if (display.isEmpty || display == preview) return preview;
+
+    final previewExtent = _estimatedPreviewExtent;
+    return requiredWidth > previewExtent || requiredHeight > previewExtent
+        ? display
+        : preview;
+  }
+
+  double get _estimatedPreviewExtent {
+    switch (sourceId) {
+      case GallerySourceId.danbooru:
+      case GallerySourceId.safebooru:
+        return 180;
+      case GallerySourceId.gelbooru:
+        return 350;
+      case GallerySourceId.aiTag:
+        return double.infinity;
+    }
+  }
 
   List<String> _splitTags(String value) {
     return value
