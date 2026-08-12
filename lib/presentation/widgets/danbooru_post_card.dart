@@ -96,6 +96,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
   bool _isHovering = false;
   double? _resolvedAspectRatio;
   String? _dimensionRequestUrl;
+  String? _gridImageUrl;
   ImageStream? _dimensionStream;
   ImageStreamListener? _dimensionListener;
   late final OnlineGalleryHoverController _ownedHoverController;
@@ -113,19 +114,25 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _gridImageUrl = _gridImageUrlForCurrentDisplay();
     _resolveUnknownDimensions();
   }
 
   @override
   void didUpdateWidget(covariant DanbooruPostCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final gridImageUrl = _gridImageUrlForCurrentDisplay();
+    final gridImageChanged = _gridImageUrl != gridImageUrl;
+    _gridImageUrl = gridImageUrl;
     if (oldWidget.post.stableKey != widget.post.stableKey) {
       (oldWidget.hoverController ?? _ownedHoverController).dismissFor(
         oldWidget.post.stableKey,
       );
       _isHovering = false;
     }
-    if (oldWidget.post.previewUrl != widget.post.previewUrl ||
+    if (gridImageChanged ||
+        oldWidget.post.previewUrl != widget.post.previewUrl ||
+        oldWidget.post.displayUrl != widget.post.displayUrl ||
         oldWidget.post.width != widget.post.width ||
         oldWidget.post.height != widget.post.height) {
       _resolvedAspectRatio = null;
@@ -135,13 +142,13 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
 
   void _resolveUnknownDimensions() {
     final post = widget.post;
+    final url = _gridImageUrl ?? post.previewUrl;
     if ((post.width > 0 && post.height > 0) ||
         _resolvedAspectRatio != null ||
-        post.previewUrl.isEmpty) {
+        url.isEmpty) {
       _detachDimensionListener();
       return;
     }
-    final url = post.previewUrl;
     final request = GalleryImageRequest.forUrl(
       sourceId: post.sourceId,
       url: url,
@@ -166,7 +173,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     final stream = provider.resolve(createLocalImageConfiguration(context));
     late final ImageStreamListener listener;
     listener = ImageStreamListener((imageInfo, _) {
-      if (!mounted || widget.post.previewUrl != url) return;
+      if (!mounted || _gridImageUrl != url) return;
       final width = imageInfo.image.width;
       final height = imageInfo.image.height;
       if (width > 0 && height > 0) {
@@ -283,6 +290,26 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     }
   }
 
+  Widget _imageErrorWidget(ThemeData theme) => Container(
+    color: theme.colorScheme.surfaceContainerHighest,
+    child: Icon(Icons.broken_image, color: theme.colorScheme.onSurfaceVariant),
+  );
+
+  String _gridImageUrlForCurrentDisplay() {
+    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final aspectRatio = widget.post.width > 0 && widget.post.height > 0
+        ? widget.post.width / widget.post.height
+        : _resolvedAspectRatio ?? 1.0;
+    final itemHeight = (widget.itemWidth / aspectRatio).clamp(
+      80.0,
+      widget.itemWidth * 2.5,
+    );
+    return widget.post.gridImageUrlForPhysicalWidth(
+      widget.itemWidth * pixelRatio,
+      requiredHeight: itemHeight * pixelRatio,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -298,7 +325,10 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     final pixelRatio = MediaQuery.devicePixelRatioOf(context);
     final gridImageRequest = GalleryImageRequest.forUrl(
       sourceId: widget.post.sourceId,
-      url: widget.post.previewUrl,
+      url: widget.post.gridImageUrlForPhysicalWidth(
+        widget.itemWidth * pixelRatio,
+        requiredHeight: itemHeight * pixelRatio,
+      ),
       tier: GalleryImageTier.thumbnail,
       targetDecodeWidth: GalleryImageSizing.gridTargetWidth(
         layoutWidth: widget.itemWidth,
@@ -408,13 +438,31 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             ),
                           ),
-                          errorWidget: (context, url, error) => Container(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            child: Icon(
-                              Icons.broken_image,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
+                          errorWidget: (context, url, error) {
+                            final previewUrl = widget.post.previewUrl;
+                            if (previewUrl.isNotEmpty &&
+                                previewUrl != gridImageRequest.url) {
+                              final fallback = GalleryImageRequest.forUrl(
+                                sourceId: widget.post.sourceId,
+                                url: previewUrl,
+                                tier: GalleryImageTier.thumbnail,
+                                targetDecodeWidth:
+                                    gridImageRequest.targetDecodeWidth ?? 1,
+                              );
+                              return CachedNetworkImage(
+                                imageUrl: fallback.url,
+                                httpHeaders: fallback.headers,
+                                cacheKey: fallback.cacheKey,
+                                fit: BoxFit.cover,
+                                memCacheWidth: fallback.targetDecodeWidth,
+                                cacheManager:
+                                    OnlineGalleryImageCacheManager.instance,
+                                errorWidget: (_, __, ___) =>
+                                    _imageErrorWidget(theme),
+                              );
+                            }
+                            return _imageErrorWidget(theme);
+                          },
                         ),
                         if (widget.selectionMode) ...[
                           // Selection Overlay

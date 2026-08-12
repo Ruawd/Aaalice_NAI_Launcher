@@ -8,6 +8,94 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
 
 void main() {
+  testWidgets(
+    'uses the display image when a high-DPR card exceeds preview size',
+    (tester) async {
+      const previewUrl = 'https://cdn.donmai.us/180x180/test-preview.jpg';
+      const displayUrl = 'https://cdn.donmai.us/sample/test-sample.jpg';
+      const post = DanbooruPost(
+        id: 122,
+        width: 1024,
+        height: 1536,
+        rating: 'g',
+        previewFileUrl: previewUrl,
+        largeFileUrl: displayUrl,
+        tagString: 'test_tag',
+      );
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: DanbooruPostCard(
+                post: post,
+                itemWidth: 180,
+                isFavorited: false,
+                selectionMode: true,
+                isSelected: false,
+                canSelect: true,
+                onTap: () {},
+                onTagTap: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final image = tester.widget<CachedNetworkImage>(
+        find.byType(CachedNetworkImage).first,
+      );
+      expect(image.imageUrl, displayUrl);
+      expect(image.memCacheWidth, 540);
+    },
+  );
+
+  testWidgets('uses the display image for a tall card on a 1x screen', (
+    tester,
+  ) async {
+    const previewUrl = 'https://cdn.donmai.us/180x180/tall-preview.jpg';
+    const displayUrl = 'https://cdn.donmai.us/sample/tall-sample.jpg';
+    const post = DanbooruPost(
+      id: 121,
+      width: 600,
+      height: 1200,
+      rating: 'g',
+      previewFileUrl: previewUrl,
+      largeFileUrl: displayUrl,
+      tagString: 'test_tag',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: DanbooruPostCard(
+              post: post,
+              itemWidth: 160,
+              isFavorited: false,
+              selectionMode: true,
+              isSelected: false,
+              canSelect: true,
+              onTap: () {},
+              onTagTap: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final image = tester.widget<CachedNetworkImage>(
+      find.byType(CachedNetworkImage).first,
+    );
+    expect(image.imageUrl, displayUrl);
+  });
+
   testWidgets('passes Gelbooru image headers and cache key to preview image', (
     tester,
   ) async {
@@ -19,6 +107,7 @@ void main() {
       width: 600,
       height: 900,
       rating: 'g',
+      largeFileUrl: 'https://img4.gelbooru.com/samples/sample_image.jpg',
       previewFileUrl: previewUrl,
       tagString: 'test_tag',
       site: 'gelbooru',
@@ -50,9 +139,9 @@ void main() {
       find.byType(CachedNetworkImage).first,
     );
 
-    expect(image.imageUrl, previewUrl);
+    expect(image.imageUrl, post.largeFileUrl);
     expect(image.httpHeaders?['Referer'], 'https://gelbooru.com/');
-    expect(image.cacheKey, 'gelbooru-image-v2:$previewUrl');
+    expect(image.cacheKey, 'gelbooru-image-v2:${post.largeFileUrl}');
   });
 
   testWidgets('Gelbooru search cards hide favorite actions', (tester) async {

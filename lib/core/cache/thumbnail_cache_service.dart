@@ -36,6 +36,24 @@ enum ThumbnailSize {
 
   /// 获取文件后缀
   String get fileSuffix => '.$name';
+
+  /// 根据画面实际需要的物理像素选择最小可用档位。
+  ///
+  /// 宽高任一边超过当前档位时向上升级，避免高 DPR 屏幕把低清缩略图
+  /// 放大显示。超过最大档位时仍使用 [large]，以限制磁盘和解码开销。
+  static ThumbnailSize forPhysicalSize({
+    required double width,
+    required double height,
+  }) {
+    if (!width.isFinite || !height.isFinite || width <= 0 || height <= 0) {
+      return ThumbnailSize.small;
+    }
+
+    for (final size in ThumbnailSize.values) {
+      if (size.width >= width && size.height >= height) return size;
+    }
+    return ThumbnailSize.large;
+  }
 }
 
 /// 缩略图信息
@@ -149,10 +167,10 @@ class ThumbnailCacheService {
   /// 最大并发生成数
   static const int maxConcurrentGenerations = 3;
 
-  /// 正在生成的缩略图路径集合
+  /// 正在生成的缩略图集合（原图路径 + 尺寸）
   final Set<String> _generatingThumbnails = {};
 
-  /// 等待缩略图生成的 Completer Map（路径 -> Completer）
+  /// 等待缩略图生成的 Completer Map（原图路径 + 尺寸 -> Completer）
   final Map<String, Completer<String?>> _generationCompleters = {};
 
   /// 缩略图生成队列（按优先级排序）
@@ -354,12 +372,13 @@ class ThumbnailCacheService {
     }
 
     final thumbnailPath = _getThumbnailPath(originalPath, size: size);
+    final generationKey = _failureKey(originalPath, size: size);
 
     // 检查是否已在生成中
-    if (_generatingThumbnails.contains(originalPath)) {
+    if (_generatingThumbnails.contains(generationKey)) {
       // AppLogger.d('Thumbnail generation already in progress: $originalPath', 'ThumbnailCache');
       // 等待生成完成
-      return _waitForGeneration(originalPath);
+      return _waitForGeneration(originalPath, size: size);
     }
 
     // 检查是否已存在（可能在等待期间其他任务已生成）
@@ -389,7 +408,8 @@ class ThumbnailCacheService {
     required ThumbnailSize size,
   }) async {
     final thumbnailPath = _getThumbnailPath(originalPath, size: size);
-    _generatingThumbnails.add(originalPath);
+    final generationKey = _failureKey(originalPath, size: size);
+    _generatingThumbnails.add(generationKey);
 
     final stopwatch = Stopwatch()..start();
 
@@ -428,7 +448,7 @@ class ThumbnailCacheService {
       // );
 
       // 通知等待的 Completer 生成完成
-      final completer = _generationCompleters.remove(originalPath);
+      final completer = _generationCompleters.remove(generationKey);
       if (completer != null && !completer.isCompleted) {
         completer.complete(thumbnailPath);
       }
@@ -445,13 +465,13 @@ class ThumbnailCacheService {
         'ThumbnailCache',
       );
       // 通知等待的 Completer 生成失败
-      final completer = _generationCompleters.remove(originalPath);
+      final completer = _generationCompleters.remove(generationKey);
       if (completer != null && !completer.isCompleted) {
         completer.complete(null);
       }
       return null;
     } finally {
-      _generatingThumbnails.remove(originalPath);
+      _generatingThumbnails.remove(generationKey);
       _activeGenerationCount--;
       _processQueue();
     }
@@ -507,9 +527,13 @@ class ThumbnailCacheService {
   }
 
   /// 等待正在进行的生成任务完成
-  Future<String?> _waitForGeneration(String originalPath) async {
+  Future<String?> _waitForGeneration(
+    String originalPath, {
+    required ThumbnailSize size,
+  }) async {
+    final generationKey = _failureKey(originalPath, size: size);
     final completer = _generationCompleters.putIfAbsent(
-      originalPath,
+      generationKey,
       () => Completer<String?>(),
     );
 
@@ -525,7 +549,7 @@ class ThumbnailCacheService {
         },
       );
     } finally {
-      _generationCompleters.remove(originalPath);
+      _generationCompleters.remove(generationKey);
     }
   }
 

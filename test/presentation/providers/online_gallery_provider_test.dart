@@ -56,6 +56,11 @@ void main() {
       expect(posts, hasLength(2));
       expect(posts.first.id, 14416915);
       expect(posts.first.previewUrl, contains('thumbnail_51d107'));
+      expect(
+        posts.first.displayUrl,
+        'https://img4.gelbooru.com/samples/51/d1/'
+        'sample_51d1078614b5849302fd803294a9abdf.jpg',
+      );
       expect(posts.first.rating, 'g');
       expect(posts.first.score, 12);
       expect(posts.first.tags, ['solo', 'pokemon']);
@@ -85,8 +90,10 @@ void main() {
         expect(posts, hasLength(2));
         expect(posts.first.fileExt, 'mp4');
         expect(posts.first.isVideo, isTrue);
+        expect(posts.first.displayUrl, posts.first.previewUrl);
         expect(posts.last.fileExt, 'gif');
         expect(posts.last.isAnimated, isTrue);
+        expect(posts.last.displayUrl, posts.last.previewUrl);
       },
     );
 

@@ -2425,13 +2425,23 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       if (index < 0 || index >= state.posts.length) continue;
       final item = state.posts[index];
       if (item.previewUrl.isNotEmpty) {
+        final itemWidth = visible.first.value.itemWidth;
+        final dpr = MediaQuery.devicePixelRatioOf(context);
+        final aspectRatio = item.width > 0 && item.height > 0
+            ? item.width / item.height
+            : 1.0;
+        final imageUrl = item.gridImageUrlForPhysicalWidth(
+          itemWidth * dpr,
+          requiredHeight:
+              (itemWidth / aspectRatio).clamp(80.0, itemWidth * 2.5) * dpr,
+        );
         unawaited(
           _prefetchCoordinator.submit(
             _imageRequest(
               item,
-              item.previewUrl,
+              imageUrl,
               GalleryImageTier.thumbnail,
-              visible.first.value.itemWidth,
+              itemWidth,
             ),
             priority: GalleryImagePriority.lookahead,
           ),
