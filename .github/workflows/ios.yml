@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore beta 14: local and online gallery cards now select image sources by their rendered physical size. High-density phones no longer stretch tiny previews, while online sample-image failures safely fall back to thumbnails."
+            --notes "iOS/TrollStore beta 15: portrait navigation now includes account switching, adding, and logout. Local gallery cards use a masonry layout that preserves each source image's original aspect ratio instead of cropping every thumbnail to one fixed shape."

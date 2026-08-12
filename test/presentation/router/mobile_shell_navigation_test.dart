@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/storage/floating_button_position_storage.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/auth/saved_account.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
@@ -32,13 +33,58 @@ class _FakeFloatingButtonPositionStorage extends FloatingButtonPositionStorage {
 class _FakeLocalStorageService extends LocalStorageService {}
 
 class _FakeAuthNotifier extends AuthNotifier {
+  _FakeAuthNotifier({
+    this.initialState = const AuthState(status: AuthStatus.unauthenticated),
+  });
+
+  final AuthState initialState;
+  bool logoutCalled = false;
+  String? switchedAccountId;
+
   @override
-  AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
+  AuthState build() => initialState;
+
+  @override
+  Future<bool> switchAccount(
+    String accountId,
+    String token, {
+    String? displayName,
+    required AccountType accountType,
+  }) async {
+    switchedAccountId = accountId;
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      accountId: accountId,
+      displayName: displayName,
+    );
+    return true;
+  }
+
+  @override
+  Future<void> logout({AuthErrorCode? errorCode, int? httpStatusCode}) async {
+    logoutCalled = true;
+    state = const AuthState(status: AuthStatus.unauthenticated);
+  }
 }
 
 class _FakeAccountManagerNotifier extends AccountManagerNotifier {
+  _FakeAccountManagerNotifier({
+    this.initialState = const AccountManagerState(),
+    this.tokens = const {},
+  });
+
+  final AccountManagerState initialState;
+  final Map<String, String> tokens;
+  String? requestedAccountId;
+
   @override
-  AccountManagerState build() => const AccountManagerState();
+  AccountManagerState build() => initialState;
+
+  @override
+  Future<String?> getAccountToken(String accountId) async {
+    requestedAccountId = accountId;
+    return tokens[accountId];
+  }
 }
 
 void main() {
@@ -115,6 +161,10 @@ void main() {
           localStorageServiceProvider.overrideWith(
             (ref) => _FakeLocalStorageService(),
           ),
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+          accountManagerNotifierProvider.overrideWith(
+            _FakeAccountManagerNotifier.new,
+          ),
         ],
         child: MaterialApp(
           locale: const Locale('zh'),
@@ -146,6 +196,95 @@ void main() {
     );
   });
 
+  testWidgets('portrait navigation exposes account switching and logout', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final currentAccount = SavedAccount(
+      id: 'current',
+      email: 'current@example.com',
+      nickname: '当前用户',
+      createdAt: DateTime(2026, 8, 12),
+    );
+    final anotherAccount = SavedAccount(
+      id: 'another',
+      email: 'another@example.com',
+      nickname: '备用用户',
+      createdAt: DateTime(2026, 8, 12),
+    );
+    final fakeAuth = _FakeAuthNotifier(
+      initialState: const AuthState(
+        status: AuthStatus.authenticated,
+        accountId: 'current',
+      ),
+    );
+    final fakeAccounts = _FakeAccountManagerNotifier(
+      initialState: AccountManagerState(
+        accounts: [currentAccount, anotherAccount],
+      ),
+      tokens: const {'another': 'test-token'},
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          floatingButtonPositionStorageProvider.overrideWith(
+            (ref) => _FakeFloatingButtonPositionStorage(),
+          ),
+          localStorageServiceProvider.overrideWith(
+            (ref) => _FakeLocalStorageService(),
+          ),
+          authNotifierProvider.overrideWith(() => fakeAuth),
+          accountManagerNotifierProvider.overrideWith(() => fakeAccounts),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: MobileShell(
+            navigationShell: _navigationShell(),
+            content: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('更多'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('mobile-current-account')),
+      findsOneWidget,
+    );
+    expect(find.text('当前用户'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('mobile-account-another')),
+      findsOneWidget,
+    );
+    expect(find.text('备用用户'), findsOneWidget);
+    expect(find.byKey(const ValueKey('mobile-add-account')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mobile-logout')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('mobile-account-another')));
+    await tester.pumpAndSettle();
+    expect(fakeAccounts.requestedAccountId, 'another');
+    expect(fakeAuth.switchedAccountId, 'another');
+
+    await tester.tap(find.text('更多'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('mobile-logout')));
+    await tester.tap(find.byKey(const ValueKey('mobile-logout')));
+    await tester.pumpAndSettle();
+
+    expect(fakeAuth.logoutCalled, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('portrait navigation separates galleries and exposes all items', (
     tester,
   ) async {
@@ -164,6 +303,10 @@ void main() {
           ),
           localStorageServiceProvider.overrideWith(
             (ref) => _FakeLocalStorageService(),
+          ),
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+          accountManagerNotifierProvider.overrideWith(
+            _FakeAccountManagerNotifier.new,
           ),
         ],
         child: MaterialApp(

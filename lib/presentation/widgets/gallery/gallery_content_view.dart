@@ -1,11 +1,8 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
-import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
@@ -17,6 +14,7 @@ import '../../providers/selection_mode_provider.dart';
 import '../common/app_toast.dart';
 import '../../widgets/grouped_grid_view.dart';
 import '../../utils/image_detail_opener.dart';
+import '../../utils/local_image_aspect_ratio.dart';
 import 'local_image_card_3d.dart';
 import '../common/image_detail/image_detail_viewer.dart';
 import '../common/image_detail/image_detail_data.dart';
@@ -354,27 +352,7 @@ class _GenericGalleryContentViewState<T>
   }
 
   Future<double> _calculateAspectRatioForRecord(LocalImageRecord record) async {
-    final metadata = record.metadata;
-    if (metadata?.width != null && metadata?.height != null) {
-      final width = metadata!.width!;
-      final height = metadata.height!;
-      if (width > 0 && height > 0) return width / height;
-    }
-
-    try {
-      final buffer = await ui.ImmutableBuffer.fromFilePath(record.path);
-      final descriptor = await ui.ImageDescriptor.encoded(buffer);
-      if (descriptor.width > 0 && descriptor.height > 0) {
-        return descriptor.width / descriptor.height;
-      }
-    } catch (e) {
-      AppLogger.d(
-        'Failed to read gallery image aspect ratio: $e',
-        'GalleryContent',
-      );
-    }
-
-    return 1.0;
+    return readLocalImageAspectRatio(record);
   }
 
   Widget _buildLoadingSkeleton() {

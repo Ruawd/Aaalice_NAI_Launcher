@@ -21,6 +21,7 @@ import '../screens/tag_library_page/tag_library_page_screen.dart';
 import '../screens/vibe_library/vibe_library_screen.dart';
 import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
+import '../widgets/navigation/mobile_account_section.dart';
 import '../widgets/queue/floating_queue_button.dart';
 import '../widgets/queue/queue_management_page.dart';
 
@@ -639,6 +640,11 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                 key: const ValueKey('mobile-all-destinations'),
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
                 children: [
+                  MobileAccountSection(
+                    hostContext: context,
+                    sheetContext: sheetContext,
+                  ),
+                  const Divider(),
                   for (final branch in allNavigationBranches)
                     _mobileDestination(
                       sheetContext,

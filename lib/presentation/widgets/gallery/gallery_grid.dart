@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../../utils/local_image_aspect_ratio.dart';
 import 'draggable_image_card.dart';
 import 'local_image_card_3d.dart';
 import 'local_image_context_menu.dart';
@@ -90,12 +92,15 @@ class GalleryGrid extends StatefulWidget {
 }
 
 class _GalleryGridState extends State<GalleryGrid> {
+  final Map<String, double> _aspectRatioCache = {};
+  final Map<String, Future<double>> _aspectRatioLoads = {};
   final Set<int> _visibleIndices = {};
   final Set<int> _preloadIndices = {};
   late final ScrollController _scrollController;
   _ScrollDirection _scrollDirection = _ScrollDirection.idle;
   double _lastScrollOffset = 0;
   double _viewportHeight = 0;
+  double _itemWidth = ResponsiveLayout.fixedCardWidth;
 
   @override
   void initState() {
@@ -114,6 +119,9 @@ class _GalleryGridState extends State<GalleryGrid> {
             oldWidget.images.first.path != widget.images.first.path)) {
       _visibleIndices.clear();
       _preloadIndices.clear();
+      final currentPaths = widget.images.map((record) => record.path).toSet();
+      _aspectRatioCache.removeWhere((path, _) => !currentPaths.contains(path));
+      _aspectRatioLoads.removeWhere((path, _) => !currentPaths.contains(path));
     }
   }
 
@@ -142,6 +150,30 @@ class _GalleryGridState extends State<GalleryGrid> {
     return 10;
   }
 
+  double _getAspectRatio(LocalImageRecord record) {
+    final cached = _aspectRatioCache[record.path];
+    if (cached != null) return cached;
+
+    _aspectRatioLoads.putIfAbsent(record.path, () {
+      final future = readLocalImageAspectRatio(record);
+      future.then((aspectRatio) {
+        if (identical(_aspectRatioLoads[record.path], future)) {
+          _aspectRatioLoads.remove(record.path);
+        }
+        if (!mounted ||
+            !widget.images.any((item) => item.path == record.path)) {
+          return;
+        }
+        if (_aspectRatioCache[record.path] != aspectRatio) {
+          setState(() => _aspectRatioCache[record.path] = aspectRatio);
+        }
+      });
+      return future;
+    });
+
+    return 1.0;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.images.isEmpty) {
@@ -160,98 +192,102 @@ class _GalleryGridState extends State<GalleryGrid> {
       );
     }
 
-    const itemWidth = ResponsiveLayout.fixedCardWidth;
-    const itemHeight = ResponsiveLayout.fixedCardHeight;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         _viewportHeight = constraints.maxHeight;
         final columns = widget.columns;
-        final gridWidth = ResponsiveLayout.calculateGridWidth(
-          columns,
-          spacing: widget.spacing,
-        );
-        final horizontalPadding = (constraints.maxWidth - gridWidth) / 2;
+        final horizontalPadding = widget.padding.horizontal;
+        final availableWidth =
+            constraints.maxWidth -
+            horizontalPadding -
+            (columns - 1) * widget.spacing;
+        final itemWidth = availableWidth / columns;
+        _itemWidth = itemWidth;
 
-        return GridView.builder(
+        return CustomScrollView(
           controller: _scrollController,
           primary: false,
-          padding: EdgeInsets.symmetric(
-            horizontal: horizontalPadding.clamp(
-              widget.padding.left,
-              double.infinity,
-            ),
-            vertical: widget.padding.top,
-          ),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            mainAxisSpacing: widget.spacing,
-            crossAxisSpacing: widget.spacing,
-            childAspectRatio: itemWidth / itemHeight,
-          ),
-          itemCount: widget.images.length,
           // 限制缓存范围，减少内存占用和重建开销
           scrollCacheExtent: ScrollCacheExtent.pixels(
             _viewportHeight * widget.preloadScreens,
           ),
-          itemBuilder: (context, index) {
-            final record = widget.images[index];
-            final isSelected = widget.selectedIndices?.contains(index) ?? false;
-            final isVisible = _visibleIndices.contains(index);
-            final priority = _getPriority(index);
+          slivers: [
+            SliverPadding(
+              padding: widget.padding,
+              sliver: SliverMasonryGrid.count(
+                crossAxisCount: columns,
+                mainAxisSpacing: widget.spacing,
+                crossAxisSpacing: widget.spacing,
+                childCount: widget.images.length,
+                itemBuilder: (context, index) {
+                  final record = widget.images[index];
+                  final aspectRatio = _getAspectRatio(record);
+                  final itemHeight = itemWidth / aspectRatio;
+                  final isSelected =
+                      widget.selectedIndices?.contains(index) ?? false;
+                  final isVisible = _visibleIndices.contains(index);
+                  final priority = _getPriority(index);
 
-            return VisibilityDetector(
-              key: ValueKey('v_${record.path}'),
-              onVisibilityChanged: (info) {
-                // 检查 mounted 避免 dispose 后调用 setState
-                if (!mounted) return;
+                  return VisibilityDetector(
+                    key: ValueKey('v_${record.path}'),
+                    onVisibilityChanged: (info) {
+                      // 检查 mounted 避免 dispose 后调用 setState
+                      if (!mounted) return;
 
-                final isNowVisible = info.visibleFraction > 0.05;
-                final wasVisible = _visibleIndices.contains(index);
+                      final isNowVisible = info.visibleFraction > 0.05;
+                      final wasVisible = _visibleIndices.contains(index);
 
-                if (isNowVisible != wasVisible) {
-                  setState(() {
-                    if (isNowVisible) {
-                      _visibleIndices.add(index);
-                    } else {
-                      _visibleIndices.remove(index);
-                    }
-                  });
-                  if (isNowVisible) _updatePreloadRange(index);
-                }
-              },
-              child: RepaintBoundary(
-                child: _GalleryImageCard(
-                  key: ValueKey(record.path),
-                  record: record,
-                  width: itemWidth,
-                  height: itemHeight,
-                  isSelected: isSelected,
-                  isVisible: isVisible,
-                  priority: priority,
-                  enableDrag: widget.enableDrag,
-                  onTap: () => widget.onTap?.call(record, index),
-                  onDoubleTap: () => widget.onDoubleTap?.call(record, index),
-                  onLongPress: () => widget.onLongPress?.call(record, index),
-                  onSecondaryTapDown: (details) =>
-                      widget.onSecondaryTapDown?.call(record, index, details),
-                  onFavoriteToggle: widget.onFavoriteToggle != null
-                      ? () => widget.onFavoriteToggle!(record, index)
-                      : null,
-                  onDelete: widget.onDelete != null
-                      ? () => widget.onDelete!(record, index)
-                      : null,
-                  onAction: widget.onAction != null
-                      ? (action) => widget.onAction!(record, index, action)
-                      : null,
-                  onSendAction: widget.onSendAction != null
-                      ? (action) => widget.onSendAction!(record, index, action)
-                      : null,
-                  isKritaConnected: widget.isKritaConnected,
-                ),
+                      if (isNowVisible != wasVisible) {
+                        setState(() {
+                          if (isNowVisible) {
+                            _visibleIndices.add(index);
+                          } else {
+                            _visibleIndices.remove(index);
+                          }
+                        });
+                        if (isNowVisible) _updatePreloadRange(index);
+                      }
+                    },
+                    child: RepaintBoundary(
+                      child: _GalleryImageCard(
+                        key: ValueKey(record.path),
+                        record: record,
+                        width: itemWidth,
+                        height: itemHeight,
+                        isSelected: isSelected,
+                        isVisible: isVisible,
+                        priority: priority,
+                        enableDrag: widget.enableDrag,
+                        onTap: () => widget.onTap?.call(record, index),
+                        onDoubleTap: () =>
+                            widget.onDoubleTap?.call(record, index),
+                        onLongPress: () =>
+                            widget.onLongPress?.call(record, index),
+                        onSecondaryTapDown: (details) => widget
+                            .onSecondaryTapDown
+                            ?.call(record, index, details),
+                        onFavoriteToggle: widget.onFavoriteToggle != null
+                            ? () => widget.onFavoriteToggle!(record, index)
+                            : null,
+                        onDelete: widget.onDelete != null
+                            ? () => widget.onDelete!(record, index)
+                            : null,
+                        onAction: widget.onAction != null
+                            ? (action) =>
+                                  widget.onAction!(record, index, action)
+                            : null,
+                        onSendAction: widget.onSendAction != null
+                            ? (action) =>
+                                  widget.onSendAction!(record, index, action)
+                            : null,
+                        isKritaConnected: widget.isKritaConnected,
+                      ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ],
         );
       },
     );
@@ -259,9 +295,15 @@ class _GalleryGridState extends State<GalleryGrid> {
 
   void _updatePreloadRange(int visibleIndex) {
     final itemsPerRow = widget.columns;
-    final rowsPerScreen = (_viewportHeight / ResponsiveLayout.fixedCardHeight)
-        .ceil()
-        .clamp(2, 10);
+    final averageItemHeight = _aspectRatioCache.values.isEmpty
+        ? ResponsiveLayout.fixedCardHeight
+        : _itemWidth /
+              (_aspectRatioCache.values.reduce((a, b) => a + b) /
+                  _aspectRatioCache.length);
+    final rowsPerScreen = (_viewportHeight / averageItemHeight).ceil().clamp(
+      2,
+      10,
+    );
     final itemsPerScreen = itemsPerRow * rowsPerScreen;
     final preloadCount = (itemsPerScreen * widget.preloadScreens).round();
 
