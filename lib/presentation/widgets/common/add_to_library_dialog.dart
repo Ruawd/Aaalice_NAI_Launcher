@@ -238,8 +238,25 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isCompact = MediaQuery.sizeOf(context).width < 600;
 
     return AlertDialog(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 12 : 40,
+        vertical: isCompact ? 12 : 24,
+      ),
+      titlePadding: EdgeInsets.fromLTRB(
+        isCompact ? 16 : 24,
+        isCompact ? 16 : 24,
+        isCompact ? 16 : 24,
+        0,
+      ),
+      contentPadding: EdgeInsets.fromLTRB(
+        isCompact ? 16 : 24,
+        20,
+        isCompact ? 16 : 24,
+        0,
+      ),
       title: Row(
         children: [
           Icon(Icons.library_add, color: colorScheme.primary),
@@ -248,8 +265,9 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
         ],
       ),
       content: SizedBox(
-        width: 400,
+        width: isCompact ? double.maxFinite : 400,
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

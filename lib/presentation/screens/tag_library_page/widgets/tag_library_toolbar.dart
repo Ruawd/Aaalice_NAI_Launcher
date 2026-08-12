@@ -158,6 +158,7 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 900;
+              final phone = constraints.maxWidth < 520;
               final addButton = FilledButton.icon(
                 onPressed: widget.onAddEntry,
                 icon: const Icon(Icons.add, size: 18),
@@ -217,7 +218,14 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
                   children: [
                     Row(
                       children: [
-                        addButton,
+                        if (phone)
+                          IconButton.filled(
+                            onPressed: widget.onAddEntry,
+                            icon: const Icon(Icons.add),
+                            tooltip: context.l10n.tagLibrary_addEntry,
+                          )
+                        else
+                          addButton,
                         const SizedBox(width: 12),
                         Expanded(child: _buildSearchField(theme, state)),
                       ],

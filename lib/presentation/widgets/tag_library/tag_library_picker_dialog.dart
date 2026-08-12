@@ -45,32 +45,52 @@ class _TagLibraryPickerDialogState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = ref.watch(tagLibraryPageNotifierProvider);
+    final mediaQuery = MediaQuery.of(context);
+    final isCompact = mediaQuery.size.width < 600;
+    final horizontalInset = isCompact ? 12.0 : 40.0;
+    final verticalInset = isCompact ? 12.0 : 24.0;
+    final width = (mediaQuery.size.width - horizontalInset * 2).clamp(
+      0.0,
+      800.0,
+    );
+    final height = (mediaQuery.size.height - verticalInset * 2).clamp(
+      0.0,
+      600.0,
+    );
 
     return Dialog(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: horizontalInset,
+        vertical: verticalInset,
+      ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-      child: Container(
-        width: 800,
-        height: 600,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 标题栏
-            _buildHeader(theme),
-            const SizedBox(height: 16),
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: Padding(
+          padding: EdgeInsets.all(isCompact ? 14 : 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 标题栏
+              _buildHeader(theme),
+              const SizedBox(height: 16),
 
-            // 搜索和筛选栏
-            _buildFilterBar(theme, state),
-            const SizedBox(height: 16),
+              // 搜索和筛选栏
+              _buildFilterBar(theme, state, isCompact: isCompact),
+              const SizedBox(height: 16),
 
-            // 条目网格
-            Expanded(child: _buildEntryGrid(theme, state)),
+              // 条目网格
+              Expanded(
+                child: _buildEntryGrid(theme, state, isCompact: isCompact),
+              ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // 底部按钮
-            _buildFooter(theme),
-          ],
+              // 底部按钮
+              _buildFooter(theme),
+            ],
+          ),
         ),
       ),
     );
@@ -101,70 +121,74 @@ class _TagLibraryPickerDialogState
     );
   }
 
-  Widget _buildFilterBar(ThemeData theme, TagLibraryPageState state) {
+  Widget _buildFilterBar(
+    ThemeData theme,
+    TagLibraryPageState state, {
+    required bool isCompact,
+  }) {
     final selectedCategoryId = _effectiveSelectedCategoryId(state);
+    final searchField = TextField(
+      decoration: InputDecoration(
+        hintText: context.l10n.tagLibraryPicker_searchHint,
+        prefixIcon: const Icon(Icons.search, size: 20),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        isDense: true,
+      ),
+      onChanged: (value) {
+        setState(() => _searchQuery = value);
+      },
+    );
+    final categoryField = DropdownButtonFormField<String?>(
+      initialValue: selectedCategoryId,
+      isExpanded: true,
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        isDense: true,
+      ),
+      hint: Text(context.l10n.tagLibraryPicker_allCategories),
+      items: [
+        DropdownMenuItem<String?>(
+          value: null,
+          child: Text(context.l10n.tagLibraryPicker_allCategories),
+        ),
+        ...state.categories.map(
+          (category) => DropdownMenuItem<String?>(
+            value: category.id,
+            child: Text(category.name, overflow: TextOverflow.ellipsis),
+          ),
+        ),
+      ],
+      onChanged: _setSelectedCategory,
+    );
+
+    if (isCompact) {
+      return Column(
+        children: [searchField, const SizedBox(height: 10), categoryField],
+      );
+    }
+
     return Row(
       children: [
-        // 搜索框
-        Expanded(
-          flex: 2,
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: context.l10n.tagLibraryPicker_searchHint,
-              prefixIcon: const Icon(Icons.search, size: 20),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              isDense: true,
-            ),
-            onChanged: (value) {
-              setState(() => _searchQuery = value);
-            },
-          ),
-        ),
+        Expanded(flex: 2, child: searchField),
         const SizedBox(width: 12),
-
-        // 分类筛选
-        Expanded(
-          flex: 1,
-          child: DropdownButtonFormField<String?>(
-            initialValue: selectedCategoryId,
-            isExpanded: true,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              isDense: true,
-            ),
-            hint: Text(context.l10n.tagLibraryPicker_allCategories),
-            items: [
-              DropdownMenuItem<String?>(
-                value: null,
-                child: Text(context.l10n.tagLibraryPicker_allCategories),
-              ),
-              ...state.categories.map(
-                (category) => DropdownMenuItem<String?>(
-                  value: category.id,
-                  child: Text(category.name, overflow: TextOverflow.ellipsis),
-                ),
-              ),
-            ],
-            onChanged: _setSelectedCategory,
-          ),
-        ),
+        Expanded(child: categoryField),
       ],
     );
   }
 
-  Widget _buildEntryGrid(ThemeData theme, TagLibraryPageState state) {
+  Widget _buildEntryGrid(
+    ThemeData theme,
+    TagLibraryPageState state, {
+    required bool isCompact,
+  }) {
     // 过滤条目
     var entries = state.entries.toList();
     final selectedCategoryId = _effectiveSelectedCategoryId(state);
@@ -209,9 +233,10 @@ class _TagLibraryPickerDialogState
     }
 
     return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        childAspectRatio: 0.85,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: isCompact ? 2 : 4,
+        childAspectRatio: isCompact ? 0.92 : 0.85,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
