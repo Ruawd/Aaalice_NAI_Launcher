@@ -98,13 +98,28 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final categories = ref.watch(tagLibraryPageCategoriesProvider);
+    final mediaQuery = MediaQuery.of(context);
+    final isCompact = mediaQuery.size.width < 600;
+    final width = (mediaQuery.size.width - (isCompact ? 24 : 80)).clamp(
+      0.0,
+      480.0,
+    );
+    final maxHeight =
+        (mediaQuery.size.height -
+                mediaQuery.viewInsets.vertical -
+                (isCompact ? 24 : 48))
+            .clamp(0.0, 560.0);
 
     return Dialog(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 12 : 40,
+        vertical: isCompact ? 12 : 24,
+      ),
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       child: Container(
-        width: 480,
-        constraints: const BoxConstraints(maxHeight: 500),
+        width: width,
+        constraints: BoxConstraints(maxHeight: maxHeight),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -113,39 +128,48 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
             // 内容
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.all(isCompact ? 16 : 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 预览图 + 名称/分类 横向布局
-                    IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // 左侧预览图
-                          _buildThumbnailSection(theme, colorScheme, l10n),
-                          const SizedBox(width: 16),
-                          // 右侧表单
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 名称输入
-                                _buildNameField(theme, colorScheme, l10n),
-                                const SizedBox(height: 12),
-                                // 分类选择
-                                _buildCategoryField(
-                                  theme,
-                                  colorScheme,
-                                  l10n,
-                                  categories,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                    if (isCompact) ...[
+                      _buildThumbnailSection(
+                        theme,
+                        colorScheme,
+                        l10n,
+                        expandWidth: true,
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      _buildNameField(theme, colorScheme, l10n),
+                      const SizedBox(height: 12),
+                      _buildCategoryField(theme, colorScheme, l10n, categories),
+                    ] else
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildThumbnailSection(theme, colorScheme, l10n),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildNameField(theme, colorScheme, l10n),
+                                  const SizedBox(height: 12),
+                                  _buildCategoryField(
+                                    theme,
+                                    colorScheme,
+                                    l10n,
+                                    categories,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     const SizedBox(height: 16),
                     // 内容预览
                     _buildContentPreview(theme, colorScheme, l10n),
@@ -213,15 +237,16 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
   Widget _buildThumbnailSection(
     ThemeData theme,
     ColorScheme colorScheme,
-    AppLocalizations l10n,
-  ) {
+    AppLocalizations l10n, {
+    bool expandWidth = false,
+  }) {
     return SizedBox(
-      width: 100,
+      width: expandWidth ? double.infinity : 100,
       child: ImagePickerCard(
         icon: Icons.add_photo_alternate_outlined,
         label: l10n.tagLibrary_selectImage,
         hintText: '(${l10n.common_optional})',
-        height: 100,
+        height: expandWidth ? 140 : 100,
         selectedImage: _thumbnailBytes,
         selectedPath: _thumbnailPath,
         onImageSelected: (bytes, fileName, path) {

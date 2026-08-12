@@ -217,19 +217,34 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final mediaQuery = MediaQuery.of(context);
+    final isCompact = mediaQuery.size.width < 600;
+    final horizontalInset = isCompact ? 12.0 : 40.0;
+    final verticalInset = isCompact ? 12.0 : 24.0;
+    final availableWidth = (mediaQuery.size.width - horizontalInset * 2).clamp(
+      0.0,
+      700.0,
+    );
+    final availableHeight =
+        (mediaQuery.size.height -
+                mediaQuery.viewInsets.vertical -
+                verticalInset * 2)
+            .clamp(0.0, 700.0);
     _syncSyntaxHighlightSettings();
 
     return Dialog(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: horizontalInset,
+        vertical: verticalInset,
+      ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 700,
-          minWidth: 500,
-          maxHeight: 700,
-        ),
+      child: SizedBox(
+        width: availableWidth,
+        height: isCompact ? availableHeight : null,
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isCompact ? 16 : 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,18 +275,20 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
                 const SizedBox(height: 24),
 
-                // 主要内容区域 - 两列布局
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 左侧 - 预览图
-                    _buildThumbnailSection(theme),
-                    const SizedBox(width: 24),
-
-                    // 右侧 - 表单
-                    Expanded(child: _buildFormSection(theme)),
-                  ],
-                ),
+                // 手机使用单栏，避免表单被固定宽度的预览图挤成竖排。
+                if (isCompact) ...[
+                  _buildThumbnailSection(theme, expandWidth: true),
+                  const SizedBox(height: 20),
+                  _buildFormSection(theme),
+                ] else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildThumbnailSection(theme),
+                      const SizedBox(width: 24),
+                      Expanded(child: _buildFormSection(theme)),
+                    ],
+                  ),
 
                 const SizedBox(height: 16),
 
@@ -282,7 +299,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
-                  height: 150,
+                  height: isCompact ? 132 : 150,
                   child: PromptFormatterWrapper(
                     controller: _contentController,
                     focusNode: _contentFocusNode,
@@ -348,7 +365,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     );
   }
 
-  Widget _buildThumbnailSection(ThemeData theme) {
+  Widget _buildThumbnailSection(ThemeData theme, {bool expandWidth = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -362,8 +379,8 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
               ? _showThumbnailOptions
               : _selectThumbnail,
           child: Container(
-            width: 200,
-            height: 80,
+            width: expandWidth ? double.infinity : 200,
+            height: expandWidth ? 112 : 80,
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
@@ -378,7 +395,13 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(11),
-                        child: _buildThumbnailImage(),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) =>
+                              _buildThumbnailImage(
+                                width: constraints.maxWidth,
+                                height: constraints.maxHeight,
+                              ),
+                        ),
                       ),
                       Positioned(
                         top: 4,
@@ -514,7 +537,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
   /// 构建带变换效果的预览图
   /// 使用 ThumbnailDisplay 组件确保与 EntryCard 显示一致
-  Widget _buildThumbnailImage() {
+  Widget _buildThumbnailImage({double width = 200, double height = 80}) {
     if (_thumbnailPath == null) {
       return Container(
         color: Colors.grey.shade800,
@@ -535,8 +558,8 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
       offsetX: _thumbnailOffsetX,
       offsetY: _thumbnailOffsetY,
       scale: _thumbnailScale,
-      width: 200,
-      height: 80,
+      width: width,
+      height: height,
     );
   }
 
