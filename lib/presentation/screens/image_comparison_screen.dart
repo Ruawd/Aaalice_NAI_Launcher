@@ -102,7 +102,7 @@ class _ImageComparisonScreenState extends ConsumerState<ImageComparisonScreen> {
 
           // 顶部关闭按钮
           Positioned(
-            top: 8,
+            top: MediaQuery.paddingOf(context).top + 8,
             right: 8,
             child: Container(
               decoration: BoxDecoration(
@@ -119,7 +119,7 @@ class _ImageComparisonScreenState extends ConsumerState<ImageComparisonScreen> {
 
           // 底部提示
           Positioned(
-            bottom: 8,
+            bottom: MediaQuery.paddingOf(context).bottom + 8,
             left: 0,
             right: 0,
             child: Center(

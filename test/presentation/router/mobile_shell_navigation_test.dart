@@ -6,6 +6,8 @@ import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/storage/floating_button_position_storage.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
+import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/router/app_branch.dart';
 import 'package:nai_launcher/presentation/router/app_router.dart';
 
@@ -29,7 +31,121 @@ class _FakeFloatingButtonPositionStorage extends FloatingButtonPositionStorage {
 
 class _FakeLocalStorageService extends LocalStorageService {}
 
+class _FakeAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
+}
+
+class _FakeAccountManagerNotifier extends AccountManagerNotifier {
+  @override
+  AccountManagerState build() => const AccountManagerState();
+}
+
 void main() {
+  testWidgets('keeps landscape shell controls outside notches', (tester) async {
+    tester.view.physicalSize = const Size(1200, 700);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(left: 47, right: 47);
+    addTearDown(tester.view.reset);
+
+    final navigationShell = _navigationShell();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          floatingButtonPositionStorageProvider.overrideWith(
+            (ref) => _FakeFloatingButtonPositionStorage(),
+          ),
+          localStorageServiceProvider.overrideWith(
+            (ref) => _FakeLocalStorageService(),
+          ),
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+          accountManagerNotifierProvider.overrideWith(
+            _FakeAccountManagerNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: DesktopShell(
+            navigationShell: navigationShell,
+            content: const Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                key: ValueKey('landscape-page-control'),
+                width: 48,
+                height: 48,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester
+          .getTopLeft(find.byKey(const ValueKey('landscape-page-control')))
+          .dx,
+      greaterThanOrEqualTo(47),
+    );
+    expect(
+      tester
+          .getBottomRight(find.byKey(const ValueKey('landscape-page-control')))
+          .dx,
+      lessThanOrEqualTo(1200 - 47),
+    );
+  });
+
+  testWidgets('keeps page controls below the phone status bar', (tester) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
+    addTearDown(tester.view.reset);
+
+    final navigationShell = _navigationShell();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          floatingButtonPositionStorageProvider.overrideWith(
+            (ref) => _FakeFloatingButtonPositionStorage(),
+          ),
+          localStorageServiceProvider.overrideWith(
+            (ref) => _FakeLocalStorageService(),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: MobileShell(
+            navigationShell: navigationShell,
+            content: const Align(
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                key: ValueKey('page-top-control'),
+                width: 48,
+                height: 48,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('page-top-control'))).dy,
+      47,
+    );
+    expect(
+      find.byKey(const ValueKey('mobile-shell-safe-area')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('portrait navigation separates galleries and exposes all items', (
     tester,
   ) async {
@@ -38,11 +154,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final navigationShell = _MockNavigationShell();
-    when(
-      () => navigationShell.currentIndex,
-    ).thenReturn(AppBranch.generation.index);
-    when(() => navigationShell.goBranch(any())).thenReturn(null);
+    final navigationShell = _navigationShell();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -104,4 +216,13 @@ void main() {
     ).called(1);
     expect(tester.takeException(), isNull);
   });
+}
+
+_MockNavigationShell _navigationShell() {
+  final navigationShell = _MockNavigationShell();
+  when(
+    () => navigationShell.currentIndex,
+  ).thenReturn(AppBranch.generation.index);
+  when(() => navigationShell.goBranch(any())).thenReturn(null);
+  return navigationShell;
 }

@@ -221,52 +221,57 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
               top: 0,
               left: 0,
               right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.7),
-                      Colors.transparent,
-                    ],
+              child: SafeArea(
+                bottom: false,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
-                ),
-                child: Row(
-                  children: [
-                    // 图片计数
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface.withValues(alpha: 0.8),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        '${_currentIndex + 1} ${l10n.slideshow_of} ${widget.images.length}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface,
-                          fontWeight: FontWeight.w500,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.7),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // 图片计数
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface.withValues(
+                            alpha: 0.8,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          '${_currentIndex + 1} ${l10n.slideshow_of} ${widget.images.length}',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
-                    ),
-                    const Spacer(),
-                    // 退出按钮
-                    IconButton(
-                      icon: Icon(
-                        Icons.close,
-                        color: theme.colorScheme.onSurface,
+                      const Spacer(),
+                      // 退出按钮
+                      IconButton(
+                        icon: Icon(
+                          Icons.close,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        tooltip: l10n.slideshow_exit,
+                        onPressed: () => Navigator.of(context).pop(),
                       ),
-                      tooltip: l10n.slideshow_exit,
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -276,55 +281,58 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
               bottom: 0,
               left: 0,
               right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.7),
+              child: SafeArea(
+                top: false,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.7),
+                      ],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // 上一张按钮
+                      IconButton(
+                        icon: Icon(
+                          Icons.arrow_back_ios,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        tooltip: l10n.slideshow_previous,
+                        onPressed: _previousImage,
+                      ),
+                      const Spacer(),
+                      // 播放/暂停按钮
+                      IconButton(
+                        icon: Icon(
+                          _isPlaying ? Icons.pause : Icons.play_arrow,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        tooltip: _isPlaying
+                            ? l10n.slideshow_pause
+                            : l10n.slideshow_play,
+                        onPressed: _toggleAutoPlay,
+                      ),
+                      const Spacer(),
+                      // 下一张按钮
+                      IconButton(
+                        icon: Icon(
+                          Icons.arrow_forward_ios,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        tooltip: l10n.slideshow_next,
+                        onPressed: _nextImage,
+                      ),
                     ],
                   ),
-                ),
-                child: Row(
-                  children: [
-                    // 上一张按钮
-                    IconButton(
-                      icon: Icon(
-                        Icons.arrow_back_ios,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                      tooltip: l10n.slideshow_previous,
-                      onPressed: _previousImage,
-                    ),
-                    const Spacer(),
-                    // 播放/暂停按钮
-                    IconButton(
-                      icon: Icon(
-                        _isPlaying ? Icons.pause : Icons.play_arrow,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                      tooltip: _isPlaying
-                          ? l10n.slideshow_pause
-                          : l10n.slideshow_play,
-                      onPressed: _toggleAutoPlay,
-                    ),
-                    const Spacer(),
-                    // 下一张按钮
-                    IconButton(
-                      icon: Icon(
-                        Icons.arrow_forward_ios,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                      tooltip: l10n.slideshow_next,
-                      onPressed: _nextImage,
-                    ),
-                  ],
                 ),
               ),
             ),

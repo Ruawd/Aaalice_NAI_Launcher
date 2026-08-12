@@ -3698,9 +3698,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nav_generate => '生成';
 
   @override
-  String get nav_gallery => '画廊';
-
-  @override
   String get nav_settings => '设置';
 
   @override

@@ -3765,9 +3765,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get nav_generate => '生成';
 
   @override
-  String get nav_gallery => 'ギャラリー';
-
-  @override
   String get nav_settings => '設定';
 
   @override
