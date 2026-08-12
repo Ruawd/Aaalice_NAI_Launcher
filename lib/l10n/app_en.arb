@@ -1633,6 +1633,12 @@
     }
   },
   "characterTooltip_viewFullConfig": "Click for full configuration",
+  "characterMobile_v4Only": "Character prompts only work with NovelAI V4 / V4.5 models.",
+  "characterMobile_customPositionHint": "Tap the position icon, then drag the character anchors",
+  "characterMobile_addSubtitle": "Create a character or import one from your library",
+  "characterMobile_addFromLibrary": "Add from Library",
+  "characterMobile_emptyTitle": "No characters yet",
+  "characterMobile_emptySubtitle": "Give each character separate appearance, outfit, and action prompts.",
 
   "tagLibrary_generatedCharacters": "Generated {count} characters",
   "@tagLibrary_generatedCharacters": {

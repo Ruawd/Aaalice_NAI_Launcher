@@ -1599,6 +1599,12 @@
     }
   },
   "characterTooltip_viewFullConfig": "点击查看完整配置",
+  "characterMobile_v4Only": "角色提示词仅在 NovelAI V4 / V4.5 模型下生效。",
+  "characterMobile_customPositionHint": "点右侧位置图标后拖动角色锚点",
+  "characterMobile_addSubtitle": "新建角色，或从已有词库导入",
+  "characterMobile_addFromLibrary": "从词库添加",
+  "characterMobile_emptyTitle": "还没有角色",
+  "characterMobile_emptySubtitle": "每个角色可以单独填写外观、服装和动作提示词。",
 
   "tagLibrary_generatedCharacters": "已生成 {count} 个角色",
   "@tagLibrary_generatedCharacters": {

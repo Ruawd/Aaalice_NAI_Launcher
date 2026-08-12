@@ -572,6 +572,11 @@ class MobileShell extends ConsumerWidget {
             label: context.l10n.nav_gallery,
           ),
           NavigationDestination(
+            icon: const Icon(Icons.book_outlined),
+            selectedIcon: const Icon(Icons.book),
+            label: context.l10n.nav_dictionary,
+          ),
+          NavigationDestination(
             icon: Badge(
               isLabelVisible: showUpdateBadge,
               smallSize: 7,

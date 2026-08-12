@@ -25,10 +25,11 @@ const Map<String, AppBranch> globalNavigationShortcutBranches = {
   ShortcutIds.navigateToVibeLibrary: AppBranch.vibeLibrary,
 };
 
-/// Mobile navigation only exposes generation, local gallery, and settings.
+/// Mobile navigation exposes the primary creation and library destinations.
 const List<AppBranch> mobileNavigationBranches = [
   AppBranch.generation,
   AppBranch.localGallery,
+  AppBranch.tagLibrary,
   AppBranch.settings,
 ];
 
@@ -39,6 +40,9 @@ int mobileNavigationIndexForBranch(int branchIndex) {
   if (branchIndex == AppBranch.localGallery.index ||
       branchIndex == AppBranch.onlineGallery.index) {
     return mobileNavigationBranches.indexOf(AppBranch.localGallery);
+  }
+  if (branchIndex == AppBranch.tagLibrary.index) {
+    return mobileNavigationBranches.indexOf(AppBranch.tagLibrary);
   }
   return mobileNavigationBranches.indexOf(AppBranch.generation);
 }

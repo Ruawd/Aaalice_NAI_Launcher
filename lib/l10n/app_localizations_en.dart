@@ -3726,6 +3726,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get characterTooltip_viewFullConfig => 'Click for full configuration';
 
   @override
+  String get characterMobile_v4Only =>
+      'Character prompts only work with NovelAI V4 / V4.5 models.';
+
+  @override
+  String get characterMobile_customPositionHint =>
+      'Tap the position icon, then drag the character anchors';
+
+  @override
+  String get characterMobile_addSubtitle =>
+      'Create a character or import one from your library';
+
+  @override
+  String get characterMobile_addFromLibrary => 'Add from Library';
+
+  @override
+  String get characterMobile_emptyTitle => 'No characters yet';
+
+  @override
+  String get characterMobile_emptySubtitle =>
+      'Give each character separate appearance, outfit, and action prompts.';
+
+  @override
   String tagLibrary_generatedCharacters(Object count) {
     return 'Generated $count characters';
   }
