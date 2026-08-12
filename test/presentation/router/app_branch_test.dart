@@ -16,7 +16,7 @@ void main() {
     });
   });
 
-  test('mobile navigation maps generation, gallery, library and settings', () {
+  test('mobile navigation keeps pinned destinations separate', () {
     expect(
       mobileNavigationIndexForBranch(AppBranch.generation.index),
       mobileNavigationBranches.indexOf(AppBranch.generation),
@@ -27,15 +27,28 @@ void main() {
     );
     expect(
       mobileNavigationIndexForBranch(AppBranch.onlineGallery.index),
-      mobileNavigationBranches.indexOf(AppBranch.localGallery),
+      mobileNavigationBranches.indexOf(AppBranch.onlineGallery),
+    );
+    expect(
+      mobileNavigationIndexForBranch(AppBranch.onlineGallery.index),
+      isNot(mobileNavigationIndexForBranch(AppBranch.localGallery.index)),
+    );
+    expect(
+      mobileNavigationIndexForBranch(AppBranch.tagLibrary.index),
+      mobileNavigationBranches.indexOf(AppBranch.tagLibrary),
     );
     expect(
       mobileNavigationIndexForBranch(AppBranch.settings.index),
       mobileNavigationBranches.indexOf(AppBranch.settings),
     );
     expect(
-      mobileNavigationIndexForBranch(AppBranch.tagLibrary.index),
-      mobileNavigationBranches.indexOf(AppBranch.tagLibrary),
+      mobileNavigationIndexForBranch(AppBranch.vibeLibrary.index),
+      mobileNavigationBranches.length,
     );
+  });
+
+  test('mobile menu contains every desktop internal destination once', () {
+    expect(allNavigationBranches.toSet(), AppBranch.values.toSet());
+    expect(allNavigationBranches, hasLength(AppBranch.values.length));
   });
 }

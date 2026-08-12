@@ -21,18 +21,6 @@ class MainNavRail extends ConsumerWidget {
   static const double expandedWidth = 196;
   static const Duration animationDuration = Duration(milliseconds: 240);
 
-  static const List<AppBranch> _railBranches = [
-    AppBranch.generation,
-    AppBranch.localGallery,
-    AppBranch.onlineGallery,
-    AppBranch.vibeLibrary,
-    AppBranch.preciseRefLibrary,
-    AppBranch.promptConfig,
-    AppBranch.tagLibrary,
-    AppBranch.statistics,
-    AppBranch.settings,
-  ];
-
   final StatefulNavigationShell navigationShell;
 
   const MainNavRail({super.key, required this.navigationShell});
@@ -45,7 +33,7 @@ class MainNavRail extends ConsumerWidget {
     );
 
     final currentIndex = navigationShell.currentIndex;
-    final selectedIndex = _railBranches.indexWhere(
+    final selectedIndex = allNavigationBranches.indexWhere(
       (branch) => branch.index == currentIndex,
     );
 

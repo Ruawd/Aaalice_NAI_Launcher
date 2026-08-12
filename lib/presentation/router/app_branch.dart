@@ -13,6 +13,19 @@ enum AppBranch {
   preciseRefLibrary,
 }
 
+/// All internal destinations exposed by the desktop rail and mobile menu.
+const List<AppBranch> allNavigationBranches = [
+  AppBranch.generation,
+  AppBranch.localGallery,
+  AppBranch.onlineGallery,
+  AppBranch.vibeLibrary,
+  AppBranch.preciseRefLibrary,
+  AppBranch.promptConfig,
+  AppBranch.tagLibrary,
+  AppBranch.statistics,
+  AppBranch.settings,
+];
+
 /// Global navigation shortcuts and their destination branches.
 const Map<String, AppBranch> globalNavigationShortcutBranches = {
   ShortcutIds.navigateToGeneration: AppBranch.generation,
@@ -25,24 +38,17 @@ const Map<String, AppBranch> globalNavigationShortcutBranches = {
   ShortcutIds.navigateToVibeLibrary: AppBranch.vibeLibrary,
 };
 
-/// Mobile navigation exposes the primary creation and library destinations.
+/// Branches pinned directly to the mobile bottom navigation.
 const List<AppBranch> mobileNavigationBranches = [
   AppBranch.generation,
   AppBranch.localGallery,
+  AppBranch.onlineGallery,
   AppBranch.tagLibrary,
   AppBranch.settings,
 ];
 
 int mobileNavigationIndexForBranch(int branchIndex) {
-  if (branchIndex == AppBranch.settings.index) {
-    return mobileNavigationBranches.indexOf(AppBranch.settings);
-  }
-  if (branchIndex == AppBranch.localGallery.index ||
-      branchIndex == AppBranch.onlineGallery.index) {
-    return mobileNavigationBranches.indexOf(AppBranch.localGallery);
-  }
-  if (branchIndex == AppBranch.tagLibrary.index) {
-    return mobileNavigationBranches.indexOf(AppBranch.tagLibrary);
-  }
-  return mobileNavigationBranches.indexOf(AppBranch.generation);
+  final branch = AppBranch.values[branchIndex];
+  final mobileIndex = mobileNavigationBranches.indexOf(branch);
+  return mobileIndex == -1 ? mobileNavigationBranches.length : mobileIndex;
 }
