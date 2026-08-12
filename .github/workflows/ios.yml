@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore beta 10: the Characters button now opens a complete mobile editor for adding, importing, editing, enabling, ordering, deleting, and positioning character prompts. The mobile bottom navigation also includes a direct Library destination for managing and deleting saved entries."
+            --notes "iOS/TrollStore beta 11: each local-gallery image now has an always-visible More button on iPhone. Open it to delete that image directly; the action works in both the normal gallery and date-grouped gallery."

@@ -47,6 +47,13 @@ class GalleryGrid extends StatefulWidget {
   )?
   onSecondaryTapDown;
   final void Function(LocalImageRecord record, int index)? onFavoriteToggle;
+  final void Function(LocalImageRecord record, int index)? onDelete;
+  final Future<void> Function(
+    LocalImageRecord record,
+    int index,
+    LocalImageContextAction action,
+  )?
+  onAction;
   final Future<void> Function(
     LocalImageRecord record,
     int index,
@@ -69,6 +76,8 @@ class GalleryGrid extends StatefulWidget {
     this.onLongPress,
     this.onSecondaryTapDown,
     this.onFavoriteToggle,
+    this.onDelete,
+    this.onAction,
     this.onSendAction,
     this.isKritaConnected = false,
     this.selectedIndices,
@@ -229,6 +238,12 @@ class _GalleryGridState extends State<GalleryGrid> {
                   onFavoriteToggle: widget.onFavoriteToggle != null
                       ? () => widget.onFavoriteToggle!(record, index)
                       : null,
+                  onDelete: widget.onDelete != null
+                      ? () => widget.onDelete!(record, index)
+                      : null,
+                  onAction: widget.onAction != null
+                      ? (action) => widget.onAction!(record, index, action)
+                      : null,
                   onSendAction: widget.onSendAction != null
                       ? (action) => widget.onSendAction!(record, index, action)
                       : null,
@@ -294,6 +309,8 @@ class _GalleryImageCard extends StatefulWidget {
   final VoidCallback? onLongPress;
   final void Function(TapDownDetails)? onSecondaryTapDown;
   final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onDelete;
+  final Future<void> Function(LocalImageContextAction action)? onAction;
   final Future<void> Function(LocalImageContextAction action)? onSendAction;
   final bool isKritaConnected;
 
@@ -311,6 +328,8 @@ class _GalleryImageCard extends StatefulWidget {
     this.onLongPress,
     this.onSecondaryTapDown,
     this.onFavoriteToggle,
+    this.onDelete,
+    this.onAction,
     this.onSendAction,
     this.isKritaConnected = false,
   });
@@ -334,11 +353,14 @@ class _GalleryImageCardState extends State<_GalleryImageCard> {
       onLongPress: widget.onLongPress,
       onSecondaryTapDown: widget.onSecondaryTapDown,
       onFavoriteToggle: widget.onFavoriteToggle,
+      onDelete: widget.onDelete,
+      onAction: widget.onAction,
       onSendAction: widget.onSendAction,
       isKritaConnected: widget.isKritaConnected,
       // 使用 dragWrapper 将拖拽功能注入到卡片内部
       // 解决 GestureDetector 与拖拽手势的冲突问题
-      dragWrapper: widget.enableDrag
+      dragWrapper:
+          widget.enableDrag && MediaQuery.sizeOf(context).shortestSide >= 600
           ? DraggableImageCard.createDragWrapper(record: widget.record)
           : null,
     );

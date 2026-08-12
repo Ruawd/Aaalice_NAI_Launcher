@@ -32,6 +32,8 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
   final bool isSelected;
   final bool showFavoriteIndicator;
   final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onDelete;
+  final Future<void> Function(LocalImageContextAction action)? onAction;
   final Future<void> Function(LocalImageContextAction action)? onSendAction;
   final bool isKritaConnected;
   final bool isVisible;
@@ -53,6 +55,8 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
     this.isSelected = false,
     this.showFavoriteIndicator = true,
     this.onFavoriteToggle,
+    this.onDelete,
+    this.onAction,
     this.onSendAction,
     this.isKritaConnected = false,
     this.isVisible = false,
@@ -499,24 +503,33 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
   }
 
   Widget _buildActionButtons() {
+    final isPhone = MediaQuery.sizeOf(context).width < 800;
     return FloatingActionButtons(
-      isVisible: _isHovered,
+      isVisible: _isHovered || isPhone,
       buttons: [
         FloatingActionButtonData(
-          icon:
-              widget.record.isFavorite ? Icons.favorite : Icons.favorite_border,
+          key: const ValueKey('local-gallery-card-more'),
+          icon: Icons.more_horiz,
+          onTap: () => unawaited(_showActionMenu(context)),
+          visible: isPhone,
+        ),
+        FloatingActionButtonData(
+          icon: widget.record.isFavorite
+              ? Icons.favorite
+              : Icons.favorite_border,
           onTap: widget.onFavoriteToggle,
           iconColor: widget.record.isFavorite ? Colors.red : Colors.white,
-          visible: widget.onFavoriteToggle != null,
+          visible: !isPhone && widget.onFavoriteToggle != null,
         ),
         FloatingActionButtonData(
           icon: Icons.copy,
           onTap: _copyImageToClipboard,
+          visible: !isPhone,
         ),
         FloatingActionButtonData(
           icon: Icons.send,
           onTap: () => unawaited(_showSendMenu(context)),
-          visible: widget.onSendAction != null,
+          visible: !isPhone && widget.onSendAction != null,
         ),
       ],
     );
@@ -541,6 +554,29 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
     if (action == null || !mounted) return;
 
     await widget.onSendAction?.call(action);
+  }
+
+  Future<void> _showActionMenu(BuildContext context) async {
+    final RenderBox? card = context.findRenderObject() as RenderBox?;
+    if (card == null) return;
+
+    final metadata = widget.record.metadata;
+    final action = await LocalImageContextMenu.show(
+      context,
+      position: card.localToGlobal(Offset(card.size.width, 40)),
+      hasImportableMetadata: metadata?.hasData == true,
+      hasPrompt: metadata?.prompt.isNotEmpty == true,
+      hasSeed: metadata?.seed != null,
+      isKritaConnected: widget.isKritaConnected,
+    );
+    if (action == null || !mounted) return;
+
+    if (action == LocalImageContextAction.delete) {
+      widget.onDelete?.call();
+      return;
+    }
+
+    await (widget.onAction ?? widget.onSendAction)?.call(action);
   }
 
   Widget _buildSelectionIndicator(ColorScheme colorScheme) {

@@ -87,6 +87,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
   final void Function(T item, int index)? onDoubleTap;
   final void Function(T item, int index)? onLongPress;
   final void Function(T item, Offset position)? onContextMenu;
+  final void Function(T item)? onDelete;
   final void Function(T item)? onFavoriteToggle;
   final void Function(T item)? onSelectionToggle;
   final void Function(T item)? onEnterSelection;
@@ -96,6 +97,11 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
   final void Function(int page)? onLoadPage;
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
   final Gallery3DViewConfig<T>? view3DConfig;
+  final Future<void> Function(
+    LocalImageRecord record,
+    LocalImageContextAction action,
+  )?
+  onAction;
   final Future<void> Function(
     LocalImageRecord record,
     LocalImageContextAction action,
@@ -119,6 +125,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
     this.onDoubleTap,
     this.onLongPress,
     this.onContextMenu,
+    this.onDelete,
     this.onFavoriteToggle,
     this.onSelectionToggle,
     this.onEnterSelection,
@@ -128,6 +135,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
     this.onLoadPage,
     this.groupedGridViewKey,
     this.view3DConfig,
+    this.onAction,
     this.onSendAction,
     this.isKritaConnected = false,
     this.emptyTitle,
@@ -312,6 +320,12 @@ class _GenericGalleryContentViewState<T>
                 ? (details) =>
                       widget.onContextMenu!(record as T, details.globalPosition)
                 : null,
+            onDelete: widget.onDelete != null
+                ? () => widget.onDelete!(record as T)
+                : null,
+            onAction: widget.onAction != null
+                ? (action) => widget.onAction!(record, action)
+                : null,
             onFavoriteToggle: () {
               widget.onFavoriteToggle?.call(record as T);
             },
@@ -447,6 +461,12 @@ class _GenericGalleryContentViewState<T>
           details.globalPosition,
         );
       },
+      onDelete: widget.onDelete != null
+          ? (record, index) => widget.onDelete!(state.currentImages[index])
+          : null,
+      onAction: widget.onAction != null
+          ? (record, index, action) => widget.onAction!(record, action)
+          : null,
       onFavoriteToggle: (record, index) {
         widget.onFavoriteToggle?.call(state.currentImages[index]);
       },
@@ -519,6 +539,7 @@ class LocalGalleryContentView extends ConsumerWidget {
   final double itemWidth;
   final void Function(LocalImageRecord record)? onReuseMetadata;
   final void Function(LocalImageRecord record, Offset position)? onContextMenu;
+  final void Function(LocalImageRecord record)? onDelete;
   final Future<void> Function(
     LocalImageRecord record,
     LocalImageContextAction action,
@@ -534,6 +555,7 @@ class LocalGalleryContentView extends ConsumerWidget {
     required this.itemWidth,
     this.onReuseMetadata,
     this.onContextMenu,
+    this.onDelete,
     this.onSendAction,
     this.onDeleted,
     this.groupedGridViewKey,
@@ -651,6 +673,8 @@ class LocalGalleryContentView extends ConsumerWidget {
           .read(localGalleryNotifierProvider.notifier)
           .toggleFavorite(record.path),
       onContextMenu: onContextMenu,
+      onDelete: onDelete,
+      onAction: onSendAction,
       onDeleted: onDeleted,
       onClearFilters: () =>
           ref.read(localGalleryNotifierProvider.notifier).clearAllFilters(),

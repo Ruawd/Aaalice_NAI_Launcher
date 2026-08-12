@@ -29,6 +29,15 @@ class LocalImageContextMenu {
     required bool hasSeed,
     required bool isKritaConnected,
   }) {
+    if (MediaQuery.sizeOf(context).width < 600) {
+      return _showMobileActions(
+        context,
+        hasImportableMetadata: hasImportableMetadata,
+        hasPrompt: hasPrompt,
+        hasSeed: hasSeed,
+      );
+    }
+
     return showMenu<LocalImageContextAction>(
       context: context,
       constraints: const BoxConstraints(minWidth: 320, maxWidth: 420),
@@ -44,6 +53,119 @@ class LocalImageContextMenu {
         hasPrompt: hasPrompt,
         hasSeed: hasSeed,
         isKritaConnected: isKritaConnected,
+      ),
+    );
+  }
+
+  static Future<LocalImageContextAction?> _showMobileActions(
+    BuildContext context, {
+    required bool hasImportableMetadata,
+    required bool hasPrompt,
+    required bool hasSeed,
+  }) {
+    return Navigator.of(context).push<LocalImageContextAction>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (pageContext) {
+          Widget action(
+            LocalImageContextAction value,
+            IconData icon,
+            String label, {
+            bool destructive = false,
+          }) {
+            final color = destructive
+                ? Theme.of(pageContext).colorScheme.error
+                : null;
+            return ListTile(
+              key: ValueKey('mobile-gallery-action-${value.name}'),
+              leading: Icon(icon, color: color),
+              title: Text(
+                label,
+                style: color == null ? null : TextStyle(color: color),
+              ),
+              onTap: () => Navigator.of(pageContext).pop(value),
+            );
+          }
+
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(pageContext.l10n.localGallery_title),
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(pageContext).pop(),
+              ),
+            ),
+            body: SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                children: [
+                  action(
+                    LocalImageContextAction.delete,
+                    Icons.delete_outline,
+                    pageContext.l10n.common_delete,
+                    destructive: true,
+                  ),
+                  const Divider(),
+                  action(
+                    LocalImageContextAction.sendToTextToImage,
+                    Icons.text_fields,
+                    pageContext.l10n.onlineGallery_sendToTextToImage,
+                  ),
+                  action(
+                    LocalImageContextAction.sendToImg2Img,
+                    Icons.image_outlined,
+                    pageContext.l10n.localGallery_sendToImg2Img,
+                  ),
+                  action(
+                    LocalImageContextAction.sendToReversePrompt,
+                    Icons.manage_search_rounded,
+                    pageContext.l10n.localGallery_sendToReversePrompt,
+                  ),
+                  action(
+                    LocalImageContextAction.sendToStyleTransfer,
+                    Icons.palette_outlined,
+                    pageContext.l10n.localGallery_sendToStyleTransfer,
+                  ),
+                  action(
+                    LocalImageContextAction.sendToPreciseReference,
+                    Icons.center_focus_strong,
+                    pageContext.l10n.localGallery_sendToPreciseReference,
+                  ),
+                  action(
+                    LocalImageContextAction.saveToPreciseRefLibrary,
+                    Icons.bookmark_add_outlined,
+                    pageContext.l10n.localGallery_saveToPreciseRefLibrary,
+                  ),
+                  action(
+                    LocalImageContextAction.upscale,
+                    Icons.zoom_in,
+                    pageContext.l10n.gallery_upscale,
+                  ),
+                  if (hasImportableMetadata || hasPrompt || hasSeed)
+                    const Divider(),
+                  if (hasImportableMetadata)
+                    action(
+                      LocalImageContextAction.importMetadata,
+                      Icons.data_object,
+                      pageContext.l10n.localGallery_importImageMetadata,
+                    ),
+                  if (hasPrompt)
+                    action(
+                      LocalImageContextAction.copyPrompt,
+                      Icons.content_copy,
+                      pageContext.l10n.localGallery_copyPrompt,
+                    ),
+                  if (hasSeed)
+                    action(
+                      LocalImageContextAction.copySeed,
+                      Icons.tag,
+                      pageContext.l10n.localGallery_copySeed,
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

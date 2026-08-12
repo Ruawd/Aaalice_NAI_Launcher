@@ -578,6 +578,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       onSendAction: (record, action) => _handleImageAction(record, action),
       onContextMenu: (record, position) =>
           _showImageContextMenu(record, position),
+      onDelete: _confirmDeleteImage,
     );
   }
 
