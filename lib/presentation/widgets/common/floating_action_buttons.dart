@@ -85,6 +85,7 @@ class FloatingActionButtons extends StatelessWidget {
       // 添加按钮
       result.add(
         _FloatingActionButtonItem(
+          key: button.key,
           icon: button.icon,
           onTap: button.onTap,
           iconColor: button.iconColor,
@@ -107,6 +108,9 @@ class FloatingActionButtons extends StatelessWidget {
 
 /// 悬浮按钮数据
 class FloatingActionButtonData {
+  /// Optional key for touch-first action buttons and widget tests.
+  final Key? key;
+
   /// 图标
   final IconData icon;
 
@@ -129,6 +133,7 @@ class FloatingActionButtonData {
   final bool visible;
 
   const FloatingActionButtonData({
+    this.key,
     required this.icon,
     this.onTap,
     this.iconColor,
@@ -150,6 +155,7 @@ class _FloatingActionButtonItem extends StatefulWidget {
   final Duration duration;
 
   const _FloatingActionButtonItem({
+    super.key,
     required this.icon,
     this.onTap,
     this.iconColor,
