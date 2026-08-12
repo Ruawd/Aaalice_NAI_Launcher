@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-          --notes "iOS/TrollStore beta 9: adapts Add to Library dialogs, the library picker, and the full tag-library page for iPhone widths. Forms use a scrollable single-column layout, picker cards use an adaptive two-column grid, and categories open from a mobile bottom sheet."
+            --notes "iOS/TrollStore beta 10: the Characters button now opens a complete mobile editor for adding, importing, editing, enabling, ordering, deleting, and positioning character prompts. The mobile bottom navigation also includes a direct Library destination for managing and deleting saved entries."

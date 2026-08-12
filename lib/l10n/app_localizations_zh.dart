@@ -3310,6 +3310,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get characterTooltip_viewFullConfig => '点击查看完整配置';
 
   @override
+  String get characterMobile_v4Only => '角色提示词仅在 NovelAI V4 / V4.5 模型下生效。';
+
+  @override
+  String get characterMobile_customPositionHint => '点右侧位置图标后拖动角色锚点';
+
+  @override
+  String get characterMobile_addSubtitle => '新建角色，或从已有词库导入';
+
+  @override
+  String get characterMobile_addFromLibrary => '从词库添加';
+
+  @override
+  String get characterMobile_emptyTitle => '还没有角色';
+
+  @override
+  String get characterMobile_emptySubtitle => '每个角色可以单独填写外观、服装和动作提示词。';
+
+  @override
   String tagLibrary_generatedCharacters(Object count) {
     return '已生成 $count 个角色';
   }

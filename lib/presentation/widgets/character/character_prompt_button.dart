@@ -6,6 +6,7 @@ import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
+import 'character_mobile_sheet.dart';
 import 'character_tooltip_content.dart';
 
 enum _CharacterAddAction {
@@ -22,11 +23,15 @@ enum _CharacterAddAction {
 /// 多人角色提示词触发按钮
 ///
 /// 显示在提示词区域工具栏中，作为内联角色区的状态指示器：
-/// - 有角色时点击选中第一个角色进入编辑（角色区常显于布局中）
-/// - 无角色时点击弹出添加菜单（女/男/其他/词库）
+/// - 移动布局点击打开完整角色管理面板
+/// - 桌面布局点击弹出添加菜单（角色区常显于提示词下方）
 /// - 当存在角色时，显示角色数量徽章
 class CharacterPromptButton extends ConsumerWidget {
   const CharacterPromptButton({super.key});
+
+  // 与 GenerationScreen 的移动布局分界保持一致；平板横屏只要仍使用
+  // MobileGenerationLayout，也必须能从按钮进入完整角色编辑器。
+  static const double _mobileBreakpoint = 1000;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -73,27 +78,37 @@ class CharacterPromptButton extends ConsumerWidget {
       ),
     );
 
-    return _CharacterTooltipWrapper(
-      config: config,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Material(
-            color: Colors.transparent,
-            // 无论是否已有角色都弹添加菜单：角色区常显在布局中，
-            // 按钮不再需要「定位」职能
-            child: _AddCharacterMenu(child: buttonContent),
+    final button = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: MediaQuery.sizeOf(context).width < _mobileBreakpoint
+              ? InkWell(
+                  key: const Key('character-mobile-sheet-button'),
+                  onTap: () => CharacterMobileSheet.show(context),
+                  borderRadius: BorderRadius.circular(8),
+                  child: buttonContent,
+                )
+              : _AddCharacterMenu(child: buttonContent),
+        ),
+        // 按钮右上角角标
+        if (hasCharacters)
+          Positioned(
+            right: -4,
+            top: -4,
+            child: _CharacterCountBadge(count: characterCount),
           ),
-          // 按钮右上角角标
-          if (hasCharacters)
-            Positioned(
-              right: -4,
-              top: -4,
-              child: _CharacterCountBadge(count: characterCount),
-            ),
-        ],
-      ),
+      ],
     );
+
+    // 触屏端长按 Tooltip 会遮住可操作区域，而且摘要中的“点击查看完整
+    // 配置”并不是按钮。手机直接打开完整管理面板，桌面才保留悬浮摘要。
+    if (MediaQuery.sizeOf(context).width < _mobileBreakpoint) {
+      return button;
+    }
+
+    return _CharacterTooltipWrapper(config: config, child: button);
   }
 }
 

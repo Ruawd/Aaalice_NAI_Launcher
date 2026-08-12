@@ -3366,6 +3366,27 @@ class AppLocalizationsJa extends AppLocalizations {
   String get characterTooltip_viewFullConfig => 'クリックすると完全な構成が表示されます';
 
   @override
+  String get characterMobile_v4Only =>
+      'キャラクタープロンプトは NovelAI V4 / V4.5 モデルでのみ有効です。';
+
+  @override
+  String get characterMobile_customPositionHint =>
+      '位置アイコンをタップしてキャラクターのアンカーをドラッグします';
+
+  @override
+  String get characterMobile_addSubtitle => 'キャラクターを新規作成するか、ライブラリから読み込みます';
+
+  @override
+  String get characterMobile_addFromLibrary => 'ライブラリから追加';
+
+  @override
+  String get characterMobile_emptyTitle => 'キャラクターはまだありません';
+
+  @override
+  String get characterMobile_emptySubtitle =>
+      '各キャラクターに外見、服装、動作のプロンプトを個別に設定できます。';
+
+  @override
   String tagLibrary_generatedCharacters(Object count) {
     return '$count キャラクターを生成しました';
   }

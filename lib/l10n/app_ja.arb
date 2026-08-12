@@ -1503,6 +1503,12 @@
     }
   },
   "characterTooltip_viewFullConfig": "クリックすると完全な構成が表示されます",
+  "characterMobile_v4Only": "キャラクタープロンプトは NovelAI V4 / V4.5 モデルでのみ有効です。",
+  "characterMobile_customPositionHint": "位置アイコンをタップしてキャラクターのアンカーをドラッグします",
+  "characterMobile_addSubtitle": "キャラクターを新規作成するか、ライブラリから読み込みます",
+  "characterMobile_addFromLibrary": "ライブラリから追加",
+  "characterMobile_emptyTitle": "キャラクターはまだありません",
+  "characterMobile_emptySubtitle": "各キャラクターに外見、服装、動作のプロンプトを個別に設定できます。",
   "tagLibrary_generatedCharacters": "{count} キャラクターを生成しました",
   "@tagLibrary_generatedCharacters": {
     "placeholders": {

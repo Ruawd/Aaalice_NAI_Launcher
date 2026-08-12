@@ -9,6 +9,7 @@ import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/repositories/character_prompt_repository.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/character/character_prompt_button.dart';
+import 'package:nai_launcher/presentation/widgets/character/character_mobile_sheet.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_row.dart';
 import 'package:nai_launcher/presentation/widgets/tag_library/tag_library_picker_dialog.dart';
 
@@ -75,6 +76,45 @@ void main() {
     expect(find.byType(TagLibraryPickerDialog), findsOneWidget);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('phone character button opens the full management sheet', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.runAsync(
+      () => CharacterPromptRepository().save(
+        const CharacterPromptConfig(
+          characters: [
+            CharacterPrompt(
+              id: 'mobile-char-1',
+              name: 'Alice',
+              prompt: 'girl, silver hair',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpWidget(buildTestApp(const CharacterPromptButton()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('character-mobile-sheet-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CharacterMobileSheet), findsOneWidget);
+    expect(find.text('Alice'), findsOneWidget);
+    expect(find.text('girl, silver hair'), findsOneWidget);
+    expect(find.byTooltip('Delete'), findsWidgets);
+    expect(find.byKey(const Key('character-mobile-add')), findsOneWidget);
+
+    await tester.tap(find.text('girl, silver hair'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(TextField), findsWidgets);
   });
 
   testWidgets('classic character row opens the library picker', (tester) async {

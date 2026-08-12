@@ -16,7 +16,7 @@ void main() {
     });
   });
 
-  test('mobile navigation maps settings and gallery branches correctly', () {
+  test('mobile navigation maps generation, gallery, library and settings', () {
     expect(
       mobileNavigationIndexForBranch(AppBranch.generation.index),
       mobileNavigationBranches.indexOf(AppBranch.generation),
@@ -32,6 +32,10 @@ void main() {
     expect(
       mobileNavigationIndexForBranch(AppBranch.settings.index),
       mobileNavigationBranches.indexOf(AppBranch.settings),
+    );
+    expect(
+      mobileNavigationIndexForBranch(AppBranch.tagLibrary.index),
+      mobileNavigationBranches.indexOf(AppBranch.tagLibrary),
     );
   });
 }

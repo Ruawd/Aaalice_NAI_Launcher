@@ -6248,6 +6248,42 @@ abstract class AppLocalizations {
   /// **'Click for full configuration'**
   String get characterTooltip_viewFullConfig;
 
+  /// No description provided for @characterMobile_v4Only.
+  ///
+  /// In en, this message translates to:
+  /// **'Character prompts only work with NovelAI V4 / V4.5 models.'**
+  String get characterMobile_v4Only;
+
+  /// No description provided for @characterMobile_customPositionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the position icon, then drag the character anchors'**
+  String get characterMobile_customPositionHint;
+
+  /// No description provided for @characterMobile_addSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a character or import one from your library'**
+  String get characterMobile_addSubtitle;
+
+  /// No description provided for @characterMobile_addFromLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Add from Library'**
+  String get characterMobile_addFromLibrary;
+
+  /// No description provided for @characterMobile_emptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No characters yet'**
+  String get characterMobile_emptyTitle;
+
+  /// No description provided for @characterMobile_emptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Give each character separate appearance, outfit, and action prompts.'**
+  String get characterMobile_emptySubtitle;
+
   /// No description provided for @tagLibrary_generatedCharacters.
   ///
   /// In en, this message translates to:
