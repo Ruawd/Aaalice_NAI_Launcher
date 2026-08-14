@@ -67,6 +67,10 @@ void main() {
       expect(parameters['height'], 1216);
       expect(parameters['steps'], 28);
       expect(generationRequest.responseType, ResponseType.stream);
+      // Inpaint/img2img bodies can contain multiple large base64 PNGs. The
+      // provider-level task timeout bounds the whole operation, so uploads
+      // must not be killed by the old 30-second send timeout.
+      expect(generationRequest.sendTimeout, const Duration(minutes: 5));
       expect(generationRequest.headers['Content-Type'], 'application/json');
       expect(
         generationRequest.headers['Authorization'],
@@ -345,6 +349,7 @@ void main() {
 
     final request = adapter.requests.single.options;
     expect(request.uri.toString(), 'https://std.loliyc.com/generate');
+    expect(request.sendTimeout, const Duration(minutes: 5));
     expect(request.extra['skipAuth'], isTrue);
     expect(request.data, isA<String>());
     final body = Map<String, dynamic>.from(

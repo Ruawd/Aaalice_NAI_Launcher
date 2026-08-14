@@ -2032,7 +2032,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editor_focusContextHint =>
-      'The outer rectangle is the area sent to Focused Inpaint. The inner rectangle is the main repaint area. The band between them is the Minimum Context Area.';
+      'The outer rectangle is sent to Focused Inpaint and the inner rectangle is the main repaint area. Context padding is the minimum number of source-image pixels kept around each side. A larger value gives the model more surrounding context but sends a larger crop.';
 
   @override
   String get editor_compressionTitle => 'Output resolution';
@@ -2166,7 +2166,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String editor_focusMinimumContextArea(Object value) {
-    return 'Minimum Context Area: $value';
+    return 'Context padding: $value px';
   }
 
   @override

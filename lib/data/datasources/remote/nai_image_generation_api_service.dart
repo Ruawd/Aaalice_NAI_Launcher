@@ -520,7 +520,10 @@ class NAIImageGenerationApiService {
         options: Options(
           responseType: ResponseType.stream,
           receiveTimeout: _shatangyunGenerationTimeout,
-          sendTimeout: const Duration(seconds: 30),
+          // Raw Vibe and img2img requests can contain several base64 images.
+          // Do not apply a short upload-only timeout; the enclosing task
+          // timeout still cancels the whole operation if it really stalls.
+          sendTimeout: _shatangyunGenerationTimeout,
           headers: const {
             'Accept': 'text/plain, application/json, text/event-stream',
             'Content-Type': 'text/event-stream',
@@ -608,7 +611,10 @@ class NAIImageGenerationApiService {
       options: Options(
         responseType: ResponseType.stream,
         receiveTimeout: _shatangyunGenerationTimeout,
-        sendTimeout: const Duration(seconds: 30),
+        // Focused inpaint uploads both the resized source PNG and its mask.
+        // On mobile networks this can legitimately take longer than 30s.
+        // The enclosing five-minute task timeout remains the hard limit.
+        sendTimeout: _shatangyunGenerationTimeout,
         headers: {
           'Authorization': 'Bearer $token',
           'Accept':

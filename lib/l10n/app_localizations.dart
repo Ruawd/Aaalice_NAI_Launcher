@@ -3733,7 +3733,7 @@ abstract class AppLocalizations {
   /// No description provided for @editor_focusContextHint.
   ///
   /// In en, this message translates to:
-  /// **'The outer rectangle is the area sent to Focused Inpaint. The inner rectangle is the main repaint area. The band between them is the Minimum Context Area.'**
+  /// **'The outer rectangle is sent to Focused Inpaint and the inner rectangle is the main repaint area. Context padding is the minimum number of source-image pixels kept around each side. A larger value gives the model more surrounding context but sends a larger crop.'**
   String get editor_focusContextHint;
 
   /// No description provided for @editor_compressionTitle.
@@ -3923,7 +3923,7 @@ abstract class AppLocalizations {
   /// No description provided for @editor_focusMinimumContextArea.
   ///
   /// In en, this message translates to:
-  /// **'Minimum Context Area: {value}'**
+  /// **'Context padding: {value} px'**
   String editor_focusMinimumContextArea(Object value);
 
   /// No description provided for @editor_canvasSizeTitle.

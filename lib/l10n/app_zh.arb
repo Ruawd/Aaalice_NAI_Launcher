@@ -813,7 +813,7 @@
   "editor_focusNeedsSelectionHint": "先框选聚焦区域，再切换画笔绘制蒙版。",
   "editor_focusSelection": "选区",
   "editor_focusBrush": "画笔",
-  "editor_focusContextHint": "外框是实际送去 Focused Inpaint 的区域，内框是主要重绘区域；两框之间的带宽就是 Minimum Context Area。",
+  "editor_focusContextHint": "外框是实际送去聚焦重绘的区域，内框是主要重绘区域。周边上下文宽度表示内框四周至少保留多少个源图像素；数值越大，模型看到的周围内容越多，但发送的裁剪区域也越大。",
   "editor_compressionTitle": "输出分辨率",
   "editor_compressionTooltip": "选择输出分辨率",
   "editor_compressionUncompressed": "保持编辑工作尺寸，不执行压缩。",
@@ -913,7 +913,7 @@
     }
   },
   "editor_statusMirrored": "镜像",
-  "editor_focusMinimumContextArea": "最小上下文区域：{value}",
+  "editor_focusMinimumContextArea": "周边上下文宽度：{value} 像素",
   "@editor_focusMinimumContextArea": {
     "placeholders": {
       "value": {}

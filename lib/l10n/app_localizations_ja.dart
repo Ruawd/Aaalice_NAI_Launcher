@@ -1986,7 +1986,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get editor_focusContextHint =>
-      '外側の長方形は Focused インペイントに送信される領域です。内側の長方形が主な再描画領域です。その間の帯が最小コンテキスト領域です。';
+      '外側の長方形が Focused インペイントへ送信され、内側の長方形が主な再描画領域です。コンテキスト余白は各辺の周囲に残す元画像上の最小ピクセル幅です。値を大きくすると周囲との整合性が上がりますが、送信範囲も広がります。';
 
   @override
   String get editor_compressionTitle => '出力解像度';
@@ -2118,7 +2118,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String editor_focusMinimumContextArea(Object value) {
-    return '最小コンテキスト領域: $value';
+    return '周辺コンテキスト幅: $value px';
   }
 
   @override
