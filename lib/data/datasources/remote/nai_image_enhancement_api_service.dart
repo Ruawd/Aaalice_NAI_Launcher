@@ -10,6 +10,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../core/utils/zip_utils.dart';
 
 part 'nai_image_enhancement_api_service.g.dart';
@@ -47,6 +48,13 @@ class NAIImageEnhancementApiService {
     void Function(int, int)? onProgress,
   }) async {
     try {
+      final endpoint = _endpointService.current;
+      if (!endpoint.supportsUpscaleApi) {
+        throw UnsupportedError(
+          '砂糖云当前未提供 NovelAI 云端超分接口，请切换到官方 NovelAI 账号，或使用 ComfyUI 超分',
+        );
+      }
+
       final decoded = img.decodeImage(image);
       if (decoded == null) {
         throw Exception('无法解析图像尺寸');
@@ -69,12 +77,40 @@ class NAIImageEnhancementApiService {
 
       final raw = response.data as Uint8List;
       final images = ZipUtils.extractAllImages(raw);
-      if (images.isNotEmpty) return images.first;
-      return raw;
+      final result = images.isNotEmpty ? images.first : raw;
+      if (NaiResolutionAdapter.readImageSize(result) == null) {
+        throw FormatException(_invalidImageResponseMessage(raw));
+      }
+      return result;
     } on DioException catch (e) {
       AppLogger.w('Upscale image failed: ${e.message}', 'NAIEnhancement');
       throw Exception('图像放大失败: ${_mapDioError(e)}');
     }
+  }
+
+  String _invalidImageResponseMessage(Uint8List raw) {
+    String? detail;
+    try {
+      final text = utf8.decode(raw, allowMalformed: true).trim();
+      if (text.isNotEmpty) {
+        final decoded = jsonDecode(text);
+        if (decoded is Map) {
+          for (final key in const ['error', 'detail', 'message', 'data']) {
+            final value = decoded[key];
+            if (value != null && value.toString().trim().isNotEmpty) {
+              detail = value.toString().trim();
+              break;
+            }
+          }
+        }
+        detail ??= text.length <= 240 ? text : null;
+      }
+    } catch (_) {
+      // Binary responses that are neither a supported image nor readable JSON
+      // use the generic error below.
+    }
+
+    return detail == null ? '超分服务没有返回有效图片' : '超分服务没有返回有效图片：$detail';
   }
 
   // ==================== Vibe Transfer API ====================
@@ -148,13 +184,12 @@ class NAIImageEnhancementApiService {
     Uint8List image, {
     required String prompt,
     int defry = 0,
-  }) =>
-      augmentImage(
-        image,
-        reqType: _reqTypeEmotion,
-        prompt: prompt,
-        defry: defry,
-      );
+  }) => augmentImage(
+    image,
+    reqType: _reqTypeEmotion,
+    prompt: prompt,
+    defry: defry,
+  );
 
   Future<Uint8List> removeBackground(Uint8List image) =>
       augmentImage(image, reqType: _reqTypeBgRemoval);
@@ -163,13 +198,12 @@ class NAIImageEnhancementApiService {
     Uint8List image, {
     String? prompt,
     int defry = 0,
-  }) =>
-      augmentImage(
-        image,
-        reqType: _reqTypeColorize,
-        prompt: prompt,
-        defry: defry,
-      );
+  }) => augmentImage(
+    image,
+    reqType: _reqTypeColorize,
+    prompt: prompt,
+    defry: defry,
+  );
 
   Future<Uint8List> declutter(Uint8List image) =>
       augmentImage(image, reqType: _reqTypeDeclutter);
@@ -188,10 +222,7 @@ class NAIImageEnhancementApiService {
     try {
       final response = await _dio.post(
         _endpointService.imageUrl(ApiConstants.annotateImageEndpoint),
-        data: {
-          'image': base64Encode(image),
-          'req_type': annotateType,
-        },
+        data: {'image': base64Encode(image), 'req_type': annotateType},
         options: Options(
           responseType: annotateType == _annotateTypeWd
               ? ResponseType.json

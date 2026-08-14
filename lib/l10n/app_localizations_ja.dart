@@ -1340,6 +1340,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_novelAiCloudUpscale => 'NovelAI クラウド拡大 (4x 固定)';
 
   @override
+  String get img2img_novelAiUpscaleUnavailable =>
+      '砂糖クラウドは NovelAI クラウド拡大を提供していません。NovelAI 公式アカウントに切り替えるか、ComfyUI 拡大を使用してください。';
+
+  @override
   String get img2img_comfyuiEnableHint =>
       'まず、[設定] > [ComfyUI] で ComfyUI を有効にして接続します。';
 

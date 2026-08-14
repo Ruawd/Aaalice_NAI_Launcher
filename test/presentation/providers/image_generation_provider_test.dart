@@ -344,6 +344,32 @@ void main() {
     );
 
     test(
+      'registerExternalImage should reject non-image provider responses',
+      () async {
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        final params = container.read(generationParamsNotifierProvider);
+
+        await expectLater(
+          notifier.registerExternalImage(
+            Uint8List.fromList(utf8.encode('{"error":"File not found"}')),
+            params: params,
+            width: 3328,
+            height: 4864,
+            saveToLocal: true,
+          ),
+          throwsA(isA<FormatException>()),
+        );
+
+        final state = container.read(imageGenerationNotifierProvider);
+        expect(state.history, isEmpty);
+        expect(state.currentImages, isEmpty);
+        expect(state.displayImages, isEmpty);
+      },
+    );
+
+    test(
       'registerExternalImage should save image locally when requested',
       () async {
         final notifier = container.read(

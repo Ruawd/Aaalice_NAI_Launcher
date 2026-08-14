@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/network/nai_api_endpoint.dart';
+import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/comfyui/comfyui_provider.dart';
@@ -120,6 +122,59 @@ void main() {
 
       expect(find.text('4x-UltraSharpV2'), findsOneWidget);
       expect(find.textContaining('普通模型 ·'), findsNothing);
+    });
+
+    testWidgets('砂糖云不应把不存在的 NovelAI 超分接口显示为可用', (tester) async {
+      final endpointService = NaiApiEndpointService()
+        ..setCurrent(
+          NaiApiEndpointConfig.fromInput(
+            mainBaseUrl: 'https://std.loliyc.com/novelai',
+            providerType: NaiApiProviderType.shatangyun,
+          ),
+        );
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _MemoryLocalStorageService(),
+          ),
+          comfyUISettingsProvider.overrideWith(_EnabledComfyUISettings.new),
+          comfyUISeedvr2ModelsProvider.overrideWith(
+            _FixedComfyUIUpscaleModels.new,
+          ),
+          naiApiEndpointServiceProvider.overrideWithValue(endpointService),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.binding.setSurfaceSize(const Size(1400, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      controller.replaceSourceImage(_testImageBytes);
+      controller.enterUpscaleMode();
+      controller.updateUpscaleBackend(UpscaleBackend.novelai);
+      controller.setPanelExpanded(true);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(body: Img2ImgPanel()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('砂糖云账号不提供'), findsOneWidget);
+      final startButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, '开始超分'),
+      );
+      expect(startButton.onPressed, isNull);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('浅色主题下展开面板不应出现贴在面板底色上的近白色文字', (tester) async {

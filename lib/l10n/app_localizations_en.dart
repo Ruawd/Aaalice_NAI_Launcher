@@ -1370,6 +1370,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get img2img_novelAiCloudUpscale => 'NovelAI cloud upscale (fixed 4x)';
 
   @override
+  String get img2img_novelAiUpscaleUnavailable =>
+      'Sugar Cloud does not provide NovelAI cloud upscale. Switch to an official NovelAI account or use ComfyUI upscale.';
+
+  @override
   String get img2img_comfyuiEnableHint =>
       'Enable and connect ComfyUI in Settings > ComfyUI first.';
 
