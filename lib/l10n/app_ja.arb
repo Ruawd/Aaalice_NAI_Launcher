@@ -821,7 +821,7 @@
   "editor_focusNeedsSelectionHint": "最初にフォーカス エリアを描画し、次にブラシに切り替えてマスクをペイントします。",
   "editor_focusSelection": "選択",
   "editor_focusBrush": "ブラシ",
-  "editor_focusContextHint": "外側の長方形は Focused インペイントに送信される領域です。内側の長方形が主な再描画領域です。その間の帯が最小コンテキスト領域です。",
+  "editor_focusContextHint": "外側の長方形が Focused インペイントへ送信され、内側の長方形が主な再描画領域です。コンテキスト余白は各辺の周囲に残す元画像上の最小ピクセル幅です。値を大きくすると周囲との整合性が上がりますが、送信範囲も広がります。",
   "editor_compressionTitle": "出力解像度",
   "editor_compressionTooltip": "出力解像度を選択",
   "editor_compressionUncompressed": "編集作業サイズを維持し、圧縮は行いません。",
@@ -921,7 +921,7 @@
     }
   },
   "editor_statusMirrored": "ミラーリングされました",
-  "editor_focusMinimumContextArea": "最小コンテキスト領域: {value}",
+  "editor_focusMinimumContextArea": "周辺コンテキスト幅: {value} px",
   "@editor_focusMinimumContextArea": {
     "placeholders": {
       "value": {}

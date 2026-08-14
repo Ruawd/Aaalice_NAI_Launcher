@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore beta 16: Sugar Cloud once again sends complete NovelAI requests through /novelai, restoring img2img, inpaint, multi-character prompts, Precise Reference, and pre-encoded Vibe support. Raw Vibe images automatically use Sugar Cloud's server-side encoding task flow."
+            --notes "iOS/TrollStore beta 17: Sugar Cloud focused-inpaint requests now allow up to five minutes to upload their source image and mask instead of failing after 30 seconds on mobile networks. The focused-inpaint context control now clearly identifies its value as per-side source-image pixel padding."

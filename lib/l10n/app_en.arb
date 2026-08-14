@@ -831,7 +831,7 @@
   "editor_focusNeedsSelectionHint": "Draw a focus area first, then switch to the brush and paint the mask.",
   "editor_focusSelection": "Selection",
   "editor_focusBrush": "Brush",
-  "editor_focusContextHint": "The outer rectangle is the area sent to Focused Inpaint. The inner rectangle is the main repaint area. The band between them is the Minimum Context Area.",
+  "editor_focusContextHint": "The outer rectangle is sent to Focused Inpaint and the inner rectangle is the main repaint area. Context padding is the minimum number of source-image pixels kept around each side. A larger value gives the model more surrounding context but sends a larger crop.",
   "editor_compressionTitle": "Output resolution",
   "editor_compressionTooltip": "Choose output resolution",
   "editor_compressionUncompressed": "Original work resolution; no compression will be applied.",
@@ -931,7 +931,7 @@
     }
   },
   "editor_statusMirrored": "Mirrored",
-  "editor_focusMinimumContextArea": "Minimum Context Area: {value}",
+  "editor_focusMinimumContextArea": "Context padding: {value} px",
   "@editor_focusMinimumContextArea": {
     "placeholders": {
       "value": {}

@@ -1836,7 +1836,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editor_focusContextHint =>
-      '外框是实际送去 Focused Inpaint 的区域，内框是主要重绘区域；两框之间的带宽就是 Minimum Context Area。';
+      '外框是实际送去聚焦重绘的区域，内框是主要重绘区域。周边上下文宽度表示内框四周至少保留多少个源图像素；数值越大，模型看到的周围内容越多，但发送的裁剪区域也越大。';
 
   @override
   String get editor_compressionTitle => '输出分辨率';
@@ -1966,7 +1966,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String editor_focusMinimumContextArea(Object value) {
-    return '最小上下文区域：$value';
+    return '周边上下文宽度：$value 像素';
   }
 
   @override
