@@ -143,15 +143,25 @@ class NAIImageGenerationApiService {
         ? effectiveParams.enabledPreciseReferences
         : <PreciseReference>[];
     final endpoint = _endpointService.current;
-    final useShatangyunRawVibeTask =
-        endpoint.isShatangyun &&
-        effectiveParams.action != ImageGenerationAction.infill &&
+    final hasShatangyunRawVibes =
         effectivePreciseRefs.isEmpty &&
         effectiveParams.enabledVibeReferencesV4.any(
           (vibe) =>
               vibe.vibeEncoding.isEmpty &&
               vibe.rawImageData?.isNotEmpty == true,
         );
+    // Sugar Cloud's `/novelai` endpoint is a Raven-format converter rather
+    // than a transparent NovelAI proxy. It currently accepts image/mask
+    // fields but drops their generation semantics, turning img2img/infill
+    // into text-to-image. Its own `/generate` task endpoint does honour
+    // `addition.imageToImageBase64`, so image-conditioned workflows must use
+    // that path. Infill is then composited locally with the same mask as the
+    // official route.
+    final useShatangyunWebTask =
+        endpoint.isShatangyun &&
+        (effectiveParams.action == ImageGenerationAction.img2img ||
+            effectiveParams.action == ImageGenerationAction.infill ||
+            hasShatangyunRawVibes);
 
     final cancelToken = CancelToken();
     _currentCancelToken = cancelToken;
@@ -167,7 +177,8 @@ class NAIImageGenerationApiService {
         params: effectiveParams,
         encodeVibe: _enhancementService.encodeVibe,
         preciseReferences: effectivePreciseRefs,
-        vibeTransferHandledExternally: useShatangyunRawVibeTask,
+        vibeTransferHandledExternally:
+            useShatangyunWebTask && hasShatangyunRawVibes,
       ).build(sampler: effectiveSampler);
 
       final vibeEncodingMap = requestBuildResult.vibeEncodingMap;
@@ -302,12 +313,12 @@ class NAIImageGenerationApiService {
         AppLogger.d('==========================================', 'ImgGen');
       }
 
-      // 5. 发送请求。砂糖云通常使用完整 `/novelai` 适配器；只有
-      // 尚未编码的原始 Vibe 图片走 `/generate`，由砂糖云在任务内部编码。
+      // 5. 发送请求。砂糖云文生图继续使用 `/novelai`；图生图、局部
+      // 重绘以及原始 Vibe 使用能真正读取源图的 `/generate` 任务流。
       // 其余兼容服务继续按 NovelAI ZIP 响应处理。
       if (endpoint.isShatangyun) {
-        final images = useShatangyunRawVibeTask
-            ? await _generateWithShatangyunRawVibeTask(
+        final images = useShatangyunWebTask
+            ? await _generateWithShatangyunWebTask(
                 endpoint.shatangyunTaskGenerationUrl,
                 requestData,
                 effectiveParams,
@@ -385,17 +396,17 @@ class NAIImageGenerationApiService {
     }
   }
 
-  Future<List<Uint8List>> _generateWithShatangyunRawVibeTask(
+  Future<List<Uint8List>> _generateWithShatangyunWebTask(
     String generationUrl,
     Map<String, dynamic> requestData,
     ImageParams params, {
     required CancelToken cancelToken,
     void Function(int, int)? onProgress,
   }) async {
-    AppLogger.i('Using Sugar Cloud raw Vibe task adapter', 'ImgGen');
+    AppLogger.i('Using Sugar Cloud source-aware web task adapter', 'ImgGen');
     final sampleCount = params.nSamples.clamp(1, 16);
     try {
-      return await _runShatangyunRawVibeTask(
+      return await _runShatangyunWebTask(
         generationUrl,
         requestData,
         params,
@@ -408,7 +419,7 @@ class NAIImageGenerationApiService {
     }
   }
 
-  Future<List<Uint8List>> _runShatangyunRawVibeTask(
+  Future<List<Uint8List>> _runShatangyunWebTask(
     String generationUrl,
     Map<String, dynamic> requestData,
     ImageParams params, {
@@ -460,11 +471,23 @@ class NAIImageGenerationApiService {
       });
     }
 
+    final usesSourceImage =
+        (params.action == ImageGenerationAction.img2img ||
+            params.action == ImageGenerationAction.infill) &&
+        sourceImage != null &&
+        sourceImage.isNotEmpty;
+    final webImg2ImgStrength = params.action == ImageGenerationAction.infill
+        ? params.inpaintStrength
+        : ((parameters['strength'] as num?)?.toDouble() ?? params.strength);
+    final requestModel = requestData['model']?.toString() ?? params.model;
+
     final payload = <String, dynamic>{
       'ch': false,
       'tag': requestData['input']?.toString() ?? '',
       'token': token,
-      'model': requestData['model']?.toString() ?? 'nai-diffusion-4-5-full',
+      // `/generate` selects its own img2img implementation from the source
+      // image; it does not recognise NovelAI's `-inpainting` model aliases.
+      'model': ImageModels.resolveBaseModel(requestModel),
       'artist': '',
       'size':
           '${parameters['width'] ?? params.width}x'
@@ -483,10 +506,7 @@ class NAIImageGenerationApiService {
           parameters['noise_schedule']?.toString() ?? params.noiseSchedule,
       'stream': 1,
       'addition': {
-        'imageToImageBase64':
-            params.action == ImageGenerationAction.img2img &&
-                sourceImage != null &&
-                sourceImage.isNotEmpty
+        'imageToImageBase64': usesSourceImage
             ? 'data:image/png;base64,$sourceImage'
             : null,
         'vibeTransferList': vibeData,
@@ -498,8 +518,8 @@ class NAIImageGenerationApiService {
           'keepVibe': false,
         },
       },
-      'i2i_force': '${parameters['strength'] ?? params.strength}',
-      'i2i_cl': params.action == ImageGenerationAction.img2img ? '1' : '',
+      'i2i_force': '$webImg2ImgStrength',
+      'i2i_cl': usesSourceImage ? '1' : '',
       'git_token': '',
       'git_repo': '',
     };
@@ -520,7 +540,8 @@ class NAIImageGenerationApiService {
         options: Options(
           responseType: ResponseType.stream,
           receiveTimeout: _shatangyunGenerationTimeout,
-          // Raw Vibe and img2img requests can contain several base64 images.
+          // Raw Vibe and source-conditioned requests can contain several
+          // large base64 images.
           // Do not apply a short upload-only timeout; the enclosing task
           // timeout still cancels the whole operation if it really stalls.
           sendTimeout: _shatangyunGenerationTimeout,
