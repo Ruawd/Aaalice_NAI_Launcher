@@ -101,7 +101,7 @@ void main() {
   );
 
   test(
-    'Sugar Cloud preserves img2img source and official parameters',
+    'Sugar Cloud routes img2img through its source-aware web task',
     () async {
       final adapter = _PendingDioAdapter();
       final dio = Dio()..httpClientAdapter = adapter;
@@ -136,21 +136,25 @@ void main() {
       await _waitForRequestCount(adapter, 1);
 
       final request = adapter.requests.single.options;
-      expect(request.uri.toString(), 'https://std.loliyc.com/novelai');
-      final data = Map<String, dynamic>.from(request.data as Map);
-      final parameters = Map<String, dynamic>.from(data['parameters'] as Map);
-      expect(data['action'], 'img2img');
-      expect(parameters['image'], isA<String>());
-      expect(base64Decode(parameters['image'] as String), isNotEmpty);
-      expect(parameters['strength'], 0.42);
-      expect(parameters['noise'], 0.17);
-      expect(parameters['cfg_rescale'], 0.25);
-      expect(parameters['skip_cfg_above_sigma'], isNotNull);
+      expect(request.uri.toString(), 'https://std.loliyc.com/generate');
+      expect(request.extra['skipAuth'], isTrue);
+      expect(request.data, isA<String>());
+      final body = Map<String, dynamic>.from(
+        jsonDecode(request.data as String) as Map,
+      );
+      expect(body['model'], 'nai-diffusion-4-full');
+      expect(body['size'], '128x128');
+      expect(body['i2i_force'], '0.42');
+      expect(body['i2i_cl'], '1');
+      final addition = Map<String, dynamic>.from(body['addition'] as Map);
+      expect(
+        addition['imageToImageBase64'],
+        startsWith('data:image/png;base64,'),
+      );
 
-      adapter.requests.single.completeWithJson({
-        'status': 'success',
-        'data': '/img/img2img.png',
-      });
+      adapter.requests.single.completeWithTextStream(
+        '{"status":"success","url":"/img/img2img.png"}\n\n',
+      );
       await _waitForRequestCount(adapter, 2);
       final resultImage = _solidPng(
         width: 128,
@@ -167,7 +171,7 @@ void main() {
   );
 
   test(
-    'Sugar Cloud forwards inpaint image and mask without downgrading',
+    'Sugar Cloud uses source-aware img2img then locally composites inpaint',
     () async {
       final adapter = _PendingDioAdapter();
       final dio = Dio()..httpClientAdapter = adapter;
@@ -184,12 +188,12 @@ void main() {
         endpointService,
         accessTokenProvider: () async => 'STD-test-token',
       );
-      final source = _solidPng(width: 128, height: 128, r: 10, g: 20, b: 30);
+      final source = _solidPng(width: 256, height: 256, r: 10, g: 20, b: 30);
       final mask = _rectMaskPng(
-        width: 128,
-        height: 128,
-        x: 48,
-        y: 48,
+        width: 256,
+        height: 256,
+        x: 112,
+        y: 112,
         rectWidth: 32,
         rectHeight: 32,
       );
@@ -200,36 +204,57 @@ void main() {
           action: ImageGenerationAction.infill,
           sourceImage: source,
           maskImage: mask,
-          width: 128,
-          height: 128,
+          width: 256,
+          height: 256,
           inpaintStrength: 0.65,
         ),
       );
       await _waitForRequestCount(adapter, 1);
 
-      final data = Map<String, dynamic>.from(
-        adapter.requests.single.options.data as Map,
+      final request = adapter.requests.single.options;
+      expect(request.uri.toString(), 'https://std.loliyc.com/generate');
+      expect(request.extra['skipAuth'], isTrue);
+      final body = Map<String, dynamic>.from(
+        jsonDecode(request.data as String) as Map,
       );
-      final parameters = Map<String, dynamic>.from(data['parameters'] as Map);
-      expect(data['action'], 'infill');
-      expect(data['model'], 'nai-diffusion-4-full-inpainting');
-      expect(parameters['image'], isA<String>());
-      expect(parameters['mask'], isA<String>());
-      expect(base64Decode(parameters['image'] as String), isNotEmpty);
-      expect(base64Decode(parameters['mask'] as String), isNotEmpty);
-      expect(parameters['inpaintImg2ImgStrength'], 0.65);
+      // Sugar's Raven `/novelai` converter silently turns infill into
+      // text-to-image. Its web task does honour imageToImageBase64, so use the
+      // base model there and retain the official mask for local compositing.
+      expect(body['model'], 'nai-diffusion-4-full');
+      expect(body['i2i_force'], '0.65');
+      expect(body['i2i_cl'], '1');
+      final addition = Map<String, dynamic>.from(body['addition'] as Map);
+      expect(
+        addition['imageToImageBase64'],
+        startsWith('data:image/png;base64,'),
+      );
 
-      adapter.requests.single.completeWithJson({
-        'status': 'success',
-        'url': '/img/inpaint.png',
-      });
-      await _waitForRequestCount(adapter, 2);
-      adapter.requests[1].completeWithImage(
-        _solidPng(width: 128, height: 128, r: 200, g: 210, b: 220),
+      adapter.requests.single.completeWithTextStream(
+        '{"status":"success","url":"/img/inpaint.png"}\n\n',
       );
+      await _waitForRequestCount(adapter, 2);
+      final generated = _solidPng(
+        width: 256,
+        height: 256,
+        r: 200,
+        g: 210,
+        b: 220,
+      );
+      adapter.requests[1].completeWithImage(generated);
 
       final result = await resultFuture;
       expect(result.$1, hasLength(1));
+      final composited = img.decodeImage(result.$1.single)!;
+      final untouched = composited.getPixel(0, 0);
+      expect(
+        (untouched.r.toInt(), untouched.g.toInt(), untouched.b.toInt()),
+        (10, 20, 30),
+      );
+      final repainted = composited.getPixel(128, 128);
+      expect(
+        (repainted.r.toInt(), repainted.g.toInt(), repainted.b.toInt()),
+        (200, 210, 220),
+      );
     },
   );
 
