@@ -10,6 +10,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../core/utils/zip_utils.dart';
 
 part 'nai_image_enhancement_api_service.g.dart';
@@ -54,6 +55,13 @@ class NAIImageEnhancementApiService {
     int scale = 4,
     void Function(int, int)? onProgress,
   }) async {
+    final endpoint = _endpointService.current;
+    if (!endpoint.supportsUpscaleApi) {
+      throw UnsupportedError(
+        '砂糖云当前未提供 NovelAI 云端超分接口，请切换到官方 NovelAI 账号，或使用 ComfyUI 超分',
+      );
+    }
+
     try {
       final response = await _dio.post(
         _endpointService.imageUrl(ApiConstants.upscaleEndpoint),
@@ -120,8 +128,36 @@ class NAIImageEnhancementApiService {
 
   Uint8List _extractUpscaleResult(Uint8List raw) {
     final images = ZipUtils.extractAllImages(raw);
-    if (images.isNotEmpty) return images.first;
-    return raw;
+    final result = images.isNotEmpty ? images.first : raw;
+    if (NaiResolutionAdapter.readImageSize(result) == null) {
+      throw FormatException(_invalidImageResponseMessage(raw));
+    }
+    return result;
+  }
+
+  String _invalidImageResponseMessage(Uint8List raw) {
+    String? detail;
+    try {
+      final text = utf8.decode(raw, allowMalformed: true).trim();
+      if (text.isNotEmpty) {
+        final decoded = jsonDecode(text);
+        if (decoded is Map) {
+          for (final key in const ['error', 'detail', 'message', 'data']) {
+            final value = decoded[key];
+            if (value != null && value.toString().trim().isNotEmpty) {
+              detail = value.toString().trim();
+              break;
+            }
+          }
+        }
+        detail ??= text.length <= 240 ? text : null;
+      }
+    } catch (_) {
+      // Binary responses that are neither a supported image nor readable JSON
+      // use the generic error below.
+    }
+
+    return detail == null ? '超分服务没有返回有效图片' : '超分服务没有返回有效图片：$detail';
   }
 
   // ==================== Vibe Transfer API ====================

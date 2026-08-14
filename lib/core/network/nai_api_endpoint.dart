@@ -8,10 +8,11 @@ enum NaiApiProviderType {
 
   /// Sugar Cloud's NovelAI-compatible adapter.
   ///
-  /// `/novelai` accepts the complete NovelAI generation payload (including
-  /// img2img, inpaint and reference parameters). Its response can be JSON or
-  /// a task-event stream and normally points at the generated image instead
-  /// of returning NovelAI's ZIP directly.
+  /// `/novelai` accepts NovelAI-shaped generation payloads, but it is a
+  /// generation converter rather than a mirror of every NovelAI endpoint.
+  /// Provider-specific fallbacks are required for source-conditioned image
+  /// generation, and NovelAI enhancement endpoints such as `/ai/upscale` are
+  /// not exposed by this provider.
   shatangyun,
 }
 
@@ -112,6 +113,14 @@ class NaiApiEndpointConfig {
   bool get isThirdParty => !isOfficial;
 
   bool get isShatangyun => providerType == NaiApiProviderType.shatangyun;
+
+  /// Whether the current provider exposes NovelAI's `/ai/upscale` endpoint.
+  ///
+  /// Sugar Cloud only exposes its generation adapters. Appending
+  /// `/ai/upscale` to `/novelai` returns HTTP 200 with a JSON
+  /// `{"error":"File not found"}` payload, not an image. Treating that body
+  /// as image bytes creates a corrupt gallery entry.
+  bool get supportsUpscaleApi => !isShatangyun;
 
   /// Full image generation endpoint for providers that do not expose a base
   /// URL plus NovelAI paths.

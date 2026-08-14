@@ -743,11 +743,12 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     await saveImageToSystemPhotoLibrary(
       context,
       loadBytes: () async {
-        final file = await DanbooruImageCacheManager.instance.getSingleFile(
-          imageUrl,
-          key: onlineGalleryImageCacheKeyForUrl(imageUrl),
-          headers: onlineGalleryImageHeadersForUrl(imageUrl),
-        );
+        final file = await OnlineGalleryImageCacheManager.instance
+            .getSingleFile(
+              imageUrl,
+              key: onlineGalleryImageCacheKeyForUrl(imageUrl),
+              headers: onlineGalleryImageHeadersForUrl(imageUrl),
+            );
         return file.readAsBytes();
       },
       fileName: '${widget.post.sourceId.name}_${widget.post.id}',

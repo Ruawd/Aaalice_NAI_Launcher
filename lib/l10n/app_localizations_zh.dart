@@ -1407,6 +1407,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_novelAiCloudUpscale => 'NovelAI 云端超分 (固定 4x 放大)';
 
   @override
+  String get img2img_novelAiUpscaleUnavailable =>
+      '当前砂糖云账号不提供 NovelAI 云端超分，请切换官方 NovelAI 账号或使用 ComfyUI 超分。';
+
+  @override
   String get img2img_comfyuiEnableHint => '请先在「设置 > ComfyUI」中启用并连接服务器。';
 
   @override

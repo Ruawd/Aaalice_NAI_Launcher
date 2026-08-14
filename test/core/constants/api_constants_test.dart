@@ -167,7 +167,9 @@ void main() {
       );
       expect(endpoint.supportsSubscriptionApi, isFalse);
       expect(endpoint.supportsStreamingApi, isFalse);
+      expect(endpoint.supportsUpscaleApi, isFalse);
       expect(endpoint.isShatangyun, isTrue);
+      expect(NaiApiEndpointConfig.official.supportsUpscaleApi, isTrue);
       expect(
         NaiApiEndpointConfig.fromJson(endpoint.toJson()),
         equals(endpoint),

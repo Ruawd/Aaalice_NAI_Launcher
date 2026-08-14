@@ -874,9 +874,16 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       'addToDisplay and replaceCurrentDisplay cannot both be true.',
     );
 
-    final resolvedSize =
-        _resolveImageSize(imageBytes, width: width, height: height) ??
-        (params.width, params.height);
+    // External workflows are allowed to provide an expected size, but the
+    // payload still has to be a real encoded image. In particular, some
+    // third-party routes answer missing endpoints with HTTP 200 JSON; falling
+    // back to the parameter size would otherwise save that JSON as a `.png`
+    // and create a permanent "加载失败" gallery card.
+    final encodedSize = NaiResolutionAdapter.readImageSize(imageBytes);
+    if (encodedSize == null) {
+      throw const FormatException('外部图像服务没有返回有效图片');
+    }
+    final resolvedSize = encodedSize;
 
     final effectiveParams = params.copyWith(
       width: resolvedSize.$1,

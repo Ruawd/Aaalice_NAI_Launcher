@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore beta 19: fixes Sugar Cloud img2img and inpainting losing the source-image context. Img2img, normal inpaint, and focused inpaint now use Sugar Cloud's source-aware task flow; inpaint results are composited with the original mask so untouched areas remain unchanged instead of becoming black blocks. Official NovelAI account behavior is unchanged."
+            --notes "iOS/TrollStore beta 20: fixes cloud upscale reporting success while saving Sugar Cloud's HTTP 200 error JSON as a broken gallery image. Sugar Cloud's unavailable NovelAI upscale route is now disabled with a clear explanation, every upscale response is validated before registration, and all external workflow results must be real encoded images before they can enter the gallery. Official NovelAI ZIP and direct-image upscale responses remain supported."

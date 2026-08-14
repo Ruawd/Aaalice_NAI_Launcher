@@ -12,6 +12,7 @@ import '../../../../core/comfyui/comfyui_models.dart';
 import '../../../../core/comfyui/seedvr2_support.dart';
 import '../../../../core/comfyui/workflow_template.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/network/nai_api_endpoint_service.dart';
 import '../../../../core/utils/focused_inpaint_utils.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -769,6 +770,10 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     final upscale = workflow.upscale;
     final isNai = upscale.backend == UpscaleBackend.novelai;
     final isComfy = upscale.backend == UpscaleBackend.comfyui;
+    final naiUpscaleSupported = ref
+        .watch(naiApiEndpointServiceProvider)
+        .current
+        .supportsUpscaleApi;
     final comfyModule = upscale.comfyModule;
     final isComfySeedvr2 = comfyModule == ComfyUpscaleModule.seedvr2;
     final isComfyRtx = comfyModule == ComfyUpscaleModule.rtx;
@@ -814,7 +819,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
 
     final bool canStart;
     if (isNai) {
-      canStart = hasSourceImage && !_naiUpscaling;
+      canStart = naiUpscaleSupported && hasSourceImage && !_naiUpscaling;
     } else {
       final hasRequiredComfyModel = isComfyRtx || resolvedComfyModel != null;
       canStart =
@@ -839,10 +844,11 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           const SizedBox(height: 12),
           SegmentedButton<UpscaleBackend>(
             segments: [
-              const ButtonSegment(
+              ButtonSegment(
                 value: UpscaleBackend.novelai,
-                label: Text('NovelAI'),
-                icon: Icon(Icons.cloud_outlined, size: 16),
+                label: const Text('NovelAI'),
+                icon: const Icon(Icons.cloud_outlined, size: 16),
+                enabled: naiUpscaleSupported,
               ),
               ButtonSegment(
                 value: UpscaleBackend.comfyui,
@@ -862,9 +868,13 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           const SizedBox(height: 12),
           if (isNai) ...[
             Text(
-              context.l10n.img2img_novelAiCloudUpscale,
+              naiUpscaleSupported
+                  ? context.l10n.img2img_novelAiCloudUpscale
+                  : context.l10n.img2img_novelAiUpscaleUnavailable,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color: naiUpscaleSupported
+                    ? theme.colorScheme.onSurfaceVariant
+                    : theme.colorScheme.error,
               ),
             ),
           ] else ...[

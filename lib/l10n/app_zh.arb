@@ -559,6 +559,7 @@
   "img2img_focusedInpaintDisabledHint": "默认是普通重绘；如需聚焦重绘，请在重绘编辑器左上角按钮中开启并框选区域。",
   "img2img_disabled": "未启用",
   "img2img_novelAiCloudUpscale": "NovelAI 云端超分 (固定 4x 放大)",
+  "img2img_novelAiUpscaleUnavailable": "当前砂糖云账号不提供 NovelAI 云端超分，请切换官方 NovelAI 账号或使用 ComfyUI 超分。",
   "img2img_comfyuiEnableHint": "请先在「设置 > ComfyUI」中启用并连接服务器。",
   "img2img_upscaleMode": "放大方式",
   "img2img_upscaleRegularModel": "普通模型",

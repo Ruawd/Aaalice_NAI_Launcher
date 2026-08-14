@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -5,6 +6,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
+import 'package:nai_launcher/core/network/nai_api_endpoint.dart';
+import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
 
 class _MockDio extends Mock implements Dio {}
@@ -130,6 +133,72 @@ void main() {
       );
       // 计费类错误直接抛出，绝不能换格式重试造成二次扣费。
       expect(callCount, 1);
+    });
+
+    test(
+      'upscaleImage rejects HTTP 200 JSON instead of saving it as an image',
+      () async {
+        final dio = _MockDio();
+        final sourceImage = _buildPng(width: 48, height: 32);
+
+        when(
+          () => dio.post<dynamic>(
+            any(),
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+            onReceiveProgress: any(named: 'onReceiveProgress'),
+          ),
+        ).thenAnswer(
+          (_) async => Response<dynamic>(
+            data: Uint8List.fromList(utf8.encode('{"error":"File not found"}')),
+            requestOptions: RequestOptions(path: '/ai/upscale'),
+          ),
+        );
+
+        final service = NAIImageEnhancementApiService(dio);
+
+        await expectLater(
+          service.upscaleImage(sourceImage),
+          throwsA(
+            isA<FormatException>().having(
+              (error) => error.message,
+              'message',
+              contains('File not found'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('upscaleImage blocks Sugar Cloud before upload', () async {
+      final dio = _MockDio();
+      final endpointService = NaiApiEndpointService()
+        ..setCurrent(
+          NaiApiEndpointConfig.fromInput(
+            mainBaseUrl: 'https://std.loliyc.com/novelai',
+            providerType: NaiApiProviderType.shatangyun,
+          ),
+        );
+      final service = NAIImageEnhancementApiService(dio, endpointService);
+
+      await expectLater(
+        service.upscaleImage(_buildPng(width: 48, height: 32)),
+        throwsA(
+          isA<UnsupportedError>().having(
+            (error) => error.message,
+            'message',
+            contains('砂糖云'),
+          ),
+        ),
+      );
+      verifyNever(
+        () => dio.post<dynamic>(
+          any(),
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+          onReceiveProgress: any(named: 'onReceiveProgress'),
+        ),
+      );
     });
 
     test(

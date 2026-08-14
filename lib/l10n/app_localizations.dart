@@ -2716,6 +2716,12 @@ abstract class AppLocalizations {
   /// **'NovelAI cloud upscale (fixed 4x)'**
   String get img2img_novelAiCloudUpscale;
 
+  /// No description provided for @img2img_novelAiUpscaleUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Sugar Cloud does not provide NovelAI cloud upscale. Switch to an official NovelAI account or use ComfyUI upscale.'**
+  String get img2img_novelAiUpscaleUnavailable;
+
   /// No description provided for @img2img_comfyuiEnableHint.
   ///
   /// In en, this message translates to:
