@@ -459,6 +459,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (!params.capabilities.supportsEncodedVibeTransfer) {
       return params;
     }
+    if (ref.read(naiApiEndpointServiceProvider).current.isShatangyun) {
+      // Sugar Cloud accepts raw Vibe images through its `/generate` task
+      // flow and performs encoding server-side. Calling `/ai/encode-vibe`
+      // first would hit a route this provider does not expose.
+      return params;
+    }
 
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
     final encodedVibes = await notifier.ensureVibeReferencesEncoded(

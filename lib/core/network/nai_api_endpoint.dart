@@ -6,10 +6,12 @@ enum NaiApiProviderType {
   /// responses.
   novelAiCompatible,
 
-  /// Sugar Cloud's single NovelAI-compatible generation endpoint.
+  /// Sugar Cloud's NovelAI-compatible adapter.
   ///
-  /// Its web `/generate` task flow returns newline-delimited JSON status
-  /// events followed by a final image URL instead of NovelAI's ZIP response.
+  /// `/novelai` accepts the complete NovelAI generation payload (including
+  /// img2img, inpaint and reference parameters). Its response can be JSON or
+  /// a task-event stream and normally points at the generated image instead
+  /// of returning NovelAI's ZIP directly.
   shatangyun,
 }
 
@@ -116,6 +118,23 @@ class NaiApiEndpointConfig {
   String get imageGenerationUrl =>
       isShatangyun ? mainBaseUrl : imageUrl(ApiConstants.generateImageEndpoint);
 
+  /// Sugar Cloud's browser task endpoint.
+  ///
+  /// The full `/novelai` adapter is preferred for normal requests. Raw Vibe
+  /// images are the one provider-specific case that must use `/generate`,
+  /// because Sugar Cloud performs their Vibe encoding inside that task flow.
+  String get shatangyunTaskGenerationUrl {
+    if (!isShatangyun) return imageGenerationUrl;
+    final uri = Uri.parse(mainBaseUrl);
+    var path = uri.path.replaceAll(RegExp(r'/+$'), '');
+    if (path.toLowerCase().endsWith('/novelai')) {
+      path = '${path.substring(0, path.length - '/novelai'.length)}/generate';
+    } else if (!path.toLowerCase().endsWith('/generate')) {
+      path = '$path/generate';
+    }
+    return uri.replace(path: path).toString();
+  }
+
   String mainUrl(String endpoint) => _appendEndpoint(mainBaseUrl, endpoint);
 
   String imageUrl(String endpoint) => _appendEndpoint(imageBaseUrl, endpoint);
@@ -191,11 +210,11 @@ class NaiApiEndpointConfig {
     final lowerPath = path.toLowerCase();
     if (lowerPath.endsWith('/api/generate')) {
       path =
-          '${path.substring(0, path.length - '/api/generate'.length)}/generate';
-    } else if (lowerPath.endsWith('/novelai')) {
-      path = '${path.substring(0, path.length - '/novelai'.length)}/generate';
-    } else if (!lowerPath.endsWith('/generate')) {
-      path = '$path/generate';
+          '${path.substring(0, path.length - '/api/generate'.length)}/novelai';
+    } else if (lowerPath.endsWith('/generate')) {
+      path = '${path.substring(0, path.length - '/generate'.length)}/novelai';
+    } else if (!lowerPath.endsWith('/novelai')) {
+      path = '$path/novelai';
     }
     return uri.replace(path: path).toString();
   }

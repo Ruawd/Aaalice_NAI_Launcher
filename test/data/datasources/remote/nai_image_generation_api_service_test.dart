@@ -9,15 +9,17 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
+import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
+import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 
 void main() {
   test(
-    'Sugar Cloud follows /generate task events and downloads final URL',
+    'Sugar Cloud sends the full NovelAI payload and accepts task events',
     () async {
       final adapter = _PendingDioAdapter();
       final dio = Dio()..httpClientAdapter = adapter;
@@ -49,20 +51,29 @@ void main() {
       final generationRequest = adapter.requests[0].options;
       expect(
         generationRequest.uri.toString(),
-        'https://std.loliyc.com/generate',
+        'https://std.loliyc.com/novelai',
       );
-      expect(generationRequest.data, isA<String>());
+      expect(generationRequest.data, isA<Map<String, dynamic>>());
       final requestData = Map<String, dynamic>.from(
-        jsonDecode(generationRequest.data as String) as Map,
+        generationRequest.data as Map,
       );
-      expect(requestData['token'], 'STD-test-token');
-      expect(requestData['tag'], contains('sugar test'));
-      expect(requestData['size'], '竖图');
-      expect(requestData['stream'], 1);
+      expect(requestData['input'], contains('sugar test'));
+      expect(requestData['action'], 'generate');
+      expect(requestData['model'], 'nai-diffusion-4-full');
+      final parameters = Map<String, dynamic>.from(
+        requestData['parameters'] as Map,
+      );
+      expect(parameters['width'], 832);
+      expect(parameters['height'], 1216);
+      expect(parameters['steps'], 28);
       expect(generationRequest.responseType, ResponseType.stream);
-      expect(generationRequest.headers['Content-Type'], 'text/event-stream');
-      expect(generationRequest.extra['skipAuth'], isTrue);
-      adapter.requests[0].completeWithTextStream(
+      expect(generationRequest.headers['Content-Type'], 'application/json');
+      expect(
+        generationRequest.headers['Authorization'],
+        'Bearer STD-test-token',
+      );
+      expect(generationRequest.extra['skipAuth'], isNot(true));
+      final openTaskStream = adapter.requests[0].completeWithOpenTextStream(
         '{"status":"wait","data":"已连接"}\n\n'
         '{"status":"wait","data":"生成中 50%"}\n\n'
         '{"status":"success","url":"/img/generated.png"}\n\n',
@@ -81,8 +92,346 @@ void main() {
       final result = await resultFuture;
       expect(result.$1, hasLength(1));
       expect(result.$1.single, orderedEquals(png));
+      await openTaskStream.close();
     },
   );
+
+  test(
+    'Sugar Cloud preserves img2img source and official parameters',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService()
+        ..setCurrent(
+          NaiApiEndpointConfig.fromInput(
+            mainBaseUrl: 'https://std.loliyc.com/generate',
+            providerType: NaiApiProviderType.shatangyun,
+          ),
+        );
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+        accessTokenProvider: () async => 'STD-test-token',
+      );
+      final source = _solidPng(width: 128, height: 128, r: 4, g: 5, b: 6);
+
+      final resultFuture = service.generateImage(
+        ImageParams(
+          prompt: 'sugar img2img',
+          action: ImageGenerationAction.img2img,
+          sourceImage: source,
+          width: 128,
+          height: 128,
+          strength: 0.42,
+          noise: 0.17,
+          cfgRescale: 0.25,
+          varietyPlus: true,
+        ),
+      );
+      await _waitForRequestCount(adapter, 1);
+
+      final request = adapter.requests.single.options;
+      expect(request.uri.toString(), 'https://std.loliyc.com/novelai');
+      final data = Map<String, dynamic>.from(request.data as Map);
+      final parameters = Map<String, dynamic>.from(data['parameters'] as Map);
+      expect(data['action'], 'img2img');
+      expect(parameters['image'], isA<String>());
+      expect(base64Decode(parameters['image'] as String), isNotEmpty);
+      expect(parameters['strength'], 0.42);
+      expect(parameters['noise'], 0.17);
+      expect(parameters['cfg_rescale'], 0.25);
+      expect(parameters['skip_cfg_above_sigma'], isNotNull);
+
+      adapter.requests.single.completeWithJson({
+        'status': 'success',
+        'data': '/img/img2img.png',
+      });
+      await _waitForRequestCount(adapter, 2);
+      final resultImage = _solidPng(
+        width: 128,
+        height: 128,
+        r: 100,
+        g: 110,
+        b: 120,
+      );
+      adapter.requests[1].completeWithImage(resultImage);
+
+      final result = await resultFuture;
+      expect(result.$1.single, orderedEquals(resultImage));
+    },
+  );
+
+  test(
+    'Sugar Cloud forwards inpaint image and mask without downgrading',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService()
+        ..setCurrent(
+          NaiApiEndpointConfig.fromInput(
+            mainBaseUrl: 'https://std.loliyc.com/api/generate',
+            providerType: NaiApiProviderType.shatangyun,
+          ),
+        );
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+        accessTokenProvider: () async => 'STD-test-token',
+      );
+      final source = _solidPng(width: 128, height: 128, r: 10, g: 20, b: 30);
+      final mask = _rectMaskPng(
+        width: 128,
+        height: 128,
+        x: 48,
+        y: 48,
+        rectWidth: 32,
+        rectHeight: 32,
+      );
+
+      final resultFuture = service.generateImage(
+        ImageParams(
+          prompt: 'sugar inpaint',
+          action: ImageGenerationAction.infill,
+          sourceImage: source,
+          maskImage: mask,
+          width: 128,
+          height: 128,
+          inpaintStrength: 0.65,
+        ),
+      );
+      await _waitForRequestCount(adapter, 1);
+
+      final data = Map<String, dynamic>.from(
+        adapter.requests.single.options.data as Map,
+      );
+      final parameters = Map<String, dynamic>.from(data['parameters'] as Map);
+      expect(data['action'], 'infill');
+      expect(data['model'], 'nai-diffusion-4-full-inpainting');
+      expect(parameters['image'], isA<String>());
+      expect(parameters['mask'], isA<String>());
+      expect(base64Decode(parameters['image'] as String), isNotEmpty);
+      expect(base64Decode(parameters['mask'] as String), isNotEmpty);
+      expect(parameters['inpaintImg2ImgStrength'], 0.65);
+
+      adapter.requests.single.completeWithJson({
+        'status': 'success',
+        'url': '/img/inpaint.png',
+      });
+      await _waitForRequestCount(adapter, 2);
+      adapter.requests[1].completeWithImage(
+        _solidPng(width: 128, height: 128, r: 200, g: 210, b: 220),
+      );
+
+      final result = await resultFuture;
+      expect(result.$1, hasLength(1));
+    },
+  );
+
+  test(
+    'Sugar Cloud keeps multi-character and Precise Reference parameters',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService()
+        ..setCurrent(
+          NaiApiEndpointConfig.fromInput(
+            mainBaseUrl: 'https://std.loliyc.com/novelai',
+            providerType: NaiApiProviderType.shatangyun,
+          ),
+        );
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+        accessTokenProvider: () async => 'STD-test-token',
+      );
+      final reference = _solidPng(width: 128, height: 128, r: 30, g: 40, b: 50);
+
+      final resultFuture = service.generateImage(
+        ImageParams(
+          prompt: 'sugar references',
+          model: 'nai-diffusion-4-5-full',
+          width: 128,
+          height: 128,
+          useCoords: true,
+          characters: const [
+            CharacterPrompt(
+              prompt: '1girl, red hair',
+              negativePrompt: 'blue hair',
+              positionX: 0.2,
+              positionY: 0.8,
+            ),
+          ],
+          preciseReferences: [
+            PreciseReference(
+              image: reference,
+              type: PreciseRefType.character,
+              strength: 0.75,
+              fidelity: 0.4,
+            ),
+          ],
+        ),
+      );
+      await _waitForRequestCount(adapter, 1);
+
+      final data = Map<String, dynamic>.from(
+        adapter.requests.single.options.data as Map,
+      );
+      final parameters = Map<String, dynamic>.from(data['parameters'] as Map);
+      expect(parameters['use_coords'], isTrue);
+      expect(parameters['characterPrompts'], hasLength(1));
+      expect(parameters['director_reference_images'], hasLength(1));
+      expect(parameters['director_reference_descriptions'], hasLength(1));
+      expect(parameters['director_reference_strength_values'], [0.75]);
+      expect(parameters['director_reference_secondary_strength_values'], [0.6]);
+
+      adapter.requests.single.completeWithImage(
+        _solidPng(width: 128, height: 128, r: 80, g: 90, b: 100),
+      );
+      final result = await resultFuture;
+      expect(result.$1, hasLength(1));
+    },
+  );
+
+  test('Sugar Cloud sends raw Vibe images through its task adapter', () async {
+    final adapter = _PendingDioAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    final endpointService = NaiApiEndpointService()
+      ..setCurrent(
+        NaiApiEndpointConfig.fromInput(
+          mainBaseUrl: 'https://std.loliyc.com/novelai',
+          providerType: NaiApiProviderType.shatangyun,
+        ),
+      );
+    final service = NAIImageGenerationApiService(
+      dio,
+      NAIImageEnhancementApiService(dio, endpointService),
+      endpointService,
+      accessTokenProvider: () async => 'STD-test-token',
+    );
+    final rawImage = _solidPng(width: 128, height: 128, r: 22, g: 33, b: 44);
+
+    final resultFuture = service.generateImage(
+      ImageParams(
+        prompt: 'sugar raw vibe',
+        model: 'nai-diffusion-4-5-full',
+        action: ImageGenerationAction.img2img,
+        sourceImage: rawImage,
+        width: 128,
+        height: 128,
+        strength: 0.33,
+        characters: const [
+          CharacterPrompt(
+            prompt: '1girl, green eyes',
+            negativePrompt: 'red eyes',
+            positionX: 0.2,
+            positionY: 0.8,
+          ),
+        ],
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'raw-vibe.png',
+            vibeEncoding: '',
+            rawImageData: rawImage,
+            strength: 0.55,
+            infoExtracted: 0.66,
+          ),
+        ],
+      ),
+    );
+    await _waitForRequestCount(adapter, 1);
+
+    final request = adapter.requests.single.options;
+    expect(request.uri.toString(), 'https://std.loliyc.com/generate');
+    expect(request.extra['skipAuth'], isTrue);
+    expect(request.data, isA<String>());
+    final body = Map<String, dynamic>.from(
+      jsonDecode(request.data as String) as Map,
+    );
+    expect(body['token'], 'STD-test-token');
+    expect(body['size'], '128x128');
+    expect(body['i2i_force'], '0.33');
+    final addition = Map<String, dynamic>.from(body['addition'] as Map);
+    expect(
+      addition['imageToImageBase64'],
+      startsWith('data:image/png;base64,'),
+    );
+    final vibes = addition['vibeTransferList'] as List;
+    expect(vibes, hasLength(1));
+    expect(
+      (vibes.single as Map)['base64'],
+      startsWith('data:image/png;base64,'),
+    );
+    expect((vibes.single as Map)['ref_strength'], 0.55);
+    expect((vibes.single as Map)['info_extract'], 0.66);
+    final roles = addition['multiRoleList'] as List;
+    expect(roles, hasLength(1));
+    expect((roles.single as Map)['position'], 'B4');
+
+    adapter.requests.single.completeWithTextStream(
+      '{"status":"success","url":"/img/raw-vibe.png"}\n\n',
+    );
+    await _waitForRequestCount(adapter, 2);
+    adapter.requests[1].completeWithImage(
+      _solidPng(width: 128, height: 128, r: 120, g: 130, b: 140),
+    );
+    final result = await resultFuture;
+    expect(result.$1, hasLength(1));
+  });
+
+  test('Sugar Cloud preserves an existing Vibe encoding', () async {
+    final adapter = _PendingDioAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    final endpointService = NaiApiEndpointService()
+      ..setCurrent(
+        NaiApiEndpointConfig.fromInput(
+          mainBaseUrl: 'https://std.loliyc.com/novelai',
+          providerType: NaiApiProviderType.shatangyun,
+        ),
+      );
+    final service = NAIImageGenerationApiService(
+      dio,
+      NAIImageEnhancementApiService(dio, endpointService),
+      endpointService,
+      accessTokenProvider: () async => 'STD-test-token',
+    );
+    final rawImage = _solidPng(width: 64, height: 64, r: 11, g: 22, b: 33);
+
+    final resultFuture = service.generateImage(
+      ImageParams(
+        prompt: 'sugar encoded vibe',
+        model: 'nai-diffusion-4-5-full',
+        width: 64,
+        height: 64,
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'encoded-vibe',
+            vibeEncoding: 'existing-vibe-encoding',
+            rawImageData: rawImage,
+            strength: 0.44,
+            infoExtracted: 0.77,
+          ),
+        ],
+      ),
+    );
+    await _waitForRequestCount(adapter, 1);
+
+    final request = adapter.requests.single.options;
+    expect(request.uri.toString(), 'https://std.loliyc.com/novelai');
+    final data = Map<String, dynamic>.from(request.data as Map);
+    final parameters = Map<String, dynamic>.from(data['parameters'] as Map);
+    expect(parameters['reference_image_multiple'], ['existing-vibe-encoding']);
+    expect(parameters['reference_strength_multiple'], [0.44]);
+    expect(parameters['reference_information_extracted_multiple'], [0.77]);
+
+    adapter.requests.single.completeWithImage(
+      _solidPng(width: 64, height: 64, r: 70, g: 80, b: 90),
+    );
+    final result = await resultFuture;
+    expect(result.$1, hasLength(1));
+  });
 
   test('Sugar Cloud failed task event becomes a visible exception', () async {
     final adapter = _PendingDioAdapter();
@@ -755,9 +1104,10 @@ Future<void> _waitForRequestCount(
   _PendingDioAdapter adapter,
   int expectedCount,
 ) async {
-  // 聚焦重绘等预处理已移入后台 isolate，请求发出前存在真实耗时；
-  // 条件满足即返回，上限放宽不会拖慢通过路径。
-  for (var attempt = 0; attempt < 500; attempt += 1) {
+  // 聚焦重绘与精准参考预处理已移入后台 isolate；完整测试套件并行运行
+  // 大量图片/数据库用例时可能超过 5 秒。条件满足即返回，放宽上限不会
+  // 拖慢正常通过路径。
+  for (var attempt = 0; attempt < 3000; attempt += 1) {
     if (adapter.requests.length >= expectedCount) return;
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
@@ -884,6 +1234,21 @@ class _PendingRequest {
         },
       ),
     );
+  }
+
+  StreamController<Uint8List> completeWithOpenTextStream(String data) {
+    final controller = StreamController<Uint8List>();
+    response.complete(
+      ResponseBody(
+        controller.stream,
+        200,
+        headers: {
+          Headers.contentTypeHeader: ['text/plain; charset=utf-8'],
+        },
+      ),
+    );
+    controller.add(Uint8List.fromList(utf8.encode(data)));
+    return controller;
   }
 
   void completeWithImage(Uint8List imageBytes) {
