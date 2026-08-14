@@ -1088,6 +1088,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get image_save => '保存';
 
   @override
+  String get image_saveToPhotos => '保存到相册';
+
+  @override
+  String get image_savedToPhotos => '已保存到系统相册';
+
+  @override
+  String get image_photoLibraryPermissionDenied =>
+      '没有获得相册添加权限，请在 iOS 系统设置中允许本应用添加照片后重试。';
+
+  @override
+  String get image_photoLibraryNotEnoughSpace => '设备存储空间不足，无法将图片保存到相册。';
+
+  @override
+  String get image_photoLibraryUnsupportedFormat => '系统相册不支持这种图片格式。';
+
+  @override
+  String get image_photoLibraryUnsupportedPlatform => '当前平台不支持直接保存到系统相册。';
+
+  @override
+  String image_saveToPhotosFailed(Object error) {
+    return '保存到相册失败：$error';
+  }
+
+  @override
   String get image_copy => '复制';
 
   @override

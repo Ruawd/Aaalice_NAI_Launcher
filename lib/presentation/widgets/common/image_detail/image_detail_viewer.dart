@@ -12,6 +12,7 @@ import '../../../../core/utils/window_focus_tracker.dart';
 import '../../../../data/models/metadata/metadata_import_options.dart';
 import '../../../providers/share_image_settings_provider.dart';
 import '../../../utils/clipboard_image.dart';
+import '../../../utils/photo_library_save_action.dart';
 import '../../shortcuts/shortcuts.dart';
 import '../app_toast.dart';
 import '../../metadata/metadata_import_dialog.dart';
@@ -534,6 +535,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
             onSave: widget.callbacks?.onSave != null
                 ? () => widget.callbacks!.onSave!(_currentImage)
                 : null,
+            onSaveToPhotos: canSaveToSystemPhotoLibrary
+                ? () => _saveCurrentImageToPhotos(context)
+                : null,
             onCopyImage: _currentImage.showCopyButton
                 ? () => _copyImageToClipboard(context)
                 : null,
@@ -690,6 +694,15 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         AppToast.error(context, l10n.image_copyFailed(e.toString()));
       }
     }
+  }
+
+  Future<void> _saveCurrentImageToPhotos(BuildContext context) async {
+    final image = _currentImage;
+    await saveImageToSystemPhotoLibrary(
+      context,
+      loadBytes: image.getImageBytes,
+      fileName: image.fileInfo?.fileName ?? 'nai_${image.identifier}.png',
+    );
   }
 
   /// 处理复用元数据

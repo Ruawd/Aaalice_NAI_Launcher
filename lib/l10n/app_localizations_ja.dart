@@ -1104,6 +1104,31 @@ class AppLocalizationsJa extends AppLocalizations {
   String get image_save => '保存';
 
   @override
+  String get image_saveToPhotos => '写真に保存';
+
+  @override
+  String get image_savedToPhotos => '写真に保存しました';
+
+  @override
+  String get image_photoLibraryPermissionDenied =>
+      '写真への追加が許可されていません。iOS の設定で写真の追加を許可してから、もう一度お試しください。';
+
+  @override
+  String get image_photoLibraryNotEnoughSpace => 'この画像を写真に保存するための端末容量が不足しています。';
+
+  @override
+  String get image_photoLibraryUnsupportedFormat => '写真がこの画像形式に対応していません。';
+
+  @override
+  String get image_photoLibraryUnsupportedPlatform =>
+      'このプラットフォームではシステム写真ライブラリへの直接保存に対応していません。';
+
+  @override
+  String image_saveToPhotosFailed(Object error) {
+    return '写真への保存に失敗しました: $error';
+  }
+
+  @override
   String get image_copy => 'コピー';
 
   @override
