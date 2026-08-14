@@ -368,7 +368,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get auth_shatangyunCompatibilityHint =>
-      'Sugar Cloud の /novelai、/api/generate、および AstrBot と同じトークンに対応します。アプリは /generate の Web タスクストリームを自動使用し、状態イベントを解析して最終画像を取得します。MessagePack ストリーミングは不要です。';
+      'Sugar Cloud の /novelai、/api/generate、および AstrBot と同じトークンに対応します。通常のリクエストは /novelai で img2img、インペイント、複数キャラクター、参照画像を含む NovelAI パラメータを完全に保持し、未エンコードの Vibe 画像は /generate でサーバー側エンコードされます。';
 
   @override
   String get auth_thirdPartySubscriptionApi => 'サブスクリプション API に対応';

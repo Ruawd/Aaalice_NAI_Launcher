@@ -152,15 +152,19 @@ void main() {
       expect(endpoint.supportsStreamingApi, isTrue);
     });
 
-    test('normalizes Sugar Cloud endpoints and disables unsupported APIs', () {
+    test('normalizes Sugar Cloud inputs to its full NovelAI adapter', () {
       final endpoint = NaiApiEndpointConfig.fromInput(
         mainBaseUrl: 'https://std.loliyc.com/api/generate',
         providerType: NaiApiProviderType.shatangyun,
       );
 
-      expect(endpoint.mainBaseUrl, 'https://std.loliyc.com/generate');
-      expect(endpoint.imageBaseUrl, 'https://std.loliyc.com/generate');
-      expect(endpoint.imageGenerationUrl, 'https://std.loliyc.com/generate');
+      expect(endpoint.mainBaseUrl, 'https://std.loliyc.com/novelai');
+      expect(endpoint.imageBaseUrl, 'https://std.loliyc.com/novelai');
+      expect(endpoint.imageGenerationUrl, 'https://std.loliyc.com/novelai');
+      expect(
+        endpoint.shatangyunTaskGenerationUrl,
+        'https://std.loliyc.com/generate',
+      );
       expect(endpoint.supportsSubscriptionApi, isFalse);
       expect(endpoint.supportsStreamingApi, isFalse);
       expect(endpoint.isShatangyun, isTrue);
@@ -183,7 +187,7 @@ void main() {
       expect(endpoint.providerType, NaiApiProviderType.shatangyun);
       expect(endpoint.supportsSubscriptionApi, isFalse);
       expect(endpoint.supportsStreamingApi, isFalse);
-      expect(endpoint.imageGenerationUrl, 'https://std.loliyc.com/generate');
+      expect(endpoint.imageGenerationUrl, 'https://std.loliyc.com/novelai');
     });
   });
 

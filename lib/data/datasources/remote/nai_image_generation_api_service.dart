@@ -140,6 +140,16 @@ class NAIImageGenerationApiService {
     final effectivePreciseRefs = effectiveParams.isV45Model
         ? effectiveParams.enabledPreciseReferences
         : <PreciseReference>[];
+    final endpoint = _endpointService.current;
+    final useShatangyunRawVibeTask =
+        endpoint.isShatangyun &&
+        effectiveParams.action != ImageGenerationAction.infill &&
+        effectivePreciseRefs.isEmpty &&
+        effectiveParams.enabledVibeReferencesV4.any(
+          (vibe) =>
+              vibe.vibeEncoding.isEmpty &&
+              vibe.rawImageData?.isNotEmpty == true,
+        );
 
     final cancelToken = CancelToken();
     _currentCancelToken = cancelToken;
@@ -155,6 +165,7 @@ class NAIImageGenerationApiService {
         params: effectiveParams,
         encodeVibe: _enhancementService.encodeVibe,
         preciseReferences: effectivePreciseRefs,
+        vibeTransferHandledExternally: useShatangyunRawVibeTask,
       ).build(sampler: effectiveSampler);
 
       final vibeEncodingMap = requestBuildResult.vibeEncodingMap;
@@ -289,16 +300,24 @@ class NAIImageGenerationApiService {
         AppLogger.d('==========================================', 'ImgGen');
       }
 
-      // 5. 发送请求。砂糖云需要把 NAI 参数转成网页任务流请求；
+      // 5. 发送请求。砂糖云通常使用完整 `/novelai` 适配器；只有
+      // 尚未编码的原始 Vibe 图片走 `/generate`，由砂糖云在任务内部编码。
       // 其余兼容服务继续按 NovelAI ZIP 响应处理。
-      final endpoint = _endpointService.current;
       if (endpoint.isShatangyun) {
-        final images = await _generateWithShatangyun(
-          endpoint.imageGenerationUrl,
-          requestData,
-          cancelToken: cancelToken,
-          onProgress: onProgress,
-        );
+        final images = useShatangyunRawVibeTask
+            ? await _generateWithShatangyunRawVibeTask(
+                endpoint.shatangyunTaskGenerationUrl,
+                requestData,
+                effectiveParams,
+                cancelToken: cancelToken,
+                onProgress: onProgress,
+              )
+            : await _generateWithShatangyun(
+                endpoint.imageGenerationUrl,
+                requestData,
+                cancelToken: cancelToken,
+                onProgress: onProgress,
+              );
         final artifacts = await _compositeInpaintImages(
           images,
           params,
@@ -350,7 +369,7 @@ class NAIImageGenerationApiService {
     required CancelToken cancelToken,
     void Function(int, int)? onProgress,
   }) async {
-    AppLogger.i('Using Sugar Cloud web task-stream adapter', 'ImgGen');
+    AppLogger.i('Using Sugar Cloud full NovelAI adapter', 'ImgGen');
     try {
       return await _runShatangyunTask(
         generationUrl,
@@ -364,17 +383,36 @@ class NAIImageGenerationApiService {
     }
   }
 
-  Future<List<Uint8List>> _runShatangyunTask(
+  Future<List<Uint8List>> _generateWithShatangyunRawVibeTask(
     String generationUrl,
-    Map<String, dynamic> requestData, {
+    Map<String, dynamic> requestData,
+    ImageParams params, {
     required CancelToken cancelToken,
     void Function(int, int)? onProgress,
   }) async {
-    final action = requestData['action']?.toString() ?? 'generate';
-    if (action != 'generate') {
-      throw Exception('砂糖云网页任务流当前仅支持文生图');
+    AppLogger.i('Using Sugar Cloud raw Vibe task adapter', 'ImgGen');
+    final sampleCount = params.nSamples.clamp(1, 16);
+    try {
+      return await _runShatangyunRawVibeTask(
+        generationUrl,
+        requestData,
+        params,
+        cancelToken: cancelToken,
+        onProgress: onProgress,
+      ).timeout(Duration(minutes: 5 * sampleCount));
+    } on TimeoutException {
+      cancelToken.cancel('Sugar Cloud generation timed out');
+      throw Exception('砂糖云生成超过 5 分钟，任务已停止，请稍后重试');
     }
+  }
 
+  Future<List<Uint8List>> _runShatangyunRawVibeTask(
+    String generationUrl,
+    Map<String, dynamic> requestData,
+    ImageParams params, {
+    required CancelToken cancelToken,
+    void Function(int, int)? onProgress,
+  }) async {
     final token = _normalizeProviderToken(await _accessTokenProvider?.call());
     if (token.isEmpty) {
       throw Exception('未读取到砂糖云 Token，请重新登录该账号');
@@ -383,96 +421,219 @@ class NAIImageGenerationApiService {
     final parameters = Map<String, dynamic>.from(
       requestData['parameters'] as Map? ?? const <String, dynamic>{},
     );
+    final sourceImage = parameters['image']?.toString();
+    final roleData = <Map<String, dynamic>>[];
+    final characterPrompts = parameters['characterPrompts'] as List?;
+    if (characterPrompts != null) {
+      for (final rawCharacter in characterPrompts) {
+        if (rawCharacter is! Map) continue;
+        final character = Map<String, dynamic>.from(rawCharacter);
+        final center = character['center'] is Map
+            ? Map<String, dynamic>.from(character['center'] as Map)
+            : const <String, dynamic>{};
+        final position = _shatangyunGridPosition(
+          (center['x'] as num?)?.toDouble() ?? 0.5,
+          (center['y'] as num?)?.toDouble() ?? 0.5,
+        );
+        final negative = character['uc']?.toString() ?? '';
+        roleData.add({
+          'prompt': character['prompt']?.toString() ?? '',
+          'negative_prompt': negative,
+          'position': position,
+          'negativePrompt': negative,
+        });
+      }
+    }
+
+    final vibeData = <Map<String, dynamic>>[];
+    for (final vibe in params.enabledVibeReferencesV4) {
+      final rawImage = vibe.rawImageData;
+      if (rawImage == null || rawImage.isEmpty) continue;
+      vibeData.add({
+        'base64': _shatangyunImageDataUrl(rawImage),
+        'info_extract': vibe.infoExtracted,
+        'ref_strength': vibe.strength,
+        'infoExtract': vibe.infoExtracted,
+        'refStrength': vibe.strength,
+      });
+    }
+
     final payload = <String, dynamic>{
       'ch': false,
       'tag': requestData['input']?.toString() ?? '',
       'token': token,
       'model': requestData['model']?.toString() ?? 'nai-diffusion-4-5-full',
       'artist': '',
-      'size': _shatangyunSize(parameters),
-      'steps': '${parameters['steps'] ?? 28}',
-      'scale': '${parameters['scale'] ?? 5}',
-      'cfg': '0',
-      'sampler': parameters['sampler']?.toString() ?? 'k_euler_ancestral',
+      'size':
+          '${parameters['width'] ?? params.width}x'
+          '${parameters['height'] ?? params.height}',
+      'steps': '${parameters['steps'] ?? params.steps}',
+      'scale': '${parameters['scale'] ?? params.scale}',
+      'cfg': '${parameters['cfg_rescale'] ?? params.cfgRescale}',
+      'sampler': parameters['sampler']?.toString() ?? params.sampler,
       'negative': parameters['negative_prompt']?.toString() ?? '',
       'seed': '${parameters['seed'] ?? ''}',
-      'other': '0',
-      'varity': '0',
-      'decrisp': '0',
+      'other': _shatangyunSmeaMode(params),
+      'varity': params.varietyPlus ? '1' : '0',
+      'decrisp': params.decrisp ? '1' : '0',
       'nocache': 1,
-      'noise_schedule': parameters['noise_schedule']?.toString() ?? 'karras',
+      'noise_schedule':
+          parameters['noise_schedule']?.toString() ?? params.noiseSchedule,
       'stream': 1,
-      'addition': const <String, dynamic>{},
-      'i2i_force': '1',
-      'i2i_cl': '',
+      'addition': {
+        'imageToImageBase64':
+            params.action == ImageGenerationAction.img2img &&
+                sourceImage != null &&
+                sourceImage.isNotEmpty
+            ? 'data:image/png;base64,$sourceImage'
+            : null,
+        'vibeTransferList': vibeData,
+        'multiRoleList': roleData,
+        'characterKeep': const {
+          'base64': null,
+          'keep_vibe': false,
+          'strength': 0.8,
+          'keepVibe': false,
+        },
+      },
+      'i2i_force': '${parameters['strength'] ?? params.strength}',
+      'i2i_cl': params.action == ImageGenerationAction.img2img ? '1' : '',
       'git_token': '',
       'git_repo': '',
     };
 
+    final sampleCount = params.nSamples.clamp(1, 16);
+    final baseSeed = int.tryParse(payload['seed']?.toString() ?? '');
+    final images = <Uint8List>[];
+    for (var sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
+      final samplePayload = Map<String, dynamic>.from(payload);
+      if (baseSeed != null && sampleIndex > 0) {
+        samplePayload['seed'] = '${(baseSeed + sampleIndex) % 4294967296}';
+      }
+
+      final response = await _dio.post<ResponseBody>(
+        generationUrl,
+        data: jsonEncode(samplePayload),
+        cancelToken: cancelToken,
+        options: Options(
+          responseType: ResponseType.stream,
+          receiveTimeout: _shatangyunGenerationTimeout,
+          sendTimeout: const Duration(seconds: 30),
+          headers: const {
+            'Accept': 'text/plain, application/json, text/event-stream',
+            'Content-Type': 'text/event-stream',
+            'Origin': 'https://www.loliyc.com',
+            'Referer': 'https://www.loliyc.com/std/image.html',
+          },
+          // The browser task endpoint reads its token from the JSON body.
+          extra: const {'skipAuth': true},
+        ),
+      );
+      final body = response.data;
+      if (body == null) throw Exception('砂糖云返回了空响应');
+      images.addAll(
+        await _readShatangyunTextResponse(
+          body.stream,
+          requestOptions: response.requestOptions,
+          baseUri: Uri.parse(generationUrl),
+          cancelToken: cancelToken,
+          onProgress: onProgress,
+        ),
+      );
+    }
+    return images;
+  }
+
+  String _shatangyunSmeaMode(ImageParams params) {
+    if (!params.isV3Model) return '0';
+    if (params.smeaAuto) {
+      if (params.smeaDyn) return '5';
+      if (params.smea) return '4';
+      return '1';
+    }
+    if (params.smeaDyn) return '3';
+    if (params.smea) return '2';
+    return '0';
+  }
+
+  String _shatangyunGridPosition(double x, double y) {
+    final column = (x.clamp(0.0, 1.0) * 4).round().clamp(0, 4);
+    final row = (y.clamp(0.0, 1.0) * 4).round().clamp(0, 4) + 1;
+    return '${String.fromCharCode('A'.codeUnitAt(0) + column)}$row';
+  }
+
+  String _shatangyunImageDataUrl(Uint8List bytes) {
+    var mime = 'image/png';
+    if (bytes.length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8) {
+      mime = 'image/jpeg';
+    } else if (bytes.length >= 6 &&
+        bytes[0] == 0x47 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46) {
+      mime = 'image/gif';
+    } else if (bytes.length >= 12 &&
+        bytes[0] == 0x52 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x46 &&
+        bytes[8] == 0x57 &&
+        bytes[9] == 0x45 &&
+        bytes[10] == 0x42 &&
+        bytes[11] == 0x50) {
+      mime = 'image/webp';
+    }
+    return 'data:$mime;base64,${base64Encode(bytes)}';
+  }
+
+  Future<List<Uint8List>> _runShatangyunTask(
+    String generationUrl,
+    Map<String, dynamic> requestData, {
+    required CancelToken cancelToken,
+    void Function(int, int)? onProgress,
+  }) async {
+    final token = _normalizeProviderToken(await _accessTokenProvider?.call());
+    if (token.isEmpty) {
+      throw Exception('未读取到砂糖云 Token，请重新登录该账号');
+    }
+
     final response = await _dio.post<ResponseBody>(
       generationUrl,
-      // Sugar Cloud expects a JSON body even though its web client labels the
-      // request as text/event-stream. Dio would otherwise URL-encode a Map for
-      // this content type, which makes /generate return HTTP 500.
-      data: jsonEncode(payload),
+      // `/novelai` is Sugar Cloud's official-parameter adapter. Keep the
+      // complete request intact so img2img, inpaint, Vibe/Precise Reference,
+      // multi-character prompts and future NovelAI fields are not discarded.
+      data: requestData,
       cancelToken: cancelToken,
       options: Options(
         responseType: ResponseType.stream,
         receiveTimeout: _shatangyunGenerationTimeout,
         sendTimeout: const Duration(seconds: 30),
-        headers: const {
-          'Accept': 'text/plain, application/json, text/event-stream',
-          'Content-Type': 'text/event-stream',
-          'Origin': 'https://www.loliyc.com',
-          'Referer': 'https://www.loliyc.com/std/image.html',
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept':
+              'application/json, application/x-zip-compressed, image/*, '
+              'text/plain, text/event-stream',
+          'Content-Type': 'application/json',
         },
-        // The provider reads its token from the JSON body. Do not also attach
-        // NovelAI's Authorization header to this provider-specific request.
-        extra: const {'skipAuth': true},
       ),
     );
 
     final body = response.data;
     if (body == null) throw Exception('砂糖云返回了空响应');
 
-    var pendingText = '';
-    var receivedEvents = 0;
-    String? imageLocation;
-
-    void processBlock(String block) {
-      for (final event in _decodeShatangyunEventBlock(block)) {
-        receivedEvents++;
-        final status = event['status']?.toString().toLowerCase() ?? '';
-        AppLogger.d(
-          'Sugar Cloud event #$receivedEvents: status=$status',
-          'ImgGen',
-        );
-        if (status == 'success') {
-          final locations = _extractShatangyunImageLocations(event);
-          if (locations.isEmpty) {
-            throw Exception('砂糖云任务成功但没有返回图片地址');
-          }
-          imageLocation = locations.first;
-          onProgress?.call(100, 100);
-          return;
-        }
-        if (status == 'failed' ||
-            status == 'fail' ||
-            status == 'error' ||
-            event.containsKey('error')) {
-          final detail = _extractProviderError(event);
-          throw Exception(detail.isEmpty ? '砂糖云生成失败' : '砂糖云生成失败：$detail');
-        }
-
-        final progress = _shatangyunEventProgress(event, receivedEvents);
-        onProgress?.call(progress, 100);
-      }
+    final contentType =
+        response.headers.value(Headers.contentTypeHeader)?.toLowerCase() ?? '';
+    if (_isShatangyunTextContentType(contentType)) {
+      return _readShatangyunTextResponse(
+        body.stream,
+        requestOptions: response.requestOptions,
+        baseUri: Uri.parse(generationUrl),
+        cancelToken: cancelToken,
+        onProgress: onProgress,
+      );
     }
 
-    final textStream = body.stream
-        .map<List<int>>((chunk) => chunk)
-        .transform(utf8.decoder);
-    await for (final textChunk in textStream) {
+    final responseBytes = BytesBuilder(copy: false);
+    await for (final chunk in body.stream) {
       if (cancelToken.isCancelled) {
         throw DioException(
           requestOptions: response.requestOptions,
@@ -480,32 +641,172 @@ class NAIImageGenerationApiService {
           error: 'User cancelled',
         );
       }
-      pendingText += textChunk;
-      final blocks = pendingText.split(RegExp(r'\r?\n\r?\n'));
-      pendingText = blocks.removeLast();
-      for (final block in blocks) {
-        processBlock(block);
-        if (imageLocation != null) break;
-      }
-      if (imageLocation != null) break;
+      responseBytes.add(chunk);
     }
 
-    if (imageLocation == null && pendingText.trim().isNotEmpty) {
-      processBlock(pendingText);
+    final bytes = responseBytes.takeBytes();
+    if (bytes.isEmpty) throw Exception('砂糖云返回了空响应');
+
+    // Accept direct NovelAI-style ZIPs and direct image responses too. This
+    // keeps the adapter forward-compatible if Sugar Cloud changes its wrapper
+    // without changing the request contract.
+    if (_looksLikeImage(bytes)) {
+      onProgress?.call(100, 100);
+      return [bytes];
     }
-    if (imageLocation == null) {
-      throw Exception(
-        receivedEvents == 0 ? '砂糖云没有返回可识别的生成状态' : '砂糖云任务结束但没有返回最终图片',
-      );
+    final archivedImages = ZipUtils.extractAllImages(bytes);
+    if (archivedImages.isNotEmpty) {
+      onProgress?.call(100, 100);
+      return archivedImages;
     }
 
-    final image = await _loadShatangyunImage(
-      imageLocation!,
+    // Be tolerant of a missing/incorrect Content-Type header.
+    return _readShatangyunTextResponse(
+      Stream<Uint8List>.value(bytes),
+      requestOptions: response.requestOptions,
       baseUri: Uri.parse(generationUrl),
       cancelToken: cancelToken,
       onProgress: onProgress,
     );
-    return [image];
+  }
+
+  bool _isShatangyunTextContentType(String contentType) {
+    return contentType.contains('json') ||
+        contentType.startsWith('text/') ||
+        contentType.contains('event-stream');
+  }
+
+  Future<List<Uint8List>> _readShatangyunTextResponse(
+    Stream<Uint8List> byteStream, {
+    required RequestOptions requestOptions,
+    required Uri baseUri,
+    required CancelToken cancelToken,
+    void Function(int, int)? onProgress,
+  }) async {
+    var pendingText = '';
+    var receivedEvents = 0;
+    var completed = false;
+    final locations = <String>[];
+
+    void processEvent(Map<String, dynamic> event) {
+      receivedEvents++;
+      final status = event['status']?.toString().toLowerCase() ?? '';
+      AppLogger.d(
+        'Sugar Cloud event #$receivedEvents: status=$status',
+        'ImgGen',
+      );
+      if (status == 'failed' ||
+          status == 'fail' ||
+          status == 'error' ||
+          event.containsKey('error')) {
+        final detail = _extractProviderError(event);
+        throw Exception(detail.isEmpty ? '砂糖云生成失败' : '砂糖云生成失败：$detail');
+      }
+
+      for (final location in _extractShatangyunImageLocations(event)) {
+        if (!locations.contains(location)) locations.add(location);
+      }
+      if (status == 'success') {
+        if (locations.isEmpty) {
+          throw Exception('砂糖云任务成功但没有返回图片地址');
+        }
+        completed = true;
+        onProgress?.call(100, 100);
+      } else if (status.isEmpty && locations.isNotEmpty) {
+        completed = true;
+        onProgress?.call(100, 100);
+      } else {
+        onProgress?.call(_shatangyunEventProgress(event, receivedEvents), 100);
+      }
+    }
+
+    void processText(String text) {
+      for (final event in _decodeShatangyunResponseText(text)) {
+        processEvent(event);
+        if (completed) return;
+      }
+    }
+
+    final textStream = byteStream
+        .map<List<int>>((chunk) => chunk)
+        .transform(utf8.decoder);
+    await for (final textChunk in textStream) {
+      if (cancelToken.isCancelled) {
+        throw DioException(
+          requestOptions: requestOptions,
+          type: DioExceptionType.cancel,
+          error: 'User cancelled',
+        );
+      }
+
+      pendingText += textChunk;
+      final blocks = pendingText.split(RegExp(r'\r?\n\r?\n'));
+      pendingText = blocks.removeLast();
+      for (final block in blocks) {
+        processText(block);
+        if (completed) break;
+      }
+
+      // `/novelai` commonly returns one JSON object without SSE separators.
+      // Parse it as soon as a complete object arrives instead of waiting for
+      // the server to close a keep-alive stream (the old iOS hang).
+      if (!completed && pendingText.trim().isNotEmpty) {
+        final completeJson = _tryDecodeShatangyunJson(pendingText.trim());
+        if (completeJson != null) {
+          for (final event in completeJson) {
+            processEvent(event);
+            if (completed) break;
+          }
+          pendingText = '';
+        }
+      }
+      if (completed) break;
+    }
+
+    final remainingText = pendingText.trim();
+    if (!completed && remainingText.isNotEmpty) {
+      processText(remainingText);
+    }
+
+    // A few compatible deployments return a plain URL/base64 value rather
+    // than a JSON wrapper.
+    if (locations.isEmpty && remainingText.isNotEmpty) {
+      locations.addAll(_extractShatangyunImageLocations(remainingText));
+    }
+    if (locations.isEmpty) {
+      final detail = _extractProviderError(remainingText);
+      throw Exception(
+        detail.isEmpty || receivedEvents > 0
+            ? '砂糖云没有返回可识别的图片'
+            : '砂糖云没有返回图片：$detail',
+      );
+    }
+
+    final images = <Uint8List>[];
+    for (final location in locations) {
+      images.add(
+        await _loadShatangyunImage(
+          location,
+          baseUri: baseUri,
+          cancelToken: cancelToken,
+          onProgress: onProgress,
+        ),
+      );
+    }
+    return images;
+  }
+
+  List<Map<String, dynamic>> _decodeShatangyunResponseText(String text) {
+    if (text.isEmpty) return const [];
+
+    final wholeResponse = _tryDecodeShatangyunJson(text);
+    if (wholeResponse != null) return wholeResponse;
+
+    final result = <Map<String, dynamic>>[];
+    for (final block in text.split(RegExp(r'\r?\n\r?\n'))) {
+      result.addAll(_decodeShatangyunEventBlock(block));
+    }
+    return result;
   }
 
   List<Map<String, dynamic>> _decodeShatangyunEventBlock(String block) {
@@ -566,13 +867,6 @@ class NAIImageGenerationApiService {
     return (eventCount * 10).clamp(5, 90);
   }
 
-  String _shatangyunSize(Map<String, dynamic> parameters) {
-    final width = (parameters['width'] as num?)?.toInt() ?? 1024;
-    final height = (parameters['height'] as num?)?.toInt() ?? 1024;
-    if (width == height) return '方图';
-    return width > height ? '横图' : '竖图';
-  }
-
   String _normalizeProviderToken(String? value) => (value ?? '')
       .trim()
       .replaceFirst(RegExp(r'^Bearer\s+', caseSensitive: false), '')
@@ -607,21 +901,22 @@ class NAIImageGenerationApiService {
         return;
       }
       if (value is Map) {
-        addLocation(value['url']);
-        addLocation(value['image_url']);
-        addLocation(value['b64_json']);
+        for (final key in const [
+          'url',
+          'image_url',
+          'b64_json',
+          'data',
+          'images',
+          'output',
+          'result',
+          'original_response',
+        ]) {
+          addLocation(value[key]);
+        }
       }
     }
 
-    if (responseData is Map) {
-      addLocation(responseData['data']);
-      addLocation(responseData['images']);
-      addLocation(responseData['url']);
-      addLocation(responseData['image_url']);
-      addLocation(responseData['original_response']);
-    } else {
-      addLocation(responseData);
-    }
+    addLocation(responseData);
     return result;
   }
 

@@ -47,6 +47,7 @@ class NAIImageRequestBuilder {
     required this.params,
     required this.encodeVibe,
     List<PreciseReference>? preciseReferences,
+    this.vibeTransferHandledExternally = false,
   }) : _preciseReferences =
            (preciseReferences ??
                    (params.isV45Model
@@ -58,6 +59,7 @@ class NAIImageRequestBuilder {
   final ImageParams params;
   final EncodeVibeFn encodeVibe;
   final List<PreciseReference> _preciseReferences;
+  final bool vibeTransferHandledExternally;
 
   Map<String, dynamic> buildBaseParameters({
     required String sampler,
@@ -207,6 +209,12 @@ class NAIImageRequestBuilder {
       return vibeEncodingMap;
     }
     if (!params.hasVibeReferencesV4) {
+      return vibeEncodingMap;
+    }
+    if (vibeTransferHandledExternally) {
+      // Provider-specific adapters (currently Sugar Cloud's `/generate` task
+      // flow) receive raw Vibe images outside the NovelAI payload. Do not call
+      // `/ai/encode-vibe` or add a second, incompatible reference payload.
       return vibeEncodingMap;
     }
 

@@ -37,7 +37,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 | 📦 生成队列 | 支持任务排序、批量生成、暂停/继续、失败策略、进度统计和队列导入导出。 |
 | 🔌 外部联动 | 支持 Krita 本地联动、ComfyUI 本地工作流、系统代理、跨平台图片复制和文件定位。 |
 
-除 NovelAI 官方服务外，登录页还支持可配置的 NovelAI 兼容第三方 Provider。可分别填写主 API 与图像 API 地址，并针对纯生图网关关闭 `/user/subscription` 校验或流式接口。砂糖云提供独立预设，兼容 `https://std.loliyc.com/novelai`、AstrBot 常用的 `/api/generate` 地址及同一 Token，会自动切换到 `/generate` 网页任务流、解析状态事件并下载最终图片。
+除 NovelAI 官方服务外，登录页还支持可配置的 NovelAI 兼容第三方 Provider。可分别填写主 API 与图像 API 地址，并针对纯生图网关关闭 `/user/subscription` 校验或流式接口。砂糖云提供独立预设，兼容 `https://std.loliyc.com/novelai`、AstrBot 常用的 `/api/generate` 地址及同一 Token；普通请求会自动归一到 `/novelai` 官方参数兼容接口，文生图、图生图、局部重绘、多角色和参考图等完整生成参数不会被简化，原始 Vibe 素材则自动交给 `/generate` 任务流在服务端编码。两条通道均可解析任务事件和最终图片，`/novelai` 还兼容 JSON、ZIP 或直接图片响应。
 
 ### 在线画廊来源
 
