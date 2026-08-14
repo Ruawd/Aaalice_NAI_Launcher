@@ -523,6 +523,18 @@
   "regexRules_testNoRules": "有効なルールがありません",
   "prompt_formatted": "フォーマット済み",
   "image_save": "保存",
+  "image_saveToPhotos": "写真に保存",
+  "image_savedToPhotos": "写真に保存しました",
+  "image_photoLibraryPermissionDenied": "写真への追加が許可されていません。iOS の設定で写真の追加を許可してから、もう一度お試しください。",
+  "image_photoLibraryNotEnoughSpace": "この画像を写真に保存するための端末容量が不足しています。",
+  "image_photoLibraryUnsupportedFormat": "写真がこの画像形式に対応していません。",
+  "image_photoLibraryUnsupportedPlatform": "このプラットフォームではシステム写真ライブラリへの直接保存に対応していません。",
+  "image_saveToPhotosFailed": "写真への保存に失敗しました: {error}",
+  "@image_saveToPhotosFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "image_copy": "コピー",
   "image_upscale": "拡大",
   "image_saveToLibrary": "ライブラリに保存",

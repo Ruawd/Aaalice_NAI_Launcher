@@ -130,4 +130,4 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --prerelease \
             --title "Aaalice NAI Launcher iOS ${GITHUB_REF_NAME#ios-v}" \
-            --notes "iOS/TrollStore beta 17: Sugar Cloud focused-inpaint requests now allow up to five minutes to upload their source image and mask instead of failing after 30 seconds on mobile networks. The focused-inpaint context control now clearly identifies its value as per-side source-image pixel padding."
+            --notes "iOS/TrollStore beta 18: generated images, local-gallery images, and online-gallery images now expose an explicit Save to Photos action. Original PNG/JPEG/GIF/WebP bytes are written through PhotoKit so image quality and embedded NovelAI metadata are not recompressed."

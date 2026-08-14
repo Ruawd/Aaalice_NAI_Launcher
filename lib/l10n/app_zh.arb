@@ -476,6 +476,13 @@
   "prompt_cooccurrenceRecommendationSubtitle": "选中标签后自动推荐，也可按 Ctrl+Shift+Space 或 Ctrl+单击",
 
   "image_save": "保存",
+  "image_saveToPhotos": "保存到相册",
+  "image_savedToPhotos": "已保存到系统相册",
+  "image_photoLibraryPermissionDenied": "没有获得相册添加权限，请在 iOS 系统设置中允许本应用添加照片后重试。",
+  "image_photoLibraryNotEnoughSpace": "设备存储空间不足，无法将图片保存到相册。",
+  "image_photoLibraryUnsupportedFormat": "系统相册不支持这种图片格式。",
+  "image_photoLibraryUnsupportedPlatform": "当前平台不支持直接保存到系统相册。",
+  "image_saveToPhotosFailed": "保存到相册失败：{error}",
   "image_copy": "复制",
   "image_upscale": "放大",
   "image_saveToLibrary": "保存到词库",
@@ -5623,6 +5630,11 @@
     }
   },
   "@image_saveFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@image_saveToPhotosFailed": {
     "placeholders": {
       "error": {}
     }

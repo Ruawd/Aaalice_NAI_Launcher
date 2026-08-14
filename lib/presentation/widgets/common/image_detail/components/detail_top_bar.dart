@@ -18,6 +18,7 @@ class DetailTopBar extends StatelessWidget {
   final VoidCallback? onReuseMetadata;
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onSave;
+  final VoidCallback? onSaveToPhotos;
   final VoidCallback? onCopyImage;
   final VoidCallback? onSendToImg2Img;
   final VoidCallback? onSendToReversePrompt;
@@ -31,6 +32,7 @@ class DetailTopBar extends StatelessWidget {
     this.onReuseMetadata,
     this.onFavoriteToggle,
     this.onSave,
+    this.onSaveToPhotos,
     this.onCopyImage,
     this.onSendToImg2Img,
     this.onSendToReversePrompt,
@@ -101,6 +103,19 @@ class DetailTopBar extends StatelessWidget {
               icon: const Icon(Icons.save_alt, color: Colors.white),
               onPressed: onSave,
               tooltip: l10n.common_save,
+            ),
+
+          // 保存到 iOS Photos 系统相册。它与上面的“保存到
+          // 应用本地画廊”是两个独立动作，因此所有可读取的图片都显示。
+          if (onSaveToPhotos != null)
+            IconButton(
+              key: const ValueKey('detail-save-to-photos'),
+              icon: const Icon(
+                Icons.add_photo_alternate_outlined,
+                color: Colors.white,
+              ),
+              onPressed: onSaveToPhotos,
+              tooltip: l10n.image_saveToPhotos,
             ),
 
           // 复用参数按钮

@@ -2284,6 +2284,48 @@ abstract class AppLocalizations {
   /// **'Save'**
   String get image_save;
 
+  /// No description provided for @image_saveToPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Photos'**
+  String get image_saveToPhotos;
+
+  /// No description provided for @image_savedToPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to Photos'**
+  String get image_savedToPhotos;
+
+  /// No description provided for @image_photoLibraryPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos access was denied. Allow this app to add photos in iOS Settings, then try again.'**
+  String get image_photoLibraryPermissionDenied;
+
+  /// No description provided for @image_photoLibraryNotEnoughSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'There is not enough device storage to save this image to Photos.'**
+  String get image_photoLibraryNotEnoughSpace;
+
+  /// No description provided for @image_photoLibraryUnsupportedFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos does not support this image format.'**
+  String get image_photoLibraryUnsupportedFormat;
+
+  /// No description provided for @image_photoLibraryUnsupportedPlatform.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving directly to the system photo library is not supported on this platform.'**
+  String get image_photoLibraryUnsupportedPlatform;
+
+  /// No description provided for @image_saveToPhotosFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save to Photos: {error}'**
+  String image_saveToPhotosFailed(Object error);
+
   /// No description provided for @image_copy.
   ///
   /// In en, this message translates to:

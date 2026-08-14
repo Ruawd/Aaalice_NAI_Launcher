@@ -531,6 +531,18 @@
   "prompt_formatted": "Formatted",
 
   "image_save": "Save",
+  "image_saveToPhotos": "Save to Photos",
+  "image_savedToPhotos": "Saved to Photos",
+  "image_photoLibraryPermissionDenied": "Photos access was denied. Allow this app to add photos in iOS Settings, then try again.",
+  "image_photoLibraryNotEnoughSpace": "There is not enough device storage to save this image to Photos.",
+  "image_photoLibraryUnsupportedFormat": "Photos does not support this image format.",
+  "image_photoLibraryUnsupportedPlatform": "Saving directly to the system photo library is not supported on this platform.",
+  "image_saveToPhotosFailed": "Could not save to Photos: {error}",
+  "@image_saveToPhotosFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "image_copy": "Copy",
   "image_upscale": "Upscale",
   "image_saveToLibrary": "Save to Library",

@@ -1212,6 +1212,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get image_save => 'Save';
 
   @override
+  String get image_saveToPhotos => 'Save to Photos';
+
+  @override
+  String get image_savedToPhotos => 'Saved to Photos';
+
+  @override
+  String get image_photoLibraryPermissionDenied =>
+      'Photos access was denied. Allow this app to add photos in iOS Settings, then try again.';
+
+  @override
+  String get image_photoLibraryNotEnoughSpace =>
+      'There is not enough device storage to save this image to Photos.';
+
+  @override
+  String get image_photoLibraryUnsupportedFormat =>
+      'Photos does not support this image format.';
+
+  @override
+  String get image_photoLibraryUnsupportedPlatform =>
+      'Saving directly to the system photo library is not supported on this platform.';
+
+  @override
+  String image_saveToPhotosFailed(Object error) {
+    return 'Could not save to Photos: $error';
+  }
+
+  @override
   String get image_copy => 'Copy';
 
   @override

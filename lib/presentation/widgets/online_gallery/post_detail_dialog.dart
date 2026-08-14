@@ -20,6 +20,7 @@ import '../../providers/online_gallery_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
+import '../../utils/photo_library_save_action.dart';
 import '../tag_chip.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/common/app_toast.dart';
@@ -575,6 +576,23 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           // 第一行：复制和发送
           Row(
             children: [
+              if (canSaveToSystemPhotoLibrary && !widget.post.isVideo) ...[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('online-save-to-photos'),
+                    onPressed: _saveToPhotos,
+                    icon: const Icon(
+                      Icons.add_photo_alternate_outlined,
+                      size: 16,
+                    ),
+                    label: Text(context.l10n.image_saveToPhotos),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _copyTags,
@@ -712,6 +730,28 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
         );
       }
     }
+  }
+
+  Future<void> _saveToPhotos() async {
+    final imageUrl =
+        widget.post.fileUrl ?? widget.post.sampleUrl ?? widget.post.previewUrl;
+    if (imageUrl.isEmpty) {
+      AppToast.info(context, context.l10n.onlineGallery_noImageUrl);
+      return;
+    }
+
+    await saveImageToSystemPhotoLibrary(
+      context,
+      loadBytes: () async {
+        final file = await DanbooruImageCacheManager.instance.getSingleFile(
+          imageUrl,
+          key: onlineGalleryImageCacheKeyForUrl(imageUrl),
+          headers: onlineGalleryImageHeadersForUrl(imageUrl),
+        );
+        return file.readAsBytes();
+      },
+      fileName: '${widget.post.sourceId.name}_${widget.post.id}',
+    );
   }
 
   /// 加入队列
