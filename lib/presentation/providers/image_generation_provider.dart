@@ -8,6 +8,7 @@ import 'package:dio/dio.dart';
 import 'package:image/image.dart' as img;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/services/anlas_calculator.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/image_save_utils.dart';
 import '../../core/utils/image_share_sanitizer.dart';
@@ -480,7 +481,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   Future<ImageParams> _prepareVibesForGeneration(ImageParams params) async {
-    if (params.vibeReferencesV4.isEmpty) {
+    if (!AnlasCalculator.usesVibeReferences(params)) {
       return params;
     }
     if (ref.read(naiApiEndpointServiceProvider).current.isShatangyun) {
@@ -525,7 +526,19 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     );
   }
 
-  Future<void> generate(ImageParams params) async {
+  Future<void> generate(ImageParams params) {
+    return _generate(params).whenComplete(() {
+      // App 根节点常驻监听该 provider。独立测试/工具未启动订阅链路时，
+      // 不应仅为记账刷新而触发认证和平台存储初始化。
+      if (ref.exists(subscriptionNotifierProvider)) {
+        ref
+            .read(subscriptionNotifierProvider.notifier)
+            .schedulePostBillingRefresh();
+      }
+    });
+  }
+
+  Future<void> _generate(ImageParams params) async {
     final canStart = ref
         .read(generationCooldownProvider.notifier)
         .tryStartGeneration();
@@ -831,11 +844,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       currentImage: 0,
       totalImages: 0,
     );
-
-    // 生成完成后刷新 Anlas 余额
-    // 点数消耗由 AnlasBalanceWatcher 自动监听余额变化记录
-    await ref.read(subscriptionNotifierProvider.notifier).refreshBalance();
-    if (_shouldAbortGenerationRun(generationRunId)) return;
 
     // 注意：生成完成通知由 QueueExecutionNotifier 统一管理
     // 以避免循环依赖（ImageGenerationNotifier ↔ QueueExecutionNotifier）

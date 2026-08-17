@@ -105,6 +105,14 @@ class VibeReference with _$VibeReference {
 
   bool get hasVibeEncoding => vibeEncoding.isNotEmpty;
 
+  /// Re-encode when there is no encoding or when its recorded model differs.
+  /// Legacy/provider encodings without model metadata stay usable instead of
+  /// being replaced by a paid encode request that some providers do not expose.
+  bool needsEncodingForModel(String model) {
+    return canReencodeFromRawSource &&
+        (!hasVibeEncoding || (encodingModel != null && encodingModel != model));
+  }
+
   VibeReference withEncodedVibe(String encoding, {String? model}) {
     if (encoding.isEmpty) {
       return copyWith(vibeEncoding: encoding);

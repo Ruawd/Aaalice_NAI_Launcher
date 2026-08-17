@@ -13,6 +13,7 @@ import '../../providers/generation/generation_settings_notifiers.dart'
     as generation_settings;
 import '../../router/app_router.dart';
 import 'autocomplete_config.dart';
+import 'autocomplete_utils.dart';
 import 'completion_overlay.dart';
 import 'autocomplete_strategy.dart';
 import 'legacy_autocomplete_wrapper.dart';
@@ -45,6 +46,8 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
   final FocusNode? focusNode;
   final bool enabled;
   final ValueChanged<String>? onChanged;
+
+  /// Receives the complete updated field value after a suggestion is applied.
   final ValueChanged<String>? onSuggestionSelected;
   final TextStyle? textStyle;
   final EdgeInsetsGeometry? contentPadding;
@@ -125,14 +128,15 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
 class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   final GlobalKey _anchorKey = GlobalKey(debugLabel: 'autocomplete-anchor');
   final ScrollController _scrollController = ScrollController();
-  final OverlayPortalController _overlayController = OverlayPortalController(
-    debugLabel: 'autocomplete',
-  );
+  OverlayEntry? _overlayEntry;
   FocusNode? _ownedFocusNode;
   CompletionOrchestrator? _orchestrator;
   String? _selectedId;
   int _selectedIndex = -1;
   bool _applyingSuggestion = false;
+  bool _cursorMetricsScheduled = false;
+  Offset? _cursorOffset;
+  double _caretLineHeight = 0;
   String? _pinnedRelatedTag;
 
   FocusNode get _focusNode => widget.focusNode ?? _ownedFocusNode!;
@@ -150,7 +154,56 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     if (!mounted || widget.usesLegacyStrategy || _orchestrator != null) return;
     _orchestrator = ref.read(autocompleteServicesProvider).createOrchestrator()
       ..addListener(_onCompletionStateChanged);
+    _updateCursorMetrics();
     if (_focusNode.hasFocus) _startQuery();
+  }
+
+  void _scheduleCursorMetricsUpdate() {
+    if (_cursorMetricsScheduled || widget.usesLegacyStrategy) return;
+    _cursorMetricsScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cursorMetricsScheduled = false;
+      _updateCursorMetrics();
+    });
+  }
+
+  void _updateCursorMetrics() {
+    if (!mounted || widget.usesLegacyStrategy) return;
+    final anchorContext = _anchorKey.currentContext;
+    if (anchorContext == null) return;
+    final isMultiline = AutocompleteUtils.isMultilineTextInput(
+      context: anchorContext,
+      maxLines: widget.maxLines,
+      expands: widget.expands,
+    );
+    final nextOffset = isMultiline
+        ? AutocompleteUtils.getCursorOffset(
+            context: anchorContext,
+            controller: widget.controller,
+            textStyle: widget.textStyle,
+            contentPadding: widget.contentPadding,
+            maxLines: widget.maxLines,
+            expands: widget.expands,
+          )
+        : null;
+    final nextLineHeight = isMultiline
+        ? AutocompleteUtils.getPreferredLineHeight(
+            context: anchorContext,
+            textStyle: widget.textStyle,
+          )
+        : 0.0;
+    if (_cursorOffset == nextOffset && _caretLineHeight == nextLineHeight) {
+      return;
+    }
+    _cursorOffset = nextOffset;
+    _caretLineHeight = nextLineHeight;
+    _overlayEntry?.markNeedsBuild();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scheduleCursorMetricsUpdate();
   }
 
   @override
@@ -160,6 +213,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       oldWidget.controller.removeListener(_onTextChanged);
       widget.controller.addListener(_onTextChanged);
     }
+    _scheduleCursorMetricsUpdate();
     if (oldWidget.focusNode != widget.focusNode) {
       final oldFocus = oldWidget.focusNode ?? _ownedFocusNode;
       oldFocus?.removeListener(_onFocusChanged);
@@ -168,15 +222,18 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       _focusNode.addListener(_onFocusChanged);
     }
     if (oldWidget.usesLegacyStrategy != widget.usesLegacyStrategy) {
-      _disposeOrchestrator();
       _removeOverlay();
+      _disposeOrchestrator();
       WidgetsBinding.instance.addPostFrameCallback((_) => _initializeUnified());
     }
   }
 
   void _onTextChanged() {
     if (_applyingSuggestion || widget.usesLegacyStrategy) return;
+    _scheduleCursorMetricsUpdate();
     widget.onChanged?.call(widget.controller.text);
+    final composing = widget.controller.value.composing;
+    if (composing.isValid && !composing.isCollapsed) return;
     if (_focusNode.hasFocus) {
       _startQuery(
         related: _pinnedRelatedTag != null,
@@ -189,6 +246,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     if (!_focusNode.hasFocus) {
       if (_pinnedRelatedTag == null) _removeOverlay();
     } else if (!widget.usesLegacyStrategy) {
+      _scheduleCursorMetricsUpdate();
       _startQuery(
         related: _pinnedRelatedTag != null,
         relatedTagOverride: _pinnedRelatedTag,
@@ -300,11 +358,14 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   void _showOrUpdateOverlay() {
-    if (_overlayController.isShowing) {
-      setState(() {});
-    } else {
-      _overlayController.show();
+    final currentEntry = _overlayEntry;
+    if (currentEntry != null) {
+      currentEntry.markNeedsBuild();
+      return;
     }
+    final entry = OverlayEntry(builder: _buildOverlay);
+    _overlayEntry = entry;
+    Overlay.of(context, rootOverlay: true).insert(entry);
   }
 
   Widget _buildOverlay(BuildContext overlayContext) {
@@ -321,9 +382,17 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     }
     final targetRect =
         anchor.localToGlobal(Offset.zero, ancestor: theater) & anchor.size;
+    final cursorOffset = _cursorOffset;
+    final horizontalAnchor = cursorOffset == null
+        ? targetRect.left
+        : targetRect.left + cursorOffset.dx;
+    final verticalAnchor = cursorOffset == null
+        ? targetRect.bottom
+        : targetRect.top + cursorOffset.dy;
+    final caretLineHeight = _caretLineHeight;
     final screen = theater.size;
-    final below = screen.height - targetRect.bottom - 8;
-    final above = targetRect.top - 8;
+    final below = screen.height - verticalAnchor - 8;
+    final above = verticalAnchor - caretLineHeight - 8;
     final placeBelow = below >= 180 || below >= above;
     final availableHeight = placeBelow ? below : above;
     final maxHeight = availableHeight.clamp(132.0, 410.0);
@@ -332,14 +401,16 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final preferredWidth = targetRect.width < 680 ? 680.0 : targetRect.width;
     final width = preferredWidth.clamp(minWidth, maxWidth);
     final maxLeft = screen.width - width - 8;
-    final left = targetRect.left.clamp(8.0, maxLeft);
+    final left = horizontalAnchor.clamp(8.0, maxLeft);
     final settings = ref.read(autocompleteSettingsProvider);
     final dictionaryState = ref.read(zhDictionaryServiceProvider).state;
 
     return Positioned(
       left: left,
-      top: placeBelow ? targetRect.bottom + 4 : null,
-      bottom: placeBelow ? null : screen.height - targetRect.top + 4,
+      top: placeBelow ? verticalAnchor + 4 : null,
+      bottom: placeBelow
+          ? null
+          : screen.height - (verticalAnchor - caretLineHeight) + 4,
       width: width,
       child: TextFieldTapRegion(
         child: CompletionOverlay(
@@ -349,11 +420,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
           scrollController: _scrollController,
           settings: settings,
           dictionaryState: dictionaryState,
-          showAliases: widget.config?.showTranslation == false
-              ? false
-              : settings.showAliases,
+          showAliases:
+              settings.showAliases && (widget.config?.showTranslation ?? true),
           showTranslations:
-              widget.config?.showTranslation ?? settings.showTranslations,
+              settings.showTranslations &&
+              (widget.config?.showTranslation ?? true),
           showCategory: widget.config?.showCategory ?? true,
           showCount: widget.config?.showCount ?? true,
           onSelected: _selectIndex,
@@ -369,7 +440,8 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (widget.usesLegacyStrategy || event is! KeyDownEvent) {
+    if (widget.usesLegacyStrategy ||
+        (event is! KeyDownEvent && event is! KeyRepeatEvent)) {
       return KeyEventResult.ignored;
     }
     final keyboard = HardwareKeyboard.instance;
@@ -381,7 +453,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       _startQuery(related: true, resetPinnedRelatedTag: true);
       return KeyEventResult.handled;
     }
-    if (!_overlayController.isShowing) return KeyEventResult.ignored;
+    if (_overlayEntry == null) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      if (event is KeyDownEvent) _closeOverlay();
+      return KeyEventResult.handled;
+    }
     final candidates = _orchestrator?.state.candidates ?? const [];
     if (candidates.isEmpty) return KeyEventResult.ignored;
     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
@@ -394,12 +470,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     }
     if (event.logicalKey == LogicalKeyboardKey.enter ||
         event.logicalKey == LogicalKeyboardKey.tab) {
-      _selectIndex(_selectedIndex);
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.escape) {
-      _closeOverlay();
-      return KeyEventResult.handled;
+      if (event is KeyDownEvent) {
+        _selectIndex(_selectedIndex);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
     }
     return KeyEventResult.ignored;
   }
@@ -408,7 +483,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     _selectedIndex = (_selectedIndex + delta) % candidates.length;
     if (_selectedIndex < 0) _selectedIndex += candidates.length;
     _selectedId = candidates[_selectedIndex].stableId;
-    setState(() {});
+    _overlayEntry?.markNeedsBuild();
     _ensureSelectionVisible();
   }
 
@@ -457,10 +532,10 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       query: state.query!,
       canonicalTag: candidate.canonicalTag,
       autoInsertComma:
-          widget.config?.autoInsertComma ?? settings.autoInsertComma,
+          settings.autoInsertComma && (widget.config?.autoInsertComma ?? true),
       replaceUnderscores:
-          widget.config?.replaceUnderscoreWithSpace ??
-          settings.replaceUnderscores,
+          settings.replaceUnderscores ||
+          (widget.config?.replaceUnderscoreWithSpace ?? false),
     );
     _applyingSuggestion = true;
     widget.controller.value = TextEditingValue(
@@ -468,12 +543,13 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       selection: TextSelection.collapsed(offset: applied.cursorPosition),
     );
     _applyingSuggestion = false;
+    _scheduleCursorMetricsUpdate();
     widget.onChanged?.call(applied.text);
-    widget.onSuggestionSelected?.call(candidate.canonicalTag);
+    widget.onSuggestionSelected?.call(applied.text);
     _selectedId = null;
     _removeOverlay();
-    if (settings.relatedTagsEnabled) {
-      final pinnedTag = _pinnedRelatedTag;
+    final pinnedTag = _pinnedRelatedTag;
+    if (settings.relatedTagsEnabled && pinnedTag != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _focusNode.hasFocus) {
           _startQuery(related: true, relatedTagOverride: pinnedTag);
@@ -483,6 +559,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   void _onPointerUp(PointerUpEvent event) {
+    _scheduleCursorMetricsUpdate();
     final keyboard = HardwareKeyboard.instance;
     if (!keyboard.isControlPressed && !keyboard.isMetaPressed) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -495,9 +572,8 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   void _toggleRelatedPin() {
     final relatedTag = _orchestrator?.state.query?.relatedTag;
     if (relatedTag == null) return;
-    setState(() {
-      _pinnedRelatedTag = _pinnedRelatedTag == null ? relatedTag : null;
-    });
+    _pinnedRelatedTag = _pinnedRelatedTag == null ? relatedTag : null;
+    _overlayEntry?.markNeedsBuild();
   }
 
   void _closeOverlay() {
@@ -506,15 +582,17 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   void _removeOverlay() {
-    if (_overlayController.isShowing) _overlayController.hide();
+    final entry = _overlayEntry;
+    if (entry == null) return;
+    _overlayEntry = null;
+    entry.remove();
+    entry.dispose();
   }
 
   void _openAutocompleteSettings() {
     _closeOverlay();
     _focusNode.unfocus();
-    // Remove the portal child before GoRouter replaces this route. Reparenting
-    // a visible portal in the same layout frame can leave Flutter's overlay
-    // theater with a stale render-tree anchor.
+    // Let the root overlay entry detach before GoRouter replaces its anchor.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.go('${AppRoutes.settings}?section=storage');
@@ -531,9 +609,9 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   void dispose() {
     widget.controller.removeListener(_onTextChanged);
     _focusNode.removeListener(_onFocusChanged);
+    _removeOverlay();
     _ownedFocusNode?.dispose();
     _disposeOrchestrator();
-    _removeOverlay();
     _scrollController.dispose();
     super.dispose();
   }
@@ -566,7 +644,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       }
     });
     ref.listen(zhDictionaryServiceProvider, (_, __) {
-      if (_overlayController.isShowing) setState(() {});
+      _overlayEntry?.markNeedsBuild();
     });
     ref.listen<bool>(generation_settings.autocompleteSettingsProvider, (
       _,
@@ -581,21 +659,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         _removeOverlay();
       }
     });
-    // The layout-builder portal owns a deferred layout surrogate. Route
-    // replacement or hot reload can reparent that surrogate during layout and
-    // trip Flutter's `node.depth > theater.depth` assertion. A regular portal
-    // with a stable render anchor keeps the same root-overlay hit testing
-    // without that fragile deferred-layout path.
-    return OverlayPortal(
-      controller: _overlayController,
-      overlayLocation: OverlayChildLocation.rootOverlay,
-      overlayChildBuilder: _buildOverlay,
-      child: SizedBox(
-        key: _anchorKey,
-        child: Focus(
-          onKeyEvent: _onKeyEvent,
-          child: Listener(onPointerUp: _onPointerUp, child: widget.child),
-        ),
+    return SizedBox(
+      key: _anchorKey,
+      child: Focus(
+        onKeyEvent: _onKeyEvent,
+        child: Listener(onPointerUp: _onPointerUp, child: widget.child),
       ),
     );
   }

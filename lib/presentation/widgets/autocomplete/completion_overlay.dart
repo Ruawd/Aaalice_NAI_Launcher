@@ -121,9 +121,10 @@ class CompletionOverlay extends StatelessWidget {
                           thickness: 8,
                           radius: const Radius.circular(8),
                           child: ListView.builder(
+                            key: const ValueKey('autocomplete-popup-list'),
                             controller: scrollController,
                             shrinkWrap: true,
-                            padding: EdgeInsets.zero,
+                            padding: const EdgeInsets.only(right: 14),
                             itemExtent: autocompleteCandidateExtent,
                             scrollCacheExtent: const ScrollCacheExtent.pixels(
                               350,
@@ -582,6 +583,7 @@ class _CompletionTile extends StatelessWidget {
     TagCategory.contributor => Icons.badge_rounded,
     TagCategory.species => Icons.pets_rounded,
     TagCategory.lore => Icons.auto_stories_rounded,
+    TagCategory.library => Icons.collections_bookmark_rounded,
   };
 
   static String _categoryLabel(BuildContext context, TagCategory category) =>
@@ -595,6 +597,7 @@ class _CompletionTile extends StatelessWidget {
           context.l10n.autocomplete_categoryContributor,
         TagCategory.species => context.l10n.autocomplete_categorySpecies,
         TagCategory.lore => context.l10n.autocomplete_categoryLore,
+        TagCategory.library => context.l10n.autocomplete_categoryLibrary,
       };
 
   static Color _categoryColor(BuildContext context, TagCategory category) {
@@ -616,6 +619,8 @@ class _CompletionTile extends StatelessWidget {
       (TagCategory.species, false) => const Color(0xff167568),
       (TagCategory.lore, true) => const Color(0xff9fa8ff),
       (TagCategory.lore, false) => const Color(0xff4d56a8),
+      (TagCategory.library, true) => const Color(0xff64d4c5),
+      (TagCategory.library, false) => const Color(0xff167568),
     };
   }
 
@@ -634,6 +639,7 @@ class _CompletionTile extends StatelessWidget {
     CompletionSourceKind.cooccurrence =>
       context.l10n.autocomplete_sourceRelated,
     CompletionSourceKind.ai => context.l10n.autocomplete_sourceAi,
+    CompletionSourceKind.library => context.l10n.autocomplete_categoryLibrary,
   };
 
   static String _metricLabel(CompletionCandidate candidate) {
@@ -795,6 +801,7 @@ class _SourceBadges extends StatelessWidget {
     CompletionSourceKind.danbooruApi => 'API',
     CompletionSourceKind.cooccurrence => 'REL',
     CompletionSourceKind.ai => 'AI',
+    CompletionSourceKind.library => 'LIB',
   };
 
   static Color _sourceColor(ThemeData theme, CompletionSourceKind source) {
@@ -809,6 +816,8 @@ class _SourceBadges extends StatelessWidget {
         dark ? const Color(0xffffb75f) : const Color(0xff9a5900),
       CompletionSourceKind.ai =>
         dark ? const Color(0xffce82dc) : const Color(0xff7b1fa2),
+      CompletionSourceKind.library =>
+        dark ? const Color(0xff64d4c5) : const Color(0xff167568),
     };
   }
 }
