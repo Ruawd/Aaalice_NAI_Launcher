@@ -3512,6 +3512,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get warmup_dataMigration => 'Migrating Hive / Vibe / image data...';
 
   @override
+  String warmup_dataMigrationFailed(Object error) {
+    return 'Data migration failed: $error';
+  }
+
+  @override
   String get warmup_galleryDataSource => 'Initializing gallery index...';
 
   @override

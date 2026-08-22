@@ -1557,6 +1557,12 @@
   "warmup_translationInit": "Initializing translation data...",
   "warmup_danbooruTagsInit": "Initializing Danbooru tags...",
   "warmup_dataMigration": "Migrating Hive / Vibe / image data...",
+  "warmup_dataMigrationFailed": "Data migration failed: {error}",
+  "@warmup_dataMigrationFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "warmup_galleryDataSource": "Initializing gallery index...",
   "warmup_checkAndRecoverData": "Checking data integrity...",
   "warmup_group_dataSourceInitialization": "Initializing data source services...",

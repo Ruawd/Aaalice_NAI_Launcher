@@ -1449,6 +1449,12 @@
   "warmup_translationInit": "初始化翻译数据...",
   "warmup_danbooruTagsInit": "初始化 Danbooru 标签...",
   "warmup_dataMigration": "迁移 Hive / Vibe / 图片数据...",
+  "warmup_dataMigrationFailed": "数据迁移失败：{error}",
+  "@warmup_dataMigrationFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "warmup_galleryDataSource": "初始化画廊索引...",
   "warmup_checkAndRecoverData": "检查数据完整性...",
   "warmup_group_dataSourceInitialization": "初始化数据源服务...",

@@ -3432,6 +3432,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get warmup_dataMigration => 'Hive / Vibe / 画像データを移行しています...';
 
   @override
+  String warmup_dataMigrationFailed(Object error) {
+    return 'データ移行に失敗しました: $error';
+  }
+
+  @override
   String get warmup_galleryDataSource => 'ギャラリー インデックスを初期化しています...';
 
   @override

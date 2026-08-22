@@ -3372,6 +3372,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get warmup_dataMigration => '迁移 Hive / Vibe / 图片数据...';
 
   @override
+  String warmup_dataMigrationFailed(Object error) {
+    return '数据迁移失败：$error';
+  }
+
+  @override
   String get warmup_galleryDataSource => '初始化画廊索引...';
 
   @override

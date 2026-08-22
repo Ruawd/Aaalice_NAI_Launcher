@@ -42,6 +42,12 @@ class WarmupMessageLocalizer {
       return l10n.warmup_fetchingTags(parts.length == 2 ? parts[1] : '');
     }
 
+    if (message.startsWith('warmup_dataMigrationFailed|')) {
+      return l10n.warmup_dataMigrationFailed(
+        message.substring('warmup_dataMigrationFailed|'.length),
+      );
+    }
+
     return switch (message) {
       'warmup_preparing' => l10n.warmup_preparing,
       'warmup_complete' => l10n.warmup_complete,

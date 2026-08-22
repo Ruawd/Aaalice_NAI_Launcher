@@ -6320,6 +6320,12 @@ abstract class AppLocalizations {
   /// **'Migrating Hive / Vibe / image data...'**
   String get warmup_dataMigration;
 
+  /// No description provided for @warmup_dataMigrationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Data migration failed: {error}'**
+  String warmup_dataMigrationFailed(Object error);
+
   /// No description provided for @warmup_galleryDataSource.
   ///
   /// In en, this message translates to:

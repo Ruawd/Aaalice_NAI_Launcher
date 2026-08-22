@@ -1540,6 +1540,12 @@
   "warmup_translationInit": "翻訳データを初期化しています...",
   "warmup_danbooruTagsInit": "Danbooru タグを初期化しています...",
   "warmup_dataMigration": "Hive / Vibe / 画像データを移行しています...",
+  "warmup_dataMigrationFailed": "データ移行に失敗しました: {error}",
+  "@warmup_dataMigrationFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "warmup_galleryDataSource": "ギャラリー インデックスを初期化しています...",
   "warmup_checkAndRecoverData": "データの整合性をチェックしています...",
   "warmup_group_dataSourceInitialization": "データ ソース サービスを初期化しています...",

@@ -213,19 +213,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       l10n,
       progress.currentTask,
     );
+    final translatedError = error == null
+        ? null
+        : WarmupMessageLocalizer.localizeSubTask(l10n, error);
     final percentage = (progress.progress * 100).toInt();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 48),
       child: Column(
         children: [
-          if (error != null) ...[
+          if (translatedError != null) ...[
             Icon(Icons.error_outline, color: theme.colorScheme.error, size: 28),
             const SizedBox(height: 12),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 520),
               child: Text(
-                error,
+                translatedError,
                 textAlign: TextAlign.center,
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,

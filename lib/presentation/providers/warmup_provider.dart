@@ -143,7 +143,7 @@ class WarmupNotifier extends _$WarmupNotifier {
     state = state.copyWith(clearSubTaskMessage: true);
 
     if (!result.isSuccess) {
-      throw StateError('数据迁移失败: ${result.error ?? result}');
+      throw StateError('warmup_dataMigrationFailed|${result.error ?? result}');
     }
     AppLogger.i('数据迁移完成: $result', 'Warmup');
   }
