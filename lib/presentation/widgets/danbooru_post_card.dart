@@ -1159,33 +1159,30 @@ class _HoverPreviewCardInnerState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           _StatItem(
                             icon: Icons.photo_size_select_actual,
                             value: '${post.width}×${post.height}',
                           ),
-                          const SizedBox(width: 12),
-                          if (post.score != null) ...[
+                          if (post.score != null)
                             _StatItem(
                               icon: Icons.thumb_up,
                               value: '${post.score}',
                             ),
-                            const SizedBox(width: 12),
-                          ],
-                          if (post.viewCount != null) ...[
+                          if (post.viewCount != null)
                             _StatItem(
                               icon: Icons.visibility_outlined,
                               value: '${post.viewCount}',
                             ),
-                            const SizedBox(width: 12),
-                          ],
                           if (post.favCount != null)
                             _StatItem(
                               icon: Icons.favorite,
                               value: '${post.favCount}',
                             ),
-                          const Spacer(),
                           if (post.rating != null)
                             Container(
                               padding: const EdgeInsets.symmetric(
