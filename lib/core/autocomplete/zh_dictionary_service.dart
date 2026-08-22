@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../utils/app_logger.dart';
+import '../database/app_database_factory.dart';
 import 'completion_models.dart';
 
 const ffdkjRepositoryUrl =
@@ -319,7 +320,7 @@ class ZhDictionaryService extends ChangeNotifier
   Future<bool> _openIfInstalled() async {
     await initialize();
     if (!_state.isInstalled) return false;
-    _database ??= await databaseFactoryFfi.openDatabase(
+    _database ??= await appDatabaseFactory.openDatabase(
       _databasePath!,
       options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
     );
@@ -337,7 +338,7 @@ class ZhDictionaryService extends ChangeNotifier
     if (!ascii.decode(header).startsWith('SQLite format 3')) {
       throw StateError('Invalid SQLite dictionary header');
     }
-    final db = await databaseFactoryFfi.openDatabase(
+    final db = await appDatabaseFactory.openDatabase(
       path,
       options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
     );

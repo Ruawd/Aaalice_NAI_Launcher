@@ -23,6 +23,11 @@ class NAIUserInfoApiService {
     Duration? receiveTimeout,
     Duration? sendTimeout,
   }) async {
+    final endpoint = _endpointService.current;
+    if (endpoint.isThirdParty && !endpoint.supportsSubscriptionApi) {
+      return endpoint.compatibilitySubscriptionInfo;
+    }
+
     try {
       final response = await _dio.get(
         _endpointService.userUrl(ApiConstants.userSubscriptionEndpoint),

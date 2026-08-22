@@ -1,12 +1,9 @@
-import 'dart:io';
-
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-
+import '../database/app_database_factory.dart';
 import '../utils/app_logger.dart';
 
 /// Sqflite 启动初始化服务
 ///
-/// 在桌面端统一初始化 sqflite FFI，全局仅执行一次，支持并发安全。
+/// 按平台初始化 SQLite 后端，全局仅执行一次，支持并发安全。
 class SqfliteBootstrapService {
   SqfliteBootstrapService._();
 
@@ -25,25 +22,8 @@ class SqfliteBootstrapService {
   }
 
   Future<void> _doInitialize() async {
-    if (!(Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-      _initialized = true;
-      return;
-    }
-
-    sqfliteFfiInit();
-
-    var shouldAssignFfiFactory = true;
-    try {
-      shouldAssignFfiFactory = !identical(databaseFactory, databaseFactoryFfi);
-    } on StateError {
-      shouldAssignFfiFactory = true;
-    }
-
-    if (shouldAssignFfiFactory) {
-      databaseFactory = databaseFactoryFfi;
-    }
-
+    initializeAppDatabaseFactory();
     _initialized = true;
-    AppLogger.i('Sqflite FFI initialized for desktop', 'SqfliteBootstrap');
+    AppLogger.i('Platform SQLite backend initialized', 'SqfliteBootstrap');
   }
 }

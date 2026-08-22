@@ -38,6 +38,15 @@ class NAIAuthApiService {
       throw ArgumentError('Token 格式无效');
     }
 
+    if (endpoint.isThirdParty && !endpoint.supportsSubscriptionApi) {
+      AppLogger.i(
+        'Third-party provider is configured without /user/subscription; '
+            'using generation-only compatibility mode',
+        'NAIAuth',
+      );
+      return endpoint.compatibilitySubscriptionInfo;
+    }
+
     // 所有 token 都使用 Bearer 前缀（与 NAI-Generator-Flutter 保持一致）
     final authHeader = 'Bearer $normalizedToken';
 

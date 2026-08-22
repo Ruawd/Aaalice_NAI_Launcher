@@ -384,6 +384,14 @@ class NAIImageGenerationApiService {
     double minimumContextMegaPixels = 88.0,
     Rect? focusedSelectionRect,
   }) {
+    if (!_endpointService.current.supportsStreamingApi) {
+      return Stream.value(
+        ImageStreamChunk.error(
+          'Streaming is not allowed by the configured provider',
+        ),
+      );
+    }
+
     final cancelToken = CancelToken();
     _currentCancelToken = cancelToken;
 

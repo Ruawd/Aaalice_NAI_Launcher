@@ -5,6 +5,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../database/app_database_factory.dart';
+
 class CachedAutocompletePayload {
   const CachedAutocompletePayload({
     required this.payload,
@@ -30,7 +32,7 @@ class AutocompleteCacheDatabase {
     final support = await getApplicationSupportDirectory();
     final directory = Directory(p.join(support.path, 'autocomplete'));
     await directory.create(recursive: true);
-    _database = await databaseFactoryFfi.openDatabase(
+    _database = await appDatabaseFactory.openDatabase(
       p.join(directory.path, 'autocomplete_cache.db'),
       options: OpenDatabaseOptions(
         version: 1,

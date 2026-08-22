@@ -62,6 +62,50 @@ void main() {
       },
     );
 
+    test(
+      'generation-only provider login does not require subscription API',
+      () async {
+        final adapter = _RecordingDioAdapter();
+        final dio = Dio()..httpClientAdapter = adapter;
+        final service = NAIAuthApiService(dio);
+        final endpoint = NaiApiEndpointConfig.fromInput(
+          mainBaseUrl: 'https://generation-only.example',
+          supportsSubscriptionApi: false,
+        );
+
+        final result = await service.validateToken(
+          'compatible-token',
+          endpoint: endpoint,
+          allowAnyTokenFormat: true,
+        );
+
+        expect(adapter.requests, isEmpty);
+        expect(result['active'], isTrue);
+        expect(result['tier'], 0);
+      },
+    );
+
+    test(
+      'user info uses local fallback for generation-only provider',
+      () async {
+        final adapter = _RecordingDioAdapter();
+        final dio = Dio()..httpClientAdapter = adapter;
+        final endpointService = NaiApiEndpointService()
+          ..setCurrent(
+            NaiApiEndpointConfig.fromInput(
+              mainBaseUrl: 'https://generation-only.example',
+              supportsSubscriptionApi: false,
+            ),
+          );
+        final service = NAIUserInfoApiService(dio, endpointService);
+
+        final result = await service.getUserSubscription();
+
+        expect(adapter.requests, isEmpty);
+        expect(result['active'], isTrue);
+      },
+    );
+
     test('getUserSubscription uses the current official image host', () async {
       final adapter = _RecordingDioAdapter();
       final dio = Dio()..httpClientAdapter = adapter;

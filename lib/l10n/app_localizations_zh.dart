@@ -345,7 +345,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get auth_thirdPartyCompatibilityHint =>
-      '第三方站点需兼容 NovelAI 的 /user/subscription 与图像生成相关 API；Token 将按 Bearer 方式发送。';
+      '请求将使用 NovelAI 原生路径、JSON/MessagePack 格式及 ZIP/图片响应；Token 按 Bearer 方式发送。建议使用 HTTPS。';
+
+  @override
+  String get auth_thirdPartySubscriptionApi => '支持订阅信息接口';
+
+  @override
+  String get auth_thirdPartySubscriptionApiHint =>
+      '服务实现了 /user/subscription 时开启；纯生图网关请关闭';
+
+  @override
+  String get auth_thirdPartyStreamingApi => '支持流式生图接口';
+
+  @override
+  String get auth_thirdPartyStreamingApiHint =>
+      '服务实现了 /ai/generate-image-stream 时开启；否则自动使用非流式生图';
 
   @override
   String get auth_thirdPartyApiSiteRequired => '请输入第三方 API 站点地址';

@@ -357,7 +357,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_thirdPartyCompatibilityHint =>
-      'The third-party site must be compatible with NovelAI subscription and image-generation APIs. The token will be sent as a Bearer token.';
+      'Requests use NovelAI-native paths, JSON/MessagePack payloads, and ZIP/image responses. The token is sent as a Bearer token. HTTPS is recommended.';
+
+  @override
+  String get auth_thirdPartySubscriptionApi => 'Supports subscription API';
+
+  @override
+  String get auth_thirdPartySubscriptionApiHint =>
+      'Enable when /user/subscription is available; disable for generation-only gateways';
+
+  @override
+  String get auth_thirdPartyStreamingApi => 'Supports streaming API';
+
+  @override
+  String get auth_thirdPartyStreamingApiHint =>
+      'Enable when /ai/generate-image-stream is available; otherwise non-stream generation is used automatically';
 
   @override
   String get auth_thirdPartyApiSiteRequired => 'Enter third-party API site URL';
