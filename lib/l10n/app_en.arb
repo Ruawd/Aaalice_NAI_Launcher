@@ -1557,10 +1557,10 @@
   "warmup_translationInit": "Initializing translation data...",
   "warmup_danbooruTagsInit": "Initializing Danbooru tags...",
   "warmup_dataMigration": "Migrating Hive / Vibe / image data...",
-  "warmup_dataMigrationFailed": "Data migration failed: {error}",
+  "warmup_dataMigrationFailed": "Data migration failed: {details}",
   "@warmup_dataMigrationFailed": {
     "placeholders": {
-      "error": {}
+      "details": {}
     }
   },
   "warmup_galleryDataSource": "Initializing gallery index...",
@@ -1590,6 +1590,16 @@
   "resolution_typeCustom": "Custom",
   "resolution_width": "Width",
   "resolution_height": "Height",
+  "generation_invalidResolution": "Invalid resolution",
+  "generation_invalidResolutionHint": "{width}×{height} cannot be used for generation. Both dimensions must be multiples of 64, neither side can exceed 4096, and the total pixel count cannot exceed 3,145,728. The nearest valid size is {suggestedWidth}×{suggestedHeight}.",
+  "@generation_invalidResolutionHint": {
+    "placeholders": {
+      "width": { "type": "int" },
+      "height": { "type": "int" },
+      "suggestedWidth": { "type": "int" },
+      "suggestedHeight": { "type": "int" }
+    }
+  },
 
   "api_error_429": "Concurrency limit reached",
   "api_error_429_hint": "Too many requests. Please wait and try again (common with shared accounts)",

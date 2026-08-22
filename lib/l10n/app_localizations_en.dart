@@ -3512,8 +3512,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get warmup_dataMigration => 'Migrating Hive / Vibe / image data...';
 
   @override
-  String warmup_dataMigrationFailed(Object error) {
-    return 'Data migration failed: $error';
+  String warmup_dataMigrationFailed(Object details) {
+    return 'Data migration failed: $details';
   }
 
   @override
@@ -3583,6 +3583,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resolution_height => 'Height';
+
+  @override
+  String get generation_invalidResolution => 'Invalid resolution';
+
+  @override
+  String generation_invalidResolutionHint(
+    int width,
+    int height,
+    int suggestedWidth,
+    int suggestedHeight,
+  ) {
+    return '$width×$height cannot be used for generation. Both dimensions must be multiples of 64, neither side can exceed 4096, and the total pixel count cannot exceed 3,145,728. The nearest valid size is $suggestedWidth×$suggestedHeight.';
+  }
 
   @override
   String get api_error_429 => 'Concurrency limit reached';

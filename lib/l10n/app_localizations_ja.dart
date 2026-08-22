@@ -3432,8 +3432,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get warmup_dataMigration => 'Hive / Vibe / 画像データを移行しています...';
 
   @override
-  String warmup_dataMigrationFailed(Object error) {
-    return 'データ移行に失敗しました: $error';
+  String warmup_dataMigrationFailed(Object details) {
+    return 'データ移行に失敗しました: $details';
   }
 
   @override
@@ -3502,6 +3502,19 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get resolution_height => '高さ';
+
+  @override
+  String get generation_invalidResolution => '無効な解像度';
+
+  @override
+  String generation_invalidResolutionHint(
+    int width,
+    int height,
+    int suggestedWidth,
+    int suggestedHeight,
+  ) {
+    return '$width×$height は生成に使用できません。幅と高さは 64 の倍数で、各辺は 4096 以下、総ピクセル数は 3,145,728 以下である必要があります。最も近い有効なサイズは $suggestedWidth×$suggestedHeight です。';
+  }
 
   @override
   String get api_error_429 => '同時実行制限に達しました';

@@ -6323,8 +6323,8 @@ abstract class AppLocalizations {
   /// No description provided for @warmup_dataMigrationFailed.
   ///
   /// In en, this message translates to:
-  /// **'Data migration failed: {error}'**
-  String warmup_dataMigrationFailed(Object error);
+  /// **'Data migration failed: {details}'**
+  String warmup_dataMigrationFailed(Object details);
 
   /// No description provided for @warmup_galleryDataSource.
   ///
@@ -6451,6 +6451,23 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Height'**
   String get resolution_height;
+
+  /// No description provided for @generation_invalidResolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid resolution'**
+  String get generation_invalidResolution;
+
+  /// No description provided for @generation_invalidResolutionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{width}×{height} cannot be used for generation. Both dimensions must be multiples of 64, neither side can exceed 4096, and the total pixel count cannot exceed 3,145,728. The nearest valid size is {suggestedWidth}×{suggestedHeight}.'**
+  String generation_invalidResolutionHint(
+    int width,
+    int height,
+    int suggestedWidth,
+    int suggestedHeight,
+  );
 
   /// No description provided for @api_error_429.
   ///

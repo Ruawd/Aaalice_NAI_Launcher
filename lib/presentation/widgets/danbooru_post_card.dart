@@ -35,6 +35,12 @@ import 'common/app_toast.dart';
 class DanbooruPostCard extends StatefulWidget {
   final DanbooruPost post;
   final double itemWidth;
+
+  /// Stable ratio reserved by the parent layout.
+  ///
+  /// Online masonry grids pass the ratio known when an item enters the list so
+  /// late image metadata cannot move neighboring cards while scrolling.
+  final double? layoutAspectRatio;
   final bool isFavorited;
   final bool isFavoriteLoading;
   final bool showFavoriteAction;
@@ -61,6 +67,7 @@ class DanbooruPostCard extends StatefulWidget {
     super.key,
     required this.post,
     required this.itemWidth,
+    this.layoutAspectRatio,
     required this.isFavorited,
     this.isFavoriteLoading = false,
     this.showFavoriteAction = true,
@@ -317,7 +324,11 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     final aspectRatio = widget.post.width > 0 && widget.post.height > 0
         ? widget.post.width / widget.post.height
         : _resolvedAspectRatio ?? 1.0;
-    final itemHeight = (widget.itemWidth / aspectRatio).clamp(
+    final layoutAspectRatio = widget.layoutAspectRatio;
+    final stableAspectRatio = layoutAspectRatio != null && layoutAspectRatio > 0
+        ? layoutAspectRatio
+        : aspectRatio;
+    final itemHeight = (widget.itemWidth / stableAspectRatio).clamp(
       80.0,
       widget.itemWidth * 2.5,
     );
@@ -365,6 +376,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
               clipBehavior: Clip.none,
               children: [
                 AnimatedContainer(
+                  key: const ValueKey('online-gallery-card-layout'),
                   duration: const Duration(milliseconds: 150),
                   curve: Curves.easeOut,
                   height: itemHeight,
@@ -1159,31 +1171,38 @@ class _HoverPreviewCardInnerState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 6,
-                        crossAxisAlignment: WrapCrossAlignment.center,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _StatItem(
-                            icon: Icons.photo_size_select_actual,
-                            value: '${post.width}×${post.height}',
+                          Expanded(
+                            child: Wrap(
+                              spacing: 12,
+                              runSpacing: 4,
+                              children: [
+                                _StatItem(
+                                  icon: Icons.photo_size_select_actual,
+                                  value: '${post.width}×${post.height}',
+                                ),
+                                if (post.score != null)
+                                  _StatItem(
+                                    icon: Icons.thumb_up,
+                                    value: '${post.score}',
+                                  ),
+                                if (post.viewCount != null)
+                                  _StatItem(
+                                    icon: Icons.visibility_outlined,
+                                    value: '${post.viewCount}',
+                                  ),
+                                if (post.favCount != null)
+                                  _StatItem(
+                                    icon: Icons.favorite,
+                                    value: '${post.favCount}',
+                                  ),
+                              ],
+                            ),
                           ),
-                          if (post.score != null)
-                            _StatItem(
-                              icon: Icons.thumb_up,
-                              value: '${post.score}',
-                            ),
-                          if (post.viewCount != null)
-                            _StatItem(
-                              icon: Icons.visibility_outlined,
-                              value: '${post.viewCount}',
-                            ),
-                          if (post.favCount != null)
-                            _StatItem(
-                              icon: Icons.favorite,
-                              value: '${post.favCount}',
-                            ),
-                          if (post.rating != null)
+                          if (post.rating != null) ...[
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
@@ -1202,6 +1221,7 @@ class _HoverPreviewCardInnerState
                                 ),
                               ),
                             ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 10),

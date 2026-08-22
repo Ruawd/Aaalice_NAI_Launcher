@@ -1449,10 +1449,10 @@
   "warmup_translationInit": "初始化翻译数据...",
   "warmup_danbooruTagsInit": "初始化 Danbooru 标签...",
   "warmup_dataMigration": "迁移 Hive / Vibe / 图片数据...",
-  "warmup_dataMigrationFailed": "数据迁移失败：{error}",
+  "warmup_dataMigrationFailed": "数据迁移失败：{details}",
   "@warmup_dataMigrationFailed": {
     "placeholders": {
-      "error": {}
+      "details": {}
     }
   },
   "warmup_galleryDataSource": "初始化画廊索引...",
@@ -1482,6 +1482,16 @@
   "resolution_typeCustom": "自定义",
   "resolution_width": "宽度",
   "resolution_height": "高度",
+  "generation_invalidResolution": "分辨率无效",
+  "generation_invalidResolutionHint": "{width}×{height} 无法用于生成。宽度和高度必须是 64 的倍数、单边不能超过 4096，且总像素不能超过 3,145,728。最接近的可用尺寸是 {suggestedWidth}×{suggestedHeight}。",
+  "@generation_invalidResolutionHint": {
+    "placeholders": {
+      "width": { "type": "int" },
+      "height": { "type": "int" },
+      "suggestedWidth": { "type": "int" },
+      "suggestedHeight": { "type": "int" }
+    }
+  },
 
   "api_error_429": "并发限制",
   "api_error_429_hint": "请求过于频繁，请稍后重试（常见于合租账号）",
