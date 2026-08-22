@@ -84,12 +84,12 @@ class ConnectionPool {
         singleInstance: false, // 重要：每个连接独立
         onConfigure: (db) async {
           // 启用外键和 WAL 模式
-          await db.execute('PRAGMA foreign_keys = ON');
+          await db.rawQuery('PRAGMA foreign_keys = ON');
           // `journal_mode` returns a row on SQLiteDarwin.  Use sqflite's
           // helper so iOS falls back to rawQuery instead of treating that
           // result as an execute error during startup.
           await db.setJournalMode('WAL');
-          await db.execute('PRAGMA busy_timeout = 5000');
+          await db.rawQuery('PRAGMA busy_timeout = 5000');
         },
       ),
     );
