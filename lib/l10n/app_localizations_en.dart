@@ -6746,11 +6746,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tagLibrary_entryMoved => 'Entry moved to target category';
 
   @override
-  String tagLibrary_useCount(Object count) {
-    return 'Used $count times';
-  }
-
-  @override
   String get tagLibrary_addFavorite => 'Add to Favorites';
 
   @override

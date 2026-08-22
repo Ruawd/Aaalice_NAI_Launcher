@@ -6492,11 +6492,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagLibrary_entryMoved => '条目已移动到目标分类';
 
   @override
-  String tagLibrary_useCount(Object count) {
-    return '使用 $count 次';
-  }
-
-  @override
   String get tagLibrary_addFavorite => '添加收藏';
 
   @override

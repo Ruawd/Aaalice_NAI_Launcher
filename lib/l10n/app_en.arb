@@ -3197,12 +3197,6 @@
 
   "tagLibrary_addedToFixed": "Added to Fixed Tags",
   "tagLibrary_entryMoved": "Entry moved to target category",
-  "tagLibrary_useCount": "Used {count} times",
-  "@tagLibrary_useCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "tagLibrary_addFavorite": "Add to Favorites",
   "tagLibrary_thumbnail": "Thumbnail",
   "tagLibrary_selectImage": "Select Image",

@@ -6590,11 +6590,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tagLibrary_entryMoved => 'エントリがターゲット カテゴリに移動されました';
 
   @override
-  String tagLibrary_useCount(Object count) {
-    return '$count 回使用されました';
-  }
-
-  @override
   String get tagLibrary_addFavorite => 'お気に入りに追加';
 
   @override

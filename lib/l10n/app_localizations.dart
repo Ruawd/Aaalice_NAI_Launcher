@@ -12006,12 +12006,6 @@ abstract class AppLocalizations {
   /// **'Entry moved to target category'**
   String get tagLibrary_entryMoved;
 
-  /// No description provided for @tagLibrary_useCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Used {count} times'**
-  String tagLibrary_useCount(Object count);
-
   /// No description provided for @tagLibrary_addFavorite.
   ///
   /// In en, this message translates to:

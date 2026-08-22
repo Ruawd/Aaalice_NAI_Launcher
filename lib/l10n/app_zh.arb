@@ -3166,12 +3166,6 @@
 
   "tagLibrary_addedToFixed": "已添加到固定词",
   "tagLibrary_entryMoved": "条目已移动到目标分类",
-  "tagLibrary_useCount": "使用 {count} 次",
-  "@tagLibrary_useCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "tagLibrary_addFavorite": "添加收藏",
   "tagLibrary_thumbnail": "预览图",
   "tagLibrary_selectImage": "选择图片",
