@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../../data/models/image/image_params.dart';
+import '../constants/model_capabilities.dart';
 
 /// Anlas 消耗计算器
 ///
@@ -14,17 +15,26 @@ class AnlasCalculator {
   static const int maximumPerSampleCost = 140;
   static const int novelAiUpscaleOpusFreeMaxInputPixels = 640 * 640;
 
+  /// 当前 NovelAI 网页端的云端超分输入面积计费分档。
+  static const List<(int maxInputPixels, int cost)> _novelAiUpscaleCostTiers = [
+    (1048576, 1),
+    (1747627, 2),
+    (2446678, 3),
+    (3145728, 4),
+  ];
+
   static const double _areaCoefficient = 2.951823174884865e-6;
   static const double _stepAreaCoefficient = 5.753298233447344e-7;
   static const int _vibeCost = 2;
   static const int _preciseReferenceCost = 5;
 
   static bool _usesPreciseReferences(ImageParams params) {
-    return params.isV45Model && params.hasPreciseReferences;
+    return params.capabilities.supportsPreciseReference &&
+        params.hasPreciseReferences;
   }
 
   static bool usesVibeReferences(ImageParams params) {
-    return params.isV4Model &&
+    return params.capabilities.supportsVibeTransfer &&
         params.hasVibeReferencesV4 &&
         params.action != ImageGenerationAction.infill &&
         !_usesPreciseReferences(params);
@@ -39,7 +49,8 @@ class AnlasCalculator {
 
   /// 尚未编码的启用 Vibe 每个只在生成前收取一次编码费。
   static int resolveVibeEncodingCost(ImageParams params) {
-    if (!usesVibeReferences(params)) {
+    if (!usesVibeReferences(params) ||
+        !params.capabilities.supportsEncodedVibeTransfer) {
       return 0;
     }
 
@@ -51,7 +62,8 @@ class AnlasCalculator {
 
   /// 单次请求使用超过四个 Vibe 时，每个额外 Vibe 收取 2 Anlas。
   static int resolveVibeReferenceExtraCost(ImageParams params) {
-    if (!usesVibeReferences(params)) {
+    if (!usesVibeReferences(params) ||
+        !params.capabilities.supportsEncodedVibeTransfer) {
       return 0;
     }
 
@@ -66,7 +78,11 @@ class AnlasCalculator {
   ///
   /// [params] 图像生成参数
   /// [isOpus] 是否 Opus 订阅
-  static int calculate(ImageParams params, {bool isOpus = false}) {
+  static int calculate(
+    ImageParams params, {
+    bool isOpus = false,
+    bool opusQuotaExhausted = false,
+  }) {
     return calculateRequestCost(
       width: params.width,
       height: params.height,
@@ -77,8 +93,7 @@ class AnlasCalculator {
       smeaDyn: params.effectiveSmeaDyn,
       model: params.model,
       subscriptionTier: isOpus ? opusTier : 0,
-      hasBaseImage: params.action != ImageGenerationAction.generate,
-      hasCharacterReference: _usesPreciseReferences(params),
+      opusQuotaExhausted: opusQuotaExhausted,
       strength: switch (params.action) {
         ImageGenerationAction.img2img => params.strength,
         ImageGenerationAction.infill => params.inpaintStrength,
@@ -100,8 +115,7 @@ class AnlasCalculator {
     required bool smeaDyn,
     required String model,
     int subscriptionTier = 0,
-    bool hasBaseImage = false,
-    bool hasCharacterReference = false,
+    bool opusQuotaExhausted = false,
     double strength = 1.0,
     int extraPerSampleCost = 0,
     int extraPerRequestCost = 0,
@@ -123,8 +137,7 @@ class AnlasCalculator {
         smeaDyn: smeaDyn,
         model: model,
         subscriptionTier: isFirstImageInRequest ? subscriptionTier : 0,
-        hasBaseImage: hasBaseImage,
-        hasCharacterReference: hasCharacterReference,
+        opusQuotaExhausted: opusQuotaExhausted,
         strength: strength,
       );
       if (sampleCost == invalidCost) return invalidCost;
@@ -139,7 +152,7 @@ class AnlasCalculator {
   /// 计算 NovelAI 云端超分消耗。
   ///
   /// 当前网页端按输入面积分档计费，放大倍数不参与价格计算。Opus 用户输入不超过
-  /// 640×640 时免费；超过服务端支持的 1MP 输入范围时返回 [invalidCost]。
+  /// 640×640 时免费；超过当前网页端最高 3MP 分档时返回 [invalidCost]。
   static int calculateNovelAiUpscaleCost({
     required int inputWidth,
     required int inputHeight,
@@ -156,11 +169,9 @@ class AnlasCalculator {
       return 0;
     }
 
-    if (inputPixels <= 512 * 512) return 1;
-    if (inputPixels <= 640 * 640) return 2;
-    if (inputPixels <= 512 * 1024) return 3;
-    if (inputPixels <= 768 * 1024) return 5;
-    if (inputPixels <= 1024 * 1024) return 7;
+    for (final (maxInputPixels, cost) in _novelAiUpscaleCostTiers) {
+      if (inputPixels <= maxInputPixels) return cost;
+    }
     return invalidCost;
   }
 
@@ -175,31 +186,29 @@ class AnlasCalculator {
     required String model,
     bool isOpus = false,
     int subscriptionTier = 0,
-    bool hasBaseImage = false,
-    bool hasCharacterReference = false,
+    bool opusQuotaExhausted = false,
     double strength = 1.0,
   }) {
-    // 计算分辨率（像素数）
-    int r = width * height;
-    if (r < 65536) r = 65536; // 最小分辨率限制
-
-    // 确定模型版本
-    final version = _getModelVersion(model);
+    final pixels = width * height;
+    final capabilities = ModelCapabilityRegistry.of(model);
 
     // 计算每张图的基础消耗
     double perSample;
 
-    if (version >= 3) {
-      // 网页端先对面积与步数公式向上取整，再应用 SMEA 与重绘强度。
-      final baseCost = (_areaCoefficient * r + _stepAreaCoefficient * r * steps)
-          .ceil();
+    if (capabilities.anlasFormula == AnlasFormula.modern) {
+      // 网页端只对面积与步数部分取整，随后连乘 SMEA 倍率、模型倍率与重绘
+      // 强度，最后统一取整。V5 的模型倍率是 1.5。
+      final baseCost =
+          (_areaCoefficient * pixels + _stepAreaCoefficient * pixels * steps)
+              .ceil();
       final smeaFactor = !smea ? 1.0 : (!smeaDyn ? 1.2 : 1.4);
-      perSample = (baseCost * smeaFactor).ceilToDouble();
+      perSample = baseCost * smeaFactor * capabilities.anlasMultiplier;
     } else {
-      // 旧模型沿用已有的指数估算；本次计费更新只替换当前 V3/V4 路径，
+      // 旧模型沿用已有的指数估算；本次计费更新只替换当前现代模型路径，
       // 避免用现代模型公式回算旧版请求。
       perSample =
-          (15.266497014243718 * math.exp(r / 1024 / 1024 * 0.6326248927474729) -
+          (15.266497014243718 *
+                  math.exp(pixels / 1024 / 1024 * 0.6326248927474729) -
               15.225164493059737) *
           steps /
           28;
@@ -209,15 +218,15 @@ class AnlasCalculator {
     final int cost = math.max((perSample * strength).ceil(), 2);
     if (cost > maximumPerSampleCost) return invalidCost;
 
-    // Opus 免费条件检查
+    // Opus 免费条件检查；V5 的免费额度受配额池限制，透支后不再抵扣。
+    final quotaBlocked = capabilities.hasOpusUsageLimit && opusQuotaExhausted;
     final opusDiscount =
-        _isOpusFree(
-          isOpus: isOpus || subscriptionTier >= opusTier,
-          steps: steps,
-          resolution: r,
-          hasBaseImage: hasBaseImage,
-          hasCharacterReference: hasCharacterReference,
-        )
+        !quotaBlocked &&
+            _isOpusFree(
+              isOpus: isOpus || subscriptionTier >= opusTier,
+              steps: steps,
+              resolution: pixels,
+            )
         ? 1
         : 0;
 
@@ -228,40 +237,19 @@ class AnlasCalculator {
   }
 
   /// 检查是否满足 Opus 免费条件
+  ///
+  /// 精准参考不会取消符合条件的 Opus 基础免费额度，其附加费在请求成本中独立叠加。
   static bool _isOpusFree({
     required bool isOpus,
     required int steps,
     required int resolution,
-    required bool hasBaseImage,
-    required bool hasCharacterReference,
   }) {
-    return isOpus &&
-        !hasBaseImage &&
-        !hasCharacterReference &&
-        steps <= 28 &&
-        resolution <= 1024 * 1024;
-  }
-
-  /// 获取模型版本号
-  static int _getModelVersion(String model) {
-    if (model.contains('diffusion-4')) return 4;
-    if (model.contains('diffusion-3') || model.contains('diffusion-furry-3')) {
-      return 3;
-    }
-    if (model.contains('diffusion-2')) return 2;
-    return 1;
+    return isOpus && steps <= 28 && resolution <= 1024 * 1024;
   }
 
   /// 检查当前参数是否满足 Opus 免费条件
   static bool isOpusFreeGeneration(ImageParams params, {required bool isOpus}) {
-    if (!isOpus) return false;
-    if (params.steps > 28) return false;
-    if (params.nSamples > 1) return false;
-    if (params.action != ImageGenerationAction.generate) return false;
-    if (_usesPreciseReferences(params)) return false;
-
-    final resolution = params.width * params.height;
-    return resolution <= 1024 * 1024;
+    return calculate(params, isOpus: isOpus) == 0;
   }
 
   /// 计算导演工具（augment-image）的 Anlas 消耗

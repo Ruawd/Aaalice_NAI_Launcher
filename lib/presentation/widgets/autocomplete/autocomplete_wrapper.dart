@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,9 +11,8 @@ import '../../../core/autocomplete/autocomplete_settings.dart';
 import '../../../core/autocomplete/completion_models.dart';
 import '../../../core/autocomplete/completion_orchestrator.dart';
 import '../../../core/autocomplete/prompt_token_parser.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../providers/generation/generation_settings_notifiers.dart'
-    as generation_settings;
 import '../../router/app_router.dart';
 import 'autocomplete_config.dart';
 import 'autocomplete_utils.dart';
@@ -135,16 +137,29 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   int _selectedIndex = -1;
   bool _applyingSuggestion = false;
   bool _cursorMetricsScheduled = false;
+  bool _wasComposing = false;
+  bool _descendantHasFocus = false;
+  TextEditingValue? _lastObservedValue;
+  bool? _keepEmptyQueryVisible;
+  final Set<int> _relatedClickPointers = <int>{};
+  final Set<int> _regularClickPointers = <int>{};
   Offset? _cursorOffset;
   double _caretLineHeight = 0;
   String? _pinnedRelatedTag;
 
   FocusNode get _focusNode => widget.focusNode ?? _ownedFocusNode!;
 
+  bool get _hasInputFocus => _focusNode.hasFocus || _descendantHasFocus;
+
+  bool get _supportsNewlines => widget.expands || (widget.maxLines ?? 1) > 1;
+
   @override
   void initState() {
     super.initState();
     if (widget.focusNode == null) _ownedFocusNode = FocusNode();
+    _lastObservedValue = widget.controller.value;
+    final composing = widget.controller.value.composing;
+    _wasComposing = composing.isValid && !composing.isCollapsed;
     widget.controller.addListener(_onTextChanged);
     _focusNode.addListener(_onFocusChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _initializeUnified());
@@ -155,7 +170,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     _orchestrator = ref.read(autocompleteServicesProvider).createOrchestrator()
       ..addListener(_onCompletionStateChanged);
     _updateCursorMetrics();
-    if (_focusNode.hasFocus) _startQuery();
   }
 
   void _scheduleCursorMetricsUpdate() {
@@ -207,10 +221,21 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   @override
+  void reassemble() {
+    super.reassemble();
+    _lastObservedValue = widget.controller.value;
+    final composing = widget.controller.value.composing;
+    _wasComposing = composing.isValid && !composing.isCollapsed;
+  }
+
+  @override
   void didUpdateWidget(covariant AutocompleteWrapper oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onTextChanged);
+      _lastObservedValue = widget.controller.value;
+      final composing = widget.controller.value.composing;
+      _wasComposing = composing.isValid && !composing.isCollapsed;
       widget.controller.addListener(_onTextChanged);
     }
     _scheduleCursorMetricsUpdate();
@@ -229,12 +254,59 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   void _onTextChanged() {
+    final value = widget.controller.value;
+    final previousValue = _lastObservedValue;
+    _lastObservedValue = value;
+    if (previousValue == null) {
+      _recoverAfterStateReload(value);
+      return;
+    }
+
+    final text = value.text;
+    final textChanged = text != previousValue.text;
+    final activeTokenChanged =
+        textChanged &&
+        PromptTokenParser.editChangesActiveToken(
+          previousText: previousValue.text,
+          previousCursorPosition: _cursorPosition(previousValue),
+          currentText: text,
+          currentCursorPosition: _cursorPosition(value),
+          splitOnSpaces: widget.config?.treatSpacesAsSeparators ?? false,
+        );
+    final composingRange = value.composing;
+    final isComposing = composingRange.isValid && !composingRange.isCollapsed;
+    final compositionCommitted = _wasComposing && !isComposing;
+    _wasComposing = isComposing;
+
     if (_applyingSuggestion || widget.usesLegacyStrategy) return;
     _scheduleCursorMetricsUpdate();
-    widget.onChanged?.call(widget.controller.text);
-    final composing = widget.controller.value.composing;
-    if (composing.isValid && !composing.isCollapsed) return;
-    if (_focusNode.hasFocus) {
+    if (textChanged) widget.onChanged?.call(text);
+
+    // NaiSyntaxController also notifies listeners when only its paint cache or
+    // search highlighting changes. Ignore those identical value notifications;
+    // only a real caret/selection move should dismiss an unpinned popup.
+    if (!textChanged && !compositionCommitted) {
+      final selectionChanged = value.selection != previousValue.selection;
+      final composingChanged = value.composing != previousValue.composing;
+      if (!selectionChanged && !composingChanged) return;
+      // Click-opened and related popups own their pointer lifecycle: pointer-up
+      // either opens the newly clicked tag or explicitly closes the popup, and
+      // caret movement keys are handled below. Ignoring controller selection
+      // synchronization here prevents the tap recognizer's delayed caret update
+      // from closing the menu it just opened.
+      if (_keepEmptyQueryVisible ?? false) return;
+      if (_pinnedRelatedTag == null) _dismissOverlay('selection changed');
+      return;
+    }
+    if (isComposing) {
+      if (_pinnedRelatedTag == null) _dismissOverlay('composition started');
+      return;
+    }
+    if (textChanged && !activeTokenChanged) {
+      _closeOverlay();
+      return;
+    }
+    if (_hasInputFocus) {
       _startQuery(
         related: _pinnedRelatedTag != null,
         relatedTagOverride: _pinnedRelatedTag,
@@ -242,35 +314,62 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     }
   }
 
-  void _onFocusChanged() {
-    if (!_focusNode.hasFocus) {
-      if (_pinnedRelatedTag == null) _removeOverlay();
-    } else if (!widget.usesLegacyStrategy) {
-      _scheduleCursorMetricsUpdate();
-      _startQuery(
-        related: _pinnedRelatedTag != null,
-        relatedTagOverride: _pinnedRelatedTag,
-      );
+  void _recoverAfterStateReload(TextEditingValue value) {
+    final composing = value.composing;
+    _wasComposing = composing.isValid && !composing.isCollapsed;
+    if (_applyingSuggestion ||
+        widget.usesLegacyStrategy ||
+        _wasComposing ||
+        !_hasInputFocus) {
+      return;
     }
+    widget.onChanged?.call(value.text);
+    _startQuery(
+      related: _pinnedRelatedTag != null,
+      relatedTagOverride: _pinnedRelatedTag,
+    );
+  }
+
+  int _cursorPosition(TextEditingValue value) => value.selection.isValid
+      ? value.selection.extentOffset
+      : value.text.length;
+
+  void _onFocusChanged() => _handleEffectiveFocusChanged();
+
+  void _onDescendantFocusChanged(bool hasFocus) {
+    _descendantHasFocus = hasFocus;
+    _handleEffectiveFocusChanged();
+  }
+
+  void _handleEffectiveFocusChanged() {
+    if (!_hasInputFocus) {
+      if (_pinnedRelatedTag == null) _dismissOverlay('focus lost');
+      return;
+    }
+    if (!widget.usesLegacyStrategy) _scheduleCursorMetricsUpdate();
   }
 
   void _startQuery({
     bool related = false,
     String? relatedTagOverride,
     bool resetPinnedRelatedTag = false,
+    bool keepEmptyVisible = false,
   }) {
     if (!mounted || !widget.enabled || widget.usesLegacyStrategy) return;
     final settings = ref.read(autocompleteSettingsProvider);
-    if (!ref.read(generation_settings.autocompleteSettingsProvider)) {
-      _removeOverlay();
-      return;
-    }
     _maybePromptZhDictionary(settings);
     final config = widget.config;
     final selection = widget.controller.selection;
     final cursorPosition = selection.isValid
         ? selection.extentOffset
         : widget.controller.text.length;
+    final fallbackQuery = PromptTokenParser.parse(
+      text: widget.controller.text,
+      cursorPosition: cursorPosition,
+      limit: config?.maxSuggestions ?? settings.resultLimit,
+      locale: Localizations.localeOf(context).toLanguageTag(),
+      splitOnSpaces: config?.treatSpacesAsSeparators ?? false,
+    );
     var query = related
         ? PromptTokenParser.parseRelated(
             text: widget.controller.text,
@@ -279,22 +378,23 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
             locale: Localizations.localeOf(context).toLanguageTag(),
             splitOnSpaces: config?.treatSpacesAsSeparators ?? false,
           )
-        : PromptTokenParser.parse(
-            text: widget.controller.text,
-            cursorPosition: cursorPosition,
-            limit: config?.maxSuggestions ?? settings.resultLimit,
-            locale: Localizations.localeOf(context).toLanguageTag(),
-            splitOnSpaces: config?.treatSpacesAsSeparators ?? false,
-          );
+        : fallbackQuery;
     if (resetPinnedRelatedTag) _pinnedRelatedTag = null;
     if (query != null && relatedTagOverride != null) {
       query = query.copyWith(relatedTag: relatedTagOverride);
     }
     if (query == null) {
-      _removeOverlay();
+      _dismissOverlay();
       return;
     }
-    _orchestrator?.query(query, settings);
+    _keepEmptyQueryVisible = keepEmptyVisible || query.relatedTag != null;
+    _orchestrator?.query(
+      query,
+      settings,
+      relatedFallbackQuery: related && relatedTagOverride == null
+          ? fallbackQuery
+          : null,
+    );
   }
 
   void _maybePromptZhDictionary(AutocompleteSettings settings) {
@@ -332,9 +432,19 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         state.localError?.isNotEmpty == true ||
         state.remoteError?.isNotEmpty == true ||
         state.translationError?.isNotEmpty == true ||
-        state.query?.relatedTag != null;
-    if (!hasVisibleState ||
-        (!_focusNode.hasFocus && _pinnedRelatedTag == null)) {
+        state.query?.relatedTag != null ||
+        ((_keepEmptyQueryVisible ?? false) && state.query != null);
+    if (!hasVisibleState || (!_hasInputFocus && _pinnedRelatedTag == null)) {
+      if (_overlayEntry != null) {
+        AppLogger.d(
+          'Removing popup from state: visible=$hasVisibleState '
+              'related=${state.query?.relatedTag ?? ''} '
+              'localLoading=${state.isLocalLoading} '
+              'remoteLoading=${state.isRemoteLoading} '
+              'focused=$_hasInputFocus',
+          'Autocomplete',
+        );
+      }
       _removeOverlay();
       return;
     }
@@ -383,34 +493,42 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final targetRect =
         anchor.localToGlobal(Offset.zero, ancestor: theater) & anchor.size;
     final cursorOffset = _cursorOffset;
-    final horizontalAnchor = cursorOffset == null
+    final caretLeft = cursorOffset == null
         ? targetRect.left
         : targetRect.left + cursorOffset.dx;
-    final verticalAnchor = cursorOffset == null
+    final caretBottom = cursorOffset == null
         ? targetRect.bottom
         : targetRect.top + cursorOffset.dy;
-    final caretLineHeight = _caretLineHeight;
+    final caretTop = cursorOffset == null
+        ? targetRect.top
+        : caretBottom - _caretLineHeight;
     final screen = theater.size;
-    final below = screen.height - verticalAnchor - 8;
-    final above = verticalAnchor - caretLineHeight - 8;
+    const viewportInset = 8.0;
+    const caretGap = 8.0;
+    final below = math.max(
+      screen.height - viewportInset - caretBottom - caretGap,
+      0.0,
+    );
+    final above = math.max(caretTop - caretGap - viewportInset, 0.0);
     final placeBelow = below >= 180 || below >= above;
     final availableHeight = placeBelow ? below : above;
-    final maxHeight = availableHeight.clamp(132.0, 410.0);
-    final maxWidth = screen.width - 16;
-    final minWidth = maxWidth < 360 ? maxWidth : 360.0;
-    final preferredWidth = targetRect.width < 680 ? 680.0 : targetRect.width;
-    final width = preferredWidth.clamp(minWidth, maxWidth);
-    final maxLeft = screen.width - width - 8;
-    final left = horizontalAnchor.clamp(8.0, maxLeft);
+    final maxHeight = math.min(availableHeight, 410.0);
+
+    // Match the ComfyUI popup footprint: a stable 42rem-like preferred width,
+    // capped to 62% of roomy viewports, with some leading text left visible.
+    final availableWidth = math.max(screen.width - viewportInset * 2, 0.0);
+    final responsiveWidth = math.max(360.0, availableWidth * 0.62);
+    final width = math.min(672.0, math.min(availableWidth, responsiveWidth));
+    final leadingContext = math.min(width * 0.12, 72.0);
+    final maxLeft = screen.width - viewportInset - width;
+    final left = (caretLeft - leadingContext).clamp(viewportInset, maxLeft);
     final settings = ref.read(autocompleteSettingsProvider);
     final dictionaryState = ref.read(zhDictionaryServiceProvider).state;
 
     return Positioned(
       left: left,
-      top: placeBelow ? verticalAnchor + 4 : null,
-      bottom: placeBelow
-          ? null
-          : screen.height - (verticalAnchor - caretLineHeight) + 4,
+      top: placeBelow ? caretBottom + caretGap : null,
+      bottom: placeBelow ? null : screen.height - caretTop + caretGap,
       width: width,
       child: TextFieldTapRegion(
         child: CompletionOverlay(
@@ -454,9 +572,24 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       return KeyEventResult.handled;
     }
     if (_overlayEntry == null) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.enter &&
+        keyboard.isShiftPressed &&
+        _supportsNewlines) {
+      if (event is KeyDownEvent) _closeOverlay();
+      return KeyEventResult.ignored;
+    }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       if (event is KeyDownEvent) _closeOverlay();
       return KeyEventResult.handled;
+    }
+    final movesTextCaret =
+        event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+        event.logicalKey == LogicalKeyboardKey.arrowRight ||
+        event.logicalKey == LogicalKeyboardKey.home ||
+        event.logicalKey == LogicalKeyboardKey.end;
+    if (movesTextCaret) {
+      if (event is KeyDownEvent) _dismissOverlay('keyboard caret move');
+      return KeyEventResult.ignored;
     }
     final candidates = _orchestrator?.state.candidates ?? const [];
     if (candidates.isEmpty) return KeyEventResult.ignored;
@@ -510,11 +643,10 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       position.maxScrollExtent,
     );
     if ((boundedTarget - position.pixels).abs() < 0.5) return;
-    _scrollController.animateTo(
-      boundedTarget,
-      duration: const Duration(milliseconds: 90),
-      curve: Curves.easeOutCubic,
-    );
+    // Keyboard repeat is a high-frequency interaction. Match the reference
+    // plugin's immediate edge scroll instead of starting overlapping animations
+    // that make the list appear to bounce between rows.
+    _scrollController.jumpTo(boundedTarget);
   }
 
   void _selectIndex(int index) {
@@ -526,10 +658,14 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     }
     final candidate = state.candidates[index];
     if (candidate.isExisting) return;
+    final query = state.query!;
     final settings = ref.read(autocompleteSettingsProvider);
+    final completedTag = query.kind == CompletionQueryKind.tag
+        ? candidate.canonicalTag
+        : null;
     final applied = PromptTokenParser.apply(
       text: widget.controller.text,
-      query: state.query!,
+      query: query,
       canonicalTag: candidate.canonicalTag,
       autoInsertComma:
           settings.autoInsertComma && (widget.config?.autoInsertComma ?? true),
@@ -547,26 +683,78 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     widget.onChanged?.call(applied.text);
     widget.onSuggestionSelected?.call(applied.text);
     _selectedId = null;
-    _removeOverlay();
-    final pinnedTag = _pinnedRelatedTag;
-    if (settings.relatedTagsEnabled && pinnedTag != null) {
+    _dismissOverlay();
+    final nextRelatedTag = _pinnedRelatedTag ?? completedTag;
+    if (settings.relatedTagsEnabled && nextRelatedTag != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _focusNode.hasFocus) {
-          _startQuery(related: true, relatedTagOverride: pinnedTag);
+        if (mounted && _hasInputFocus) {
+          _startQuery(related: true, relatedTagOverride: nextRelatedTag);
         }
       });
+    }
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    final keyboard = HardwareKeyboard.instance;
+    final isPrimaryClick = event.buttons == kPrimaryButton;
+    final requestsRelated = keyboard.isControlPressed || keyboard.isMetaPressed;
+    if (isPrimaryClick && requestsRelated) {
+      _relatedClickPointers.add(event.pointer);
+      _regularClickPointers.remove(event.pointer);
+    } else if (isPrimaryClick) {
+      _regularClickPointers.add(event.pointer);
+      _relatedClickPointers.remove(event.pointer);
+    } else {
+      _relatedClickPointers.remove(event.pointer);
+      _regularClickPointers.remove(event.pointer);
     }
   }
 
   void _onPointerUp(PointerUpEvent event) {
     _scheduleCursorMetricsUpdate();
     final keyboard = HardwareKeyboard.instance;
-    if (!keyboard.isControlPressed && !keyboard.isMetaPressed) return;
+    final startedAsRelated = _relatedClickPointers.remove(event.pointer);
+    final startedAsRegular = _regularClickPointers.remove(event.pointer);
+    final isPrimaryClick = startedAsRelated || startedAsRegular;
+    final requestsRelated =
+        isPrimaryClick &&
+        (startedAsRelated ||
+            keyboard.isControlPressed ||
+            keyboard.isMetaPressed);
+    if (requestsRelated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _hasInputFocus) {
+          _startQuery(
+            related: true,
+            resetPinnedRelatedTag: true,
+            keepEmptyVisible: true,
+          );
+        }
+      });
+      return;
+    }
+
+    final settings = ref.read(autocompleteSettingsProvider);
+    final selection = widget.controller.selection;
+    if (!startedAsRegular ||
+        !settings.openOnTagClick ||
+        !selection.isValid ||
+        !selection.isCollapsed) {
+      if (_pinnedRelatedTag == null) {
+        _dismissOverlay('pointer interaction without an open intent');
+      }
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _focusNode.hasFocus) {
-        _startQuery(related: true, resetPinnedRelatedTag: true);
+      if (mounted && _hasInputFocus) {
+        _startQuery(resetPinnedRelatedTag: true, keepEmptyVisible: true);
       }
     });
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    _relatedClickPointers.remove(event.pointer);
+    _regularClickPointers.remove(event.pointer);
   }
 
   void _toggleRelatedPin() {
@@ -578,6 +766,24 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
   void _closeOverlay() {
     _pinnedRelatedTag = null;
+    _dismissOverlay('explicit close');
+  }
+
+  void _dismissOverlay([String reason = 'query replaced']) {
+    _keepEmptyQueryVisible = false;
+    final state = _orchestrator?.state;
+    if (_overlayEntry != null || state?.query != null) {
+      AppLogger.d(
+        'Closing popup: reason=$reason '
+            'query=${state?.query?.token ?? ''} '
+            'related=${state?.query?.relatedTag ?? ''} '
+            'localLoading=${state?.isLocalLoading ?? false} '
+            'remoteLoading=${state?.isRemoteLoading ?? false} '
+            'focused=$_hasInputFocus',
+        'Autocomplete',
+      );
+    }
+    _orchestrator?.cancel();
     _removeOverlay();
   }
 
@@ -635,35 +841,35 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       );
     }
     ref.listen<AutocompleteSettings>(autocompleteSettingsProvider, (_, next) {
+      if (!next.enabled) {
+        _dismissOverlay('autocomplete disabled');
+        return;
+      }
       if (!next.relatedTagsEnabled) _pinnedRelatedTag = null;
-      if (_focusNode.hasFocus) {
+      final activeRelatedTag = _orchestrator?.state.query?.relatedTag;
+      final relatedTag = _pinnedRelatedTag ?? activeRelatedTag;
+      if (_hasInputFocus && (_overlayEntry != null || relatedTag != null)) {
         _startQuery(
-          related: _pinnedRelatedTag != null,
-          relatedTagOverride: _pinnedRelatedTag,
+          related: relatedTag != null,
+          relatedTagOverride: relatedTag,
+          keepEmptyVisible: _keepEmptyQueryVisible ?? false,
         );
       }
     });
     ref.listen(zhDictionaryServiceProvider, (_, __) {
       _overlayEntry?.markNeedsBuild();
     });
-    ref.listen<bool>(generation_settings.autocompleteSettingsProvider, (
-      _,
-      enabled,
-    ) {
-      if (enabled && _focusNode.hasFocus) {
-        _startQuery(
-          related: _pinnedRelatedTag != null,
-          relatedTagOverride: _pinnedRelatedTag,
-        );
-      } else if (!enabled) {
-        _removeOverlay();
-      }
-    });
     return SizedBox(
       key: _anchorKey,
       child: Focus(
+        onFocusChange: _onDescendantFocusChanged,
         onKeyEvent: _onKeyEvent,
-        child: Listener(onPointerUp: _onPointerUp, child: widget.child),
+        child: Listener(
+          onPointerDown: _onPointerDown,
+          onPointerUp: _onPointerUp,
+          onPointerCancel: _onPointerCancel,
+          child: widget.child,
+        ),
       ),
     );
   }

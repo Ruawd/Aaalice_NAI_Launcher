@@ -26,6 +26,7 @@ class WarmupResult {
 /// ConnectionPool 全局持有者
 class ConnectionPoolHolder {
   static ConnectionPool? _instance;
+  static Future<ConnectionPool>? _initialization;
 
   /// 连接池版本号，每次重置时递增
   /// 用于检测连接池是否在操作期间被重置
@@ -66,27 +67,55 @@ class ConnectionPoolHolder {
       );
     }
 
+    final inFlight = _initialization;
+    if (inFlight != null) return inFlight;
+
+    final attempt = _initializeNew(
+      dbPath: dbPath,
+      maxConnections: maxConnections,
+    );
+    _initialization = attempt;
+    try {
+      return await attempt;
+    } finally {
+      if (identical(_initialization, attempt)) {
+        _initialization = null;
+      }
+    }
+  }
+
+  static Future<ConnectionPool> _initializeNew({
+    required String dbPath,
+    required int maxConnections,
+  }) async {
     _version++;
     final currentVersion = _version;
-
-    final pool = ConnectionPool(dbPath: dbPath, maxConnections: maxConnections);
-    _instance = pool;
-
+    final candidate = ConnectionPool(
+      dbPath: dbPath,
+      maxConnections: maxConnections,
+    );
     try {
-      await pool.initialize();
-    } catch (_) {
-      if (identical(_instance, pool)) {
-        _instance = null;
+      await candidate.initialize();
+      _instance = candidate;
+    } catch (error, stackTrace) {
+      try {
+        await candidate.dispose();
+      } catch (cleanupError, cleanupStackTrace) {
+        AppLogger.e(
+          'Failed to clean up an unsuccessful connection pool',
+          cleanupError,
+          cleanupStackTrace,
+          'ConnectionPoolHolder',
+        );
       }
-      await pool.dispose();
-      rethrow;
+      Error.throwWithStackTrace(error, stackTrace);
     }
 
     AppLogger.i(
       'ConnectionPool initialized (version: $currentVersion)',
       'ConnectionPoolHolder',
     );
-    return pool;
+    return candidate;
   }
 
   static Future<ConnectionPool> reset({

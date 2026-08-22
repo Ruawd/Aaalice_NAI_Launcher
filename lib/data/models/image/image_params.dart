@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/constants/api_constants.dart';
+import '../../../core/constants/model_capabilities.dart';
 import '../../../core/enums/precise_ref_type.dart';
 import '../vibe/vibe_reference.dart';
 
@@ -138,6 +140,19 @@ class ImageParams with _$ImageParams {
     /// 质量标签开关
     @Default(true) bool qualityToggle,
 
+    /// 官方质量词档位 (standard/light，light 仅 V5 提供)
+    @Default(QualityTags.standardTier) String qualityTier,
+
+    /// 自定义质量词没有官网预设 ID，请求中应省略 `tag_hint_qt`。
+    @Default(false)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    bool omitQualityTagHint,
+
+    /// 自定义负面预设没有官网预设 ID，请求中应省略 `tag_hint_uc_preset`。
+    @Default(false)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    bool omitUcPresetTagHint,
+
     /// 添加原始图像
     @Default(true) bool addOriginalImage,
 
@@ -152,6 +167,32 @@ class ImageParams with _$ImageParams {
 
     /// 使用坐标模式 (V4+ 多角色)
     @Default(false) bool useCoords,
+
+    /// 透明像素的 RGB 表示方式（仅 V5）。
+    ///
+    /// true 为 Straight，false 为 Premultiplied，对应 `straight_alpha`。
+    @Default(true) bool straightAlpha,
+
+    /// 透明背景生成提示（仅 V5），对应 `tag_hint_transparent_background`
+    @Default(false) bool transparentBackground,
+
+    /// 端到端二倍放大 (仅 V5)，对应 `parameters.upscale`
+    @Default(false) bool e2eUpscale,
+
+    /// 增强 max 档 (仅 V5)，对应 `upscaled_enhance`
+    ///
+    /// 单次请求的临时开关，官网也不会把它写进图片元数据。
+    @Default(false)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    bool upscaledEnhance,
+
+    /// 当前 img2img 请求是否来自增强面板。
+    ///
+    /// 官网的增强是独立入口，会自动往提示词补降权词；启动器复用普通
+    /// img2img 通道，靠这个一次性标记区分。
+    @Default(false)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    bool isEnhanceRequest,
 
     // ========== 生成动作 ==========
 
@@ -231,19 +272,54 @@ class ImageParams with _$ImageParams {
 
 /// ImageParams 扩展方法
 extension ImageParamsExtension on ImageParams {
+  /// 当前模型的能力描述
+  ModelCapabilities get capabilities => ModelCapabilityRegistry.of(model);
+
   /// 检查是否为 V3 模型
   bool get isV3Model =>
       model.contains('diffusion-3') || model.contains('diffusion-furry-3');
 
   /// 检查是否为 V4+ 模型
-  bool get isV4Model =>
-      model.contains('diffusion-4') || model.contains('diffusion-4-5');
+  bool get isV4Model => ImageModels.isV4Model(model);
 
   /// 检查是否为 V4.5 模型
-  bool get isV45Model => model.contains('diffusion-4-5');
+  bool get isV45Model => ImageModels.isV45Model(model);
 
   /// 检查是否为 Inpainting 模型
-  bool get isInpaintingModel => model.contains('inpainting');
+  bool get isInpaintingModel => ImageModels.isInpaintingModel(model);
+
+  /// 透明背景是否真的会写进请求。
+  ///
+  /// 官网对不支持透明输出的模型直接删掉相关参数，开关本身可以保持开着，
+  /// 换回 V4.5 再换回来时用户的选择不会丢。
+  bool get effectiveTransparentBackground =>
+      transparentBackground && capabilities.supportsTransparentBackground;
+
+  /// 端到端 ×2 放大是否真的会写进请求。
+  ///
+  /// 官网在局部重绘时无条件丢弃 `upscale`（infill 已有自己的尺寸约束）。
+  bool get effectiveE2eUpscale =>
+      e2eUpscale &&
+      capabilities.supportsE2eUpscale &&
+      action != ImageGenerationAction.infill;
+
+  /// 增强 max 档是否真的会写进请求。
+  bool get effectiveUpscaledEnhance =>
+      upscaledEnhance && capabilities.supportsMaxEnhance;
+
+  /// 是否要给本次请求的提示词补 `-2::upscaled, blurry::`。
+  ///
+  /// 官网只在非 max 档的增强请求上补：max 档本身就是重新放大，
+  /// 再压 upscaled 会互相打架。
+  bool get shouldApplyEnhancePromptAddition =>
+      isEnhanceRequest &&
+      !effectiveUpscaledEnhance &&
+      capabilities.supportsEnhancePromptAdd;
+
+  /// 开启端到端放大后服务端实际输出的尺寸。
+  (int, int) get outputSize => effectiveE2eUpscale
+      ? (width * E2eUpscale.factor, height * E2eUpscale.factor)
+      : (width, height);
 
   /// 网页端在重绘、局部重绘、DDIM 和 V4+ 请求中禁用 SMEA。
   /// V3 自动模式只在超过 1472×1472 时启用，旧模型阈值为 832×1280。

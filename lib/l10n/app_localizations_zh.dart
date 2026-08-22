@@ -566,10 +566,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_generationInputSection => '输入';
 
   @override
+  String get settings_generationOutputSection => '图像输出';
+
+  @override
   String get settings_generationRetrySection => '失败重试';
 
   @override
   String get settings_generationFeedbackSection => '完成提醒';
+
+  @override
+  String get settings_alphaModeTitle => '透明图像 Alpha 模式';
+
+  @override
+  String get settings_alphaModeStraight => '直通（Straight）';
+
+  @override
+  String get settings_alphaModePremultiplied => '预乘（Premultiplied）';
+
+  @override
+  String get settings_alphaModeStraightDescription =>
+      '保留未乘 Alpha 的 RGB，适合继续编辑，也是 NovelAI 官网默认值。';
+
+  @override
+  String get settings_alphaModePremultipliedDescription =>
+      'RGB 已乘 Alpha，适合要求预乘输入的合成与渲染流程。';
 
   @override
   String get settings_promptAssistant => '提示词助手';
@@ -785,7 +805,32 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_model => '模型';
 
   @override
+  String generation_opusUsageRemaining(Object percent) {
+    return 'Opus 免费生成剩余 $percent%';
+  }
+
+  @override
+  String generation_opusUsageEstimate(Object count) {
+    return '约可再生成 $count 张';
+  }
+
+  @override
+  String get generation_opusUsageRefill => '额度会随时间自动恢复';
+
+  @override
+  String get generation_opusUsageExhausted =>
+      'Opus 免费额度已用完，V5 生成将消耗 Anlas，额度会随时间自动恢复';
+
+  @override
   String get generation_imageSize => '图像尺寸';
+
+  @override
+  String get generation_transparentBackground => '透明背景';
+
+  @override
+  String generation_e2eUpscaleHint(Object size) {
+    return '服务端输出 $size';
+  }
 
   @override
   String get generation_sampler => '采样器';
@@ -802,6 +847,45 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get generation_seed => '种子';
+
+  @override
+  String get generation_previewApplySeed => '使用当前图片的种子';
+
+  @override
+  String get generation_transparencyBackgroundTitle => '透明部分显示';
+
+  @override
+  String get generation_transparencyChecker => '跟随主题棋盘格';
+
+  @override
+  String get generation_transparencyCheckerLight => '浅色棋盘格';
+
+  @override
+  String get generation_transparencyCheckerDark => '深色棋盘格';
+
+  @override
+  String get generation_transparencyNone => '无';
+
+  @override
+  String get generation_transparencyBlack => '黑色';
+
+  @override
+  String get generation_transparencyWhite => '白色';
+
+  @override
+  String get generation_transparencyGray => '灰色';
+
+  @override
+  String get generation_transparencyRed => '红色';
+
+  @override
+  String get generation_transparencyGreen => '绿色';
+
+  @override
+  String get generation_transparencyBlue => '蓝色';
+
+  @override
+  String get generation_transparencyCustom => '自定义颜色';
 
   @override
   String get generation_seedRandom => '随机';
@@ -962,7 +1046,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get prompt_autoFormat => '自动格式化';
 
   @override
-  String get prompt_autoFormatSubtitle => '中文逗号转英文、空格自动转下划线';
+  String get prompt_autoFormatSubtitle => '中文逗号转英文、标签内空格转下划线（保留换行）';
 
   @override
   String get prompt_highlightEmphasis => '高亮强调';
@@ -1303,6 +1387,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_enhanceUpscaleAmount => '放大倍数';
 
   @override
+  String get img2img_enhanceScaleMax => '最大';
+
+  @override
   String get img2img_focusedInpaint => 'Focused Inpainting（聚焦重绘）';
 
   @override
@@ -1337,11 +1424,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get img2img_noSeedvr2Models =>
-      '未发现 SeedVR2 模型，请刷新模型列表或检查 SeedVR2 节点/模型文件。';
+      '未发现可用的 SeedVR2 模型，请刷新模型列表，并检查 ComfyUI 原生 models/diffusion_models、models/vae 或 SeedVR2 自定义节点模型目录。';
 
   @override
   String get img2img_noRegularUpscaleModels =>
       '未发现普通超分模型，请刷新模型列表或检查 models/upscale_models。';
+
+  @override
+  String get img2img_useNativeSeedvr2Workflow =>
+      '将使用 ComfyUI 原生 SeedVR2 一步超分流程。';
 
   @override
   String get img2img_useSeedvr2TiledWorkflow =>
@@ -1401,8 +1492,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_metricQuality => '效果';
 
   @override
-  String get img2img_seedvr2VaeTileHint =>
-      '同时写入 SeedVR2 VAE MODEL 的 encode/decode tile size。';
+  String get img2img_seedvr2Engine => 'SeedVR2 引擎';
+
+  @override
+  String get img2img_seedvr2EngineAuto => '自动';
+
+  @override
+  String get img2img_seedvr2EngineNative => '原生';
+
+  @override
+  String get img2img_seedvr2EngineLegacy => '兼容节点';
+
+  @override
+  String get img2img_seedvr2EngineResolvedNative => '当前使用 ComfyUI 原生 SeedVR2。';
+
+  @override
+  String get img2img_seedvr2EngineResolvedLegacy => '当前使用已安装的 SeedVR2 自定义节点。';
+
+  @override
+  String get img2img_seedvr2EngineUnavailable =>
+      '当前选择的 SeedVR2 引擎或所需模型不可用，请刷新模型列表或切换引擎。';
+
+  @override
+  String get img2img_seedvr2VaeTileHint => '设置 SeedVR2 VAE 编码与解码的分块尺寸。';
 
   @override
   String get img2img_seedvr2UseTiledUpscale => '使用分块放大';
@@ -1410,6 +1522,14 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get img2img_seedvr2UseTiledUpscaleHint =>
       '启用后改用 SeedVR2TilingUpscaler，适合大图或显存压力较高的场景。';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadata =>
+      '在 SeedVR2 结果中写入 NAI 生成参数';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadataHint =>
+      '默认关闭。开启后会写入启动器当前的提示词和生成参数；关闭时保留 ComfyUI 返回的原始 PNG 元数据。';
 
   @override
   String get img2img_seedvr2TileSize => '分块图块大小';
@@ -2195,7 +2315,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_sourceType_png => 'PNG';
 
   @override
-  String get vibe_sourceType_v4vibe => 'V4 Vibe';
+  String get vibe_sourceType_v4vibe => 'Vibe 文件';
 
   @override
   String get vibe_sourceType_bundle => '组合包';
@@ -2229,6 +2349,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get character_addCharacter => '添加角色';
+
+  @override
+  String character_limitReached(Object limit) {
+    return '已达当前模型的角色上限（$limit 个）';
+  }
 
   @override
   String character_number(Object index) {
@@ -2320,6 +2445,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_refresh => '刷新';
 
   @override
+  String get onlineGallery_random => '随机';
+
+  @override
+  String get onlineGallery_randomRedraw => '再抽一组';
+
+  @override
+  String get onlineGallery_randomDrawing => '抽取中…';
+
+  @override
+  String get onlineGallery_randomExhausted => '当前范围暂无更多未见图片';
+
+  @override
+  String get onlineGallery_randomRestart => '重新开始';
+
+  @override
+  String get onlineGallery_originalRetry => '原图加载失败，重试';
+
+  @override
   String get onlineGallery_login => '登录';
 
   @override
@@ -2392,6 +2535,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_copyTags => '复制标签';
+
+  @override
+  String get onlineGallery_promptTagCategories => '提示词类别';
+
+  @override
+  String get onlineGallery_promptTagCategoriesTooltip => '选择复制、发送或加入队列时包含的标签类别';
+
+  @override
+  String get onlineGallery_keepOnePromptTagCategory => '至少保留一个提示词类别';
 
   @override
   String get onlineGallery_open => '打开';
@@ -2503,6 +2655,73 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_blacklistTags => '黑名单标签';
+
+  @override
+  String get onlineGallery_outputFilter => '输出过滤';
+
+  @override
+  String get onlineGallery_outputFilterTooltip => '管理复制、发送和加入队列时自动剔除的标签';
+
+  @override
+  String get onlineGallery_outputFilterTitle => '输出过滤标签';
+
+  @override
+  String get onlineGallery_outputFilterSubtitle =>
+      '图片仍会正常显示；这些标签只会从复制、发送和队列提示词中精确剔除。';
+
+  @override
+  String get onlineGallery_outputFilterAddHint => '添加需要从输出中剔除的标签';
+
+  @override
+  String get onlineGallery_outputFilterInputHint => '支持逗号、中文逗号、顿号或换行分隔';
+
+  @override
+  String get onlineGallery_outputFilterEmpty => '暂未设置输出过滤标签';
+
+  @override
+  String get onlineGallery_outputFilterRestoreDefaults => '恢复默认过滤词';
+
+  @override
+  String get onlineGallery_outputFilterClearTitle => '清空输出过滤？';
+
+  @override
+  String get onlineGallery_outputFilterClearConfirm =>
+      '清空后，水印和马赛克等标签也会重新出现在复制与发送的提示词中。';
+
+  @override
+  String get onlineGallery_addTagToOutputFilter => '加入输出过滤';
+
+  @override
+  String get onlineGallery_outputFilterAlreadyAdded => '已在输出过滤中';
+
+  @override
+  String get onlineGallery_outputFilterMenuHint => '保留图片，只从输出提示词中剔除此标签';
+
+  @override
+  String get onlineGallery_addTagToBlacklist => '加入黑名单';
+
+  @override
+  String get onlineGallery_blacklistAlreadyAdded => '已在黑名单中';
+
+  @override
+  String get onlineGallery_blacklistMenuHint => '隐藏包含此标签的画廊图片';
+
+  @override
+  String get onlineGallery_outputFilteredTagTooltip =>
+      '此标签会在复制、发送和加入队列时被剔除；右键可管理';
+
+  @override
+  String get onlineGallery_tagContextMenuTooltip => '右键可加入黑名单或输出过滤';
+
+  @override
+  String onlineGallery_outputFilterTagAdded(Object tag) {
+    return '已将 $tag 加入输出过滤';
+  }
+
+  @override
+  String onlineGallery_blacklistTagAdded(Object tag) {
+    return '已将 $tag 加入黑名单';
+  }
 
   @override
   String get onlineGallery_blacklistTitle => '在线画廊黑名单';
@@ -2638,7 +2857,45 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_aiTagPromptQuery =>
-      'AI Prompt 搜索（支持 ::artist: 等原始语法）';
+      'AI Prompt 搜索（可搜索 artist: 等 Prompt 原文）';
+
+  @override
+  String get onlineGallery_artistHunt => '仅画师串';
+
+  @override
+  String get onlineGallery_artistHuntTooltip =>
+      '只显示正向 Prompt 中明确包含 artist: 标签的图片';
+
+  @override
+  String get onlineGallery_artistChain => '画师串';
+
+  @override
+  String get onlineGallery_copyArtistChain => '复制画师串';
+
+  @override
+  String get onlineGallery_copyFullPrompt => '复制完整 Prompt';
+
+  @override
+  String get onlineGallery_copyRawArtistFragments => '复制原始画师片段';
+
+  @override
+  String get onlineGallery_noArtistChain => '无可复制画师串';
+
+  @override
+  String onlineGallery_artistCount(Object count) {
+    return '$count 位画师';
+  }
+
+  @override
+  String get onlineGallery_artistHuntNoExactResults => '候选作品中没有精确画师串';
+
+  @override
+  String onlineGallery_artistHuntPartialFailure(Object count) {
+    return '有 $count 个作品解析失败，可重试再次检查。';
+  }
+
+  @override
+  String get onlineGallery_artistHuntDetailFailed => '候选作品详情全部解析失败，请重试。';
 
   @override
   String get onlineGallery_aiTagTimeRange => '时间范围';
@@ -2917,6 +3174,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get qualityTags_naiDefault => 'NAI 默认';
 
   @override
+  String get qualityTags_naiDefaultStandard => 'NAI 默认（标准）';
+
+  @override
+  String get qualityTags_naiDefaultLight => 'NAI 默认（轻量）';
+
+  @override
   String get qualityTags_none => '无';
 
   @override
@@ -3109,6 +3372,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get warmup_dataMigration => '迁移 Hive / Vibe / 图片数据...';
 
   @override
+  String warmup_dataMigrationFailed(Object details) {
+    return '数据迁移失败：$details';
+  }
+
+  @override
   String get warmup_galleryDataSource => '初始化画廊索引...';
 
   @override
@@ -3172,6 +3440,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get resolution_height => '高度';
+
+  @override
+  String get generation_invalidResolution => '分辨率无效';
+
+  @override
+  String generation_invalidResolutionHint(
+    int width,
+    int height,
+    int suggestedWidth,
+    int suggestedHeight,
+  ) {
+    return '$width×$height 无法用于生成。宽度和高度必须是 64 的倍数、单边不能超过 4096，且总像素不能超过 3,145,728。最接近的可用尺寸是 $suggestedWidth×$suggestedHeight。';
+  }
 
   @override
   String get api_error_429 => '并发限制';
@@ -4198,23 +4479,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scope_allTooltip => '提示词同时出现在主提示词和角色提示词\n适合：姿势、互动等通用标签';
-
-  @override
-  String get vibeNoEncodingWarning => '此图片没有预编码数据';
-
-  @override
-  String vibeWillCostAnlas(int count) {
-    return '编码将消耗 $count Anlas';
-  }
-
-  @override
-  String get vibeEncodeConfirm => '是否继续添加并消耗点数？';
-
-  @override
-  String get vibeCancel => '取消';
-
-  @override
-  String get vibeConfirmEncode => '确认编码';
 
   @override
   String get vibeParseFailed => '无法解析 Vibe 文件';
@@ -6246,11 +6510,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagLibrary_entryMoved => '条目已移动到目标分类';
 
   @override
-  String tagLibrary_useCount(Object count) {
-    return '使用 $count 次';
-  }
-
-  @override
   String get tagLibrary_addFavorite => '添加收藏';
 
   @override
@@ -6942,9 +7201,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get metadataImport_clear => '清空';
 
   @override
-  String get metadataImport_prompt => '正向提示词';
-
-  @override
   String get metadataImport_mainPrompt => '主提示词';
 
   @override
@@ -7020,42 +7276,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get metadataImport_seed => '种子 (Seed)';
-
-  @override
-  String get metadataImport_steps => '步数 (Steps)';
-
-  @override
-  String get metadataImport_scale => 'CFG 强度';
-
-  @override
-  String get metadataImport_size => '尺寸 (Size)';
-
-  @override
-  String get metadataImport_sampler => '采样器 (Sampler)';
-
-  @override
-  String get metadataImport_model => '模型 (Model)';
-
-  @override
-  String get metadataImport_smea => 'SMEA';
-
-  @override
-  String get metadataImport_smeaDyn => 'SMEA Dyn';
-
-  @override
-  String get metadataImport_noiseSchedule => '噪声计划';
-
-  @override
-  String get metadataImport_cfgRescale => 'CFG 重缩放';
-
-  @override
-  String get metadataImport_qualityToggle => '质量标签';
-
-  @override
-  String get metadataImport_ucPreset => 'UC 预设';
-
-  @override
   String get metadataImport_noData => '（无数据）';
 
   @override
@@ -7073,15 +7293,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String metadataImport_appliedCount(int count) {
     return '已应用 $count 项参数';
   }
-
-  @override
-  String get metadataImport_appliedTitle => '元数据已应用';
-
-  @override
-  String get metadataImport_appliedDescription => '以下参数已应用到当前设置：';
-
-  @override
-  String get metadataImport_charactersCount => '个角色';
 
   @override
   String get shortcut_context_global => '全局';
@@ -7458,7 +7669,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preciseRef_fidelity => '保真度';
 
   @override
-  String get preciseRef_v4Only => '此功能需要 V4+ 模型';
+  String get preciseRef_v4Only => '此功能仅 V4.5 模型支持';
 
   @override
   String get preciseRef_typeCharacter => '角色';
@@ -7637,6 +7848,19 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String vibeLibrary_deletedCount(Object count) {
     return '已删除 $count 个Vibe';
+  }
+
+  @override
+  String get vibeLibrary_markEncodingModel => '标记编码模型';
+
+  @override
+  String vibeLibrary_markEncodingModelContent(Object count, Object model) {
+    return '把选中的 $count 个 Vibe 标记为「$model」的编码，并重写库文件。\n\n适用于被错误标记成其它模型、导致每次生成都重新编码扣 Anlas 的条目。如果这些编码确实来自别的模型，标记后画面效果可能与预期不符。';
+  }
+
+  @override
+  String vibeLibrary_encodingModelMarked(Object count) {
+    return '已标记 $count 个Vibe的编码模型';
   }
 
   @override
@@ -8320,40 +8544,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_import_confirm => '确认';
 
   @override
-  String get vibe_import_noEncodingData => '无编码数据';
-
-  @override
   String get vibe_import_encodingCost => '编码将消耗 2 Anlas';
 
   @override
-  String get vibe_import_confirmCost => '继续并消耗 Anlas？';
-
-  @override
-  String get vibe_import_encodeNow => '立即编码 (2 Anlas)';
-
-  @override
-  String get vibe_addImageOnly => '仅添加图片';
-
-  @override
-  String get vibe_import_autoSave => '自动保存到库';
-
-  @override
   String get vibe_import_encodingFailed => '编码失败';
-
-  @override
-  String get vibe_import_encodingFailedMessage => 'Vibe 编码失败，是否继续添加未编码图片？';
-
-  @override
-  String get vibe_import_encodingInProgress => '编码中...';
-
-  @override
-  String get vibe_import_encodingComplete => '编码完成';
-
-  @override
-  String get vibe_import_partialFailed => '部分编码失败';
-
-  @override
-  String get vibe_import_timeout => '编码超时';
 
   @override
   String get vibe_import_title => '从库导入';
@@ -8490,6 +8684,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vibe_statusPendingEncode => '待编码 (2 Anlas)';
+
+  @override
+  String get vibe_statusNeedsReencode => '需重新编码 (2 Anlas)';
+
+  @override
+  String get vibe_statusSourceImageRequired => '缺少原图';
 
   @override
   String get vibe_encodeDialogTitle => '确认编码 Vibe';
@@ -8957,6 +9157,13 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get comfyWorkflow_seedvr2UpscaleDescription =>
       '使用 SeedVR2 AI 模型进行超分辨率放大，效果优秀';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleName => 'SeedVR2 兼容节点超分';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleDescription =>
+      '使用已安装的 SeedVR2VideoUpscaler 自定义节点进行超分';
 
   @override
   String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 分块超分';
@@ -10091,25 +10298,76 @@ class AppLocalizationsZh extends AppLocalizations {
   String get updateInstallAndRestart => '安装并重启';
 
   @override
+  String get updateInstallNow => '立即安装';
+
+  @override
   String get updateInstallLater => '稍后安装';
 
   @override
-  String get updateDownloadCancelled => '已取消下载';
+  String get updateDownload => '下载更新';
+
+  @override
+  String get updateDownloadCancelled => '已取消下载，稍后可继续';
 
   @override
   String get updateDownloadFailed => '下载更新失败';
 
   @override
+  String get updateInstallFailed => '安装更新失败';
+
+  @override
   String get updateInstallingHint => '安装程序已启动，应用即将关闭并自动完成更新。';
 
   @override
-  String get remindMeLater => '稍后提醒';
+  String get updateInstallConfirmationTitle => '现在安装更新？';
+
+  @override
+  String get updateInstallConfirmationBody =>
+      '应用将安全关闭并安装更新，完成后自动重新启动。进行中的生成和下载任务会停止，请先保存必要内容。';
+
+  @override
+  String get updateActiveTasksWarning => '检测到队列任务仍在运行，安装会停止当前任务。';
+
+  @override
+  String get remindMeLater => '4 小时后提醒';
 
   @override
   String get skipThisVersion => '忽略此版本';
 
   @override
-  String get updateDownloadAndInstall => '下载并安装';
+  String updateNoticeAvailable(Object version) {
+    return '新版本 v$version 可用';
+  }
+
+  @override
+  String get updateNoticeAvailableSubtitle => '可在应用内下载并自动完成更新';
+
+  @override
+  String get updateNoticeManualSubtitle => '当前平台需要前往 Release 页面手动更新';
+
+  @override
+  String updateNoticeReady(Object version) {
+    return '新版本 v$version 已准备好';
+  }
+
+  @override
+  String get updateNoticeReadySubtitle => '更新包已校验，重启即可安装';
+
+  @override
+  String get updateNoticeFailed => '上次更新没有完成';
+
+  @override
+  String get updateViewDetails => '查看更新';
+
+  @override
+  String updateSettingsAvailable(Object version) {
+    return '发现 v$version，点击查看更新内容';
+  }
+
+  @override
+  String updateSettingsReady(Object version) {
+    return 'v$version 已下载，点击安装';
+  }
 
   @override
   String get goToDownload => '前往下载';
@@ -11184,6 +11442,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autocomplete_autoComma => '插入后自动添加逗号';
 
   @override
+  String get autocomplete_openOnTagClick => '点击标签时显示补全';
+
+  @override
+  String get autocomplete_openOnTagClickSubtitle =>
+      '开启后，点击已有标签会打开普通补全菜单；Ctrl/Command + 点击仍显示相关标签';
+
+  @override
   String get autocomplete_replaceUnderscores => '插入时将下划线替换为空格';
 
   @override
@@ -11297,6 +11562,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get autocomplete_relatedHeaderTitle => '相关标签';
+
+  @override
+  String get autocomplete_loading => '正在查询本地词库与在线标签…';
+
+  @override
+  String get autocomplete_empty => '没有找到匹配的标签';
 
   @override
   String get autocomplete_relatedLoading => '正在查询本地共现库与在线相关标签…';

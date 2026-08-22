@@ -10,6 +10,7 @@ import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_dropdown.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_slider.dart';
+import 'generation_toggle_button.dart';
 import 'size_selector.dart';
 
 /// 生成参数分节控件集
@@ -43,14 +44,18 @@ class ModelSection extends ConsumerWidget {
     final model = ref.watch(
       generationParamsNotifierProvider.select((params) => params.model),
     );
+    // 测试期的 custom 键归一到正式 ID，保证下拉框 value 一定在候选项里。
+    final normalizedModel = ImageModels.migrateLegacyModel(model);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ParamSectionTitle(context.l10n.generation_model),
         const SizedBox(height: 8),
         ThemedDropdown<String>(
-          value: model,
-          items: ImageModels.allModels.map((model) {
+          value: normalizedModel,
+          items: ImageModels.visibleModels(current: normalizedModel).map((
+            model,
+          ) {
             return DropdownMenuItem(
               value: model,
               child: Text(
@@ -80,13 +85,36 @@ class SizeSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final size = ref.watch(
       generationParamsNotifierProvider.select(
-        (params) => (width: params.width, height: params.height),
+        (params) => (
+          width: params.width,
+          height: params.height,
+          supportsE2eUpscale: params.capabilities.supportsE2eUpscale,
+          e2eUpscale: params.e2eUpscale,
+          outputSize: params.outputSize,
+        ),
       ),
     );
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ParamSectionTitle(context.l10n.generation_imageSize),
+        Row(
+          children: [
+            ParamSectionTitle(context.l10n.generation_imageSize),
+            const Spacer(),
+            // 端到端 ×2 放大：模型按基础分辨率生成，服务端输出边长翻倍
+            if (size.supportsE2eUpscale)
+              GenerationToggleButton(
+                label: '×${E2eUpscale.factor}',
+                isEnabled: size.e2eUpscale,
+                onChanged: (value) {
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .updateE2eUpscale(value);
+                },
+              ),
+          ],
+        ),
         const SizedBox(height: 8),
         SizeSelector(
           width: size.width,
@@ -97,6 +125,17 @@ class SizeSection extends ConsumerWidget {
                 .updateSize(width, height);
           },
         ),
+        if (size.supportsE2eUpscale && size.e2eUpscale) ...[
+          const SizedBox(height: 6),
+          Text(
+            context.l10n.generation_e2eUpscaleHint(
+              '${size.outputSize.$1}×${size.outputSize.$2}',
+            ),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -108,17 +147,33 @@ class SamplerSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sampler = ref.watch(
-      generationParamsNotifierProvider.select((params) => params.sampler),
+    final data = ref.watch(
+      generationParamsNotifierProvider.select(
+        (params) => (sampler: params.sampler, isV4Model: params.isV4Model),
+      ),
     );
+    // V4 起官网不提供 DDIM；存量选择显示为实际会发送的 Euler Ancestral。
+    final isDdim =
+        data.sampler == Samplers.ddim || data.sampler == Samplers.ddimV3;
+    final displaySampler = data.isV4Model && isDdim
+        ? Samplers.kEulerAncestral
+        : data.sampler;
+    final availableSamplers = data.isV4Model
+        ? Samplers.allSamplers
+              .where(
+                (sampler) =>
+                    sampler != Samplers.ddim && sampler != Samplers.ddimV3,
+              )
+              .toList(growable: false)
+        : Samplers.allSamplers;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ParamSectionTitle(context.l10n.generation_sampler),
         const SizedBox(height: 8),
         ThemedDropdown<String>(
-          value: sampler,
-          items: Samplers.allSamplers.map((sampler) {
+          value: displaySampler,
+          items: availableSamplers.map((sampler) {
             return DropdownMenuItem(
               value: sampler,
               child: Text(
@@ -148,10 +203,17 @@ class NoiseScheduleSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(
       generationParamsNotifierProvider.select(
-        (params) =>
-            (noiseSchedule: params.noiseSchedule, isV4Model: params.isV4Model),
+        (params) => (
+          noiseSchedule: params.noiseSchedule,
+          isV4Model: params.isV4Model,
+          supportsNoiseSchedule: params.capabilities.supportsNoiseSchedule,
+        ),
       ),
     );
+    // V5 不开放噪声调度选择，请求固定发 karras。
+    if (!data.supportsNoiseSchedule) {
+      return const SizedBox.shrink();
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -237,6 +299,7 @@ class CfgScaleSection extends ConsumerWidget {
           decrisp: params.decrisp,
           varietyPlus: params.varietyPlus,
           isV3Model: params.isV3Model,
+          supportsVarietyPlus: params.capabilities.supportsVarietyPlus,
         ),
       ),
     );
@@ -251,7 +314,7 @@ class CfgScaleSection extends ConsumerWidget {
             const Spacer(),
             // Decrisp (仅 V3 模型)
             if (data.isV3Model) ...[
-              _ToggleButton(
+              GenerationToggleButton(
                 label: 'Decrisp',
                 isEnabled: data.decrisp,
                 onChanged: (value) {
@@ -262,16 +325,17 @@ class CfgScaleSection extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
             ],
-            // Variety+ (所有模型)
-            _ToggleButton(
-              label: 'Variety+',
-              isEnabled: data.varietyPlus,
-              onChanged: (value) {
-                ref
-                    .read(generationParamsNotifierProvider.notifier)
-                    .updateVarietyPlus(value);
-              },
-            ),
+            // Variety+ (V3-V4.5；V5 不支持 skip_cfg_above_sigma)
+            if (data.supportsVarietyPlus)
+              GenerationToggleButton(
+                label: 'Variety+',
+                isEnabled: data.varietyPlus,
+                onChanged: (value) {
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .updateVarietyPlus(value);
+                },
+              ),
           ],
         ),
         ThemedSlider(
@@ -735,100 +799,6 @@ class _SmeaOptions extends StatelessWidget {
           const SizedBox(width: 4),
           Text(label, style: TextStyle(fontSize: 13, color: color)),
         ],
-      ),
-    );
-  }
-}
-
-/// 通用切换按钮 (用于 Variety+, Decrisp 等)
-class _ToggleButton extends StatefulWidget {
-  final String label;
-  final bool isEnabled;
-  final ValueChanged<bool> onChanged;
-
-  const _ToggleButton({
-    required this.label,
-    required this.isEnabled,
-    required this.onChanged,
-  });
-
-  @override
-  State<_ToggleButton> createState() => _ToggleButtonState();
-}
-
-class _ToggleButtonState extends State<_ToggleButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    // 计算背景色
-    Color backgroundColor;
-    if (widget.isEnabled) {
-      backgroundColor = _isHovered
-          ? theme.colorScheme.primary.withValues(alpha: 0.85)
-          : theme.colorScheme.primary;
-    } else {
-      final baseColor = isDark
-          ? Colors.white.withValues(alpha: 0.08)
-          : Colors.black.withValues(alpha: 0.05);
-      backgroundColor = _isHovered
-          ? (isDark
-                ? Colors.white.withValues(alpha: 0.15)
-                : Colors.black.withValues(alpha: 0.1))
-          : baseColor;
-    }
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => widget.onChanged(!widget.isEnabled),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: widget.isEnabled
-                  ? theme.colorScheme.primary
-                  : (_isHovered
-                        ? theme.colorScheme.outline.withValues(alpha: 0.4)
-                        : theme.colorScheme.outline.withValues(alpha: 0.2)),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.isEnabled) ...[
-                Icon(
-                  Icons.check_rounded,
-                  size: 14,
-                  color: theme.colorScheme.onPrimary,
-                ),
-                const SizedBox(width: 4),
-              ],
-              Text(
-                widget.label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: widget.isEnabled
-                      ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.onSurface.withValues(
-                          alpha: _isHovered ? 0.8 : 0.6,
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

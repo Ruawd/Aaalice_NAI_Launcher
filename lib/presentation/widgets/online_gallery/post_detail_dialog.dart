@@ -6,13 +6,16 @@ import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/cache/danbooru_image_cache_manager.dart';
+import '../../../core/cache/gallery_image_request.dart';
+import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../router/app_router.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/danbooru_auth_service.dart';
 import '../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../providers/character_prompt_provider.dart';
+import '../../providers/online_gallery_output_filter_provider.dart';
+import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -21,6 +24,7 @@ import '../../utils/photo_library_save_action.dart';
 import '../tag_chip.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/common/app_toast.dart';
+import 'gallery_tag_context_menu.dart';
 import 'video_player_widget.dart';
 
 /// 在线画廊帖子详情弹窗
@@ -219,13 +223,17 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
             if (hasPlayableVideo)
               // 视频播放器
               VideoPlayerWidget(videoUrl: videoUrl)
-            else if (widget.post.isAnimated)
-              // GIF 自动循环播放
+            else if (widget.post.isAnimated || widget.post.isVideo)
+              // GIF 自动循环播放；无可播放地址的视频保留预览图。
               CachedNetworkImage(
                 imageUrl: animatedImageUrl,
                 httpHeaders: onlineGalleryImageHeadersForUrl(animatedImageUrl),
                 cacheKey: onlineGalleryImageCacheKeyForUrl(animatedImageUrl),
-                cacheManager: DanbooruImageCacheManager.instance,
+                cacheManager: OnlineGalleryImageCacheManager.instance,
+                memCacheWidth: GalleryImageSizing.detailViewportTargetWidth(
+                  MediaQuery.devicePixelRatioOf(context),
+                  MediaQuery.sizeOf(context).width,
+                ),
                 fit: BoxFit.contain,
                 errorListener: (error) {
                   // 静默处理图片加载错误
@@ -248,39 +256,13 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
                 ),
               )
             else
-              // 普通图片（支持缩放平移）
+              // 静态图片先显示 Sample，再按视口预算晋升 Original。
               InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 4.0,
-                child: CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  httpHeaders: onlineGalleryImageHeadersForUrl(imageUrl),
-                  cacheKey: onlineGalleryImageCacheKeyForUrl(imageUrl),
-                  cacheManager: DanbooruImageCacheManager.instance,
-                  fit: BoxFit.contain,
-                  errorListener: (error) {
-                    // 静默处理图片加载错误
-                  },
-                  placeholder: (context, url) => const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  ),
-                  errorWidget: (context, url, error) => Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.error,
-                          color: Colors.white54,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          context.l10n.onlineGallery_loadFailed,
-                          style: const TextStyle(color: Colors.white54),
-                        ),
-                      ],
-                    ),
-                  ),
+                child: _ProgressiveDetailImage(
+                  post: widget.post,
+                  initialUrl: imageUrl,
                 ),
               ),
             // 关闭按钮
@@ -487,6 +469,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   /// 标签区域
   Widget _buildTagsSection(ThemeData theme) {
     final translationService = ref.watch(tagTranslationLookupProvider);
+    final outputFilter = ref.watch(onlineGalleryOutputFilterProvider);
     final generalTags = _generalDisplayTags(widget.post);
 
     return SingleChildScrollView(
@@ -508,7 +491,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               tags: widget.post.artistTags,
               color: TagColors.artist,
               translationService: translationService,
+              outputFilter: outputFilter,
               onTagTap: _handleTagTap,
+              onTagSecondaryTapDown: _handleTagSecondaryTapDown,
             ),
           // 角色标签
           if (widget.post.characterTags.isNotEmpty)
@@ -517,7 +502,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               tags: widget.post.characterTags,
               color: TagColors.character,
               translationService: translationService,
+              outputFilter: outputFilter,
               onTagTap: _handleTagTap,
+              onTagSecondaryTapDown: _handleTagSecondaryTapDown,
             ),
           // 版权标签
           if (widget.post.copyrightTags.isNotEmpty)
@@ -526,7 +513,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               tags: widget.post.copyrightTags,
               color: TagColors.copyright,
               translationService: translationService,
+              outputFilter: outputFilter,
               onTagTap: _handleTagTap,
+              onTagSecondaryTapDown: _handleTagSecondaryTapDown,
             ),
           // 通用标签
           if (generalTags.isNotEmpty)
@@ -535,7 +524,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               tags: generalTags,
               color: TagColors.general,
               translationService: translationService,
+              outputFilter: outputFilter,
               onTagTap: _handleTagTap,
+              onTagSecondaryTapDown: _handleTagSecondaryTapDown,
             ),
           // 元标签
           if (widget.post.metaTags.isNotEmpty)
@@ -544,7 +535,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               tags: widget.post.metaTags,
               color: TagColors.meta,
               translationService: translationService,
+              outputFilter: outputFilter,
               onTagTap: _handleTagTap,
+              onTagSecondaryTapDown: _handleTagSecondaryTapDown,
             ),
         ],
       ),
@@ -554,6 +547,24 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   void _handleTagTap(String tag) {
     _close();
     widget.onTagTap?.call(tag);
+  }
+
+  Future<void> _handleTagSecondaryTapDown(
+    String tag,
+    TapDownDetails details,
+  ) async {
+    final action = await showOnlineGalleryTagContextMenu(
+      context: context,
+      ref: ref,
+      tag: tag,
+      globalPosition: details.globalPosition,
+    );
+    if (!mounted || action != OnlineGalleryTagContextAction.blacklist) return;
+
+    // The current post may no longer belong in the visible result set.
+    final notifier = ref.read(onlineGalleryNotifierProvider.notifier);
+    await _close();
+    notifier.refresh();
   }
 
   /// 操作按钮区域
@@ -648,16 +659,28 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     );
   }
 
+  String get _actionPrompt {
+    final outputFilter = ref.read(onlineGalleryOutputFilterProvider);
+    return ref
+        .read(onlineGalleryPromptTagSettingsProvider)
+        .promptFor(widget.post, outputFilter: outputFilter);
+  }
+
   /// 复制标签
   void _copyTags() {
-    final tags = widget.post.tags.join(', ');
-    Clipboard.setData(ClipboardData(text: tags));
+    final prompt = _actionPrompt;
+    if (prompt.isEmpty) {
+      AppToast.info(context, context.l10n.onlineGallery_noTagInfo);
+      return;
+    }
+    Clipboard.setData(ClipboardData(text: prompt));
     AppToast.success(context, context.l10n.onlineGallery_copied);
   }
 
   /// 发送到生成页面
   void _sendToGenerate() {
-    if (widget.post.tags.isEmpty) {
+    final prompt = _actionPrompt;
+    if (prompt.isEmpty) {
       AppToast.info(context, context.l10n.onlineGallery_noTagInfo);
       return;
     }
@@ -666,9 +689,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
 
     // 设置待填充提示词
-    ref
-        .read(pendingPromptNotifierProvider.notifier)
-        .set(prompt: widget.post.tags.join(', '));
+    ref.read(pendingPromptNotifierProvider.notifier).set(prompt: prompt);
 
     // 关闭弹窗并导航到生成页面
     Navigator.pop(context);
@@ -688,7 +709,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
       return;
     }
     try {
-      final file = await DanbooruImageCacheManager.instance.getSingleFile(
+      final file = await OnlineGalleryImageCacheManager.instance.getSingleFile(
         imageUrl,
         key: onlineGalleryImageCacheKeyForUrl(imageUrl),
         headers: onlineGalleryImageHeadersForUrl(imageUrl),
@@ -722,11 +743,12 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     await saveImageToSystemPhotoLibrary(
       context,
       loadBytes: () async {
-        final file = await DanbooruImageCacheManager.instance.getSingleFile(
-          imageUrl,
-          key: onlineGalleryImageCacheKeyForUrl(imageUrl),
-          headers: onlineGalleryImageHeadersForUrl(imageUrl),
-        );
+        final file = await OnlineGalleryImageCacheManager.instance
+            .getSingleFile(
+              imageUrl,
+              key: onlineGalleryImageCacheKeyForUrl(imageUrl),
+              headers: onlineGalleryImageHeadersForUrl(imageUrl),
+            );
         return file.readAsBytes();
       },
       fileName: '${widget.post.sourceId.name}_${widget.post.id}',
@@ -735,13 +757,14 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
   /// 加入队列
   Future<void> _addToQueue() async {
-    if (widget.post.tags.isEmpty) {
+    final prompt = _actionPrompt;
+    if (prompt.isEmpty) {
       AppToast.info(context, context.l10n.onlineGallery_noTagInfo);
       return;
     }
 
     final task = ReplicationTask.create(
-      prompt: widget.post.tags.join(', '),
+      prompt: prompt,
       thumbnailUrl: widget.post.previewUrl,
       source: ReplicationTaskSource.online,
     );
@@ -846,14 +869,18 @@ class _TagSection extends StatelessWidget {
   final List<String> tags;
   final Color color;
   final TagTranslationLookup translationService;
+  final OnlineGalleryOutputFilterSettings outputFilter;
   final Function(String) onTagTap;
+  final void Function(String, TapDownDetails) onTagSecondaryTapDown;
 
   const _TagSection({
     required this.title,
     required this.tags,
     required this.color,
     required this.translationService,
+    required this.outputFilter,
     required this.onTagTap,
+    required this.onTagSecondaryTapDown,
   });
 
   @override
@@ -892,11 +919,18 @@ class _TagSection extends StatelessWidget {
               return FutureBuilder<String?>(
                 future: translationService.translate(tag),
                 builder: (context, snapshot) {
+                  final filtered = outputFilter.contains(tag);
                   return SimpleTagChip(
                     tag: tag,
                     color: color,
                     translation: snapshot.data,
                     onTap: () => onTagTap(tag),
+                    onSecondaryTapDown: (details) =>
+                        onTagSecondaryTapDown(tag, details),
+                    isOutputFiltered: filtered,
+                    tooltip: filtered
+                        ? context.l10n.onlineGallery_outputFilteredTagTooltip
+                        : context.l10n.onlineGallery_tagContextMenuTooltip,
                   );
                 },
               );
@@ -904,6 +938,104 @@ class _TagSection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ProgressiveDetailImage extends StatefulWidget {
+  const _ProgressiveDetailImage({required this.post, required this.initialUrl});
+
+  final DanbooruPost post;
+  final String initialUrl;
+
+  @override
+  State<_ProgressiveDetailImage> createState() =>
+      _ProgressiveDetailImageState();
+}
+
+class _ProgressiveDetailImageState extends State<_ProgressiveDetailImage> {
+  int _retryRevision = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final dpr = MediaQuery.devicePixelRatioOf(context);
+        final viewportWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final initialRequest = GalleryImageRequest.forUrl(
+          sourceId: widget.post.sourceId,
+          url: widget.initialUrl,
+          tier: GalleryImageTier.sample,
+          targetDecodeWidth: GalleryImageSizing.detailViewportTargetWidth(
+            dpr,
+            viewportWidth,
+            naturalWidth: widget.post.width,
+            naturalHeight: widget.post.height,
+          ),
+        );
+        final originalUrl = widget.post.fileUrl ?? widget.initialUrl;
+        final originalRequest = GalleryImageRequest.forUrl(
+          sourceId: widget.post.sourceId,
+          url: originalUrl,
+          tier: GalleryImageTier.original,
+          targetDecodeWidth: GalleryImageSizing.originalTargetWidth(
+            dpr,
+            viewportWidth,
+            naturalWidth: widget.post.width,
+            naturalHeight: widget.post.height,
+          ),
+        );
+        final manager = OnlineGalleryImageCacheManager.instance;
+        final initial = Image(
+          image: initialRequest.createImageProvider(manager),
+          fit: BoxFit.contain,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => const Center(
+            child: Icon(Icons.broken_image_outlined, color: Colors.white54),
+          ),
+        );
+        if (originalUrl == widget.initialUrl) return initial;
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            initial,
+            Image(
+              key: ValueKey(
+                'original:${originalRequest.stableRequestKey}:$_retryRevision',
+              ),
+              image: originalRequest.createImageProvider(manager),
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
+              frameBuilder: (context, child, frame, synchronous) {
+                if (frame == null) return const SizedBox.shrink();
+                if (synchronous || MediaQuery.disableAnimationsOf(context)) {
+                  return child;
+                }
+                return TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 140),
+                  builder: (_, opacity, image) =>
+                      Opacity(opacity: opacity, child: image),
+                  child: child,
+                );
+              },
+              errorBuilder: (_, __, ___) => Center(
+                child: FilledButton.tonalIcon(
+                  onPressed: () async {
+                    await manager.removeFile(originalRequest.canonicalCacheKey);
+                    if (mounted) setState(() => _retryRevision++);
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: Text(context.l10n.onlineGallery_originalRetry),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

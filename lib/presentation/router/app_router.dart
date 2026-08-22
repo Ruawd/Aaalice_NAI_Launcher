@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../core/shortcuts/default_shortcuts.dart';
 import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
+import '../providers/update_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
 import '../screens/local_gallery/local_gallery_screen.dart';
@@ -19,6 +20,8 @@ import '../screens/statistics/statistics_screen.dart';
 import '../screens/precise_ref_library/precise_ref_library_screen.dart';
 import '../screens/tag_library_page/tag_library_page_screen.dart';
 import '../screens/vibe_library/vibe_library_screen.dart';
+import '../widgets/app_branch_visibility.dart';
+import '../widgets/common/update_notice_banner.dart';
 import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/navigation/mobile_account_section.dart';
@@ -379,14 +382,17 @@ class _MainShellState extends ConsumerState<MainShell> {
         // 保活页面：画廊（1, 2）、Vibe 库（7）和精准参考库（8）
         // 始终保持在树中，通过 TickerMode 控制动画
         if (index == 1 || index == 2 || index == 7 || index == 8) {
-          return TickerMode(enabled: isActive, child: child);
+          return AppBranchVisibility(
+            isVisible: isActive,
+            child: TickerMode(enabled: isActive, child: child),
+          );
         }
 
         // 其他索引：非活动时显示空容器（不保活）
         if (!isActive) {
           return const SizedBox.shrink();
         }
-        return child;
+        return AppBranchVisibility(isVisible: true, child: child);
       }).toList(),
     );
 
@@ -467,11 +473,19 @@ class DesktopShell extends ConsumerWidget {
                     clipBehavior: Clip.none,
                     children: [
                       content,
+                      const Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: UpdateNoticeBanner(),
+                      ),
                       // 队列悬浮球 - 传入实际可用区域大小
                       FloatingQueueButton(
                         onTap: () =>
                             ref
-                                    .read(queueManagementVisibleProvider.notifier)
+                                    .read(
+                                      queueManagementVisibleProvider.notifier,
+                                    )
                                     .state =
                                 !isQueueVisible,
                         containerSize: Size(
@@ -516,6 +530,9 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   @override
   Widget build(BuildContext context) {
     final isQueueVisible = ref.watch(queueManagementVisibleProvider);
+    final showUpdateBadge = ref.watch(
+      updateStateProvider.select((state) => state.hasNewVersion),
+    );
 
     return Scaffold(
       body: SafeArea(
@@ -527,6 +544,12 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               clipBehavior: Clip.none,
               children: [
                 widget.content,
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: UpdateNoticeBanner(),
+                ),
                 // 队列悬浮球 - 传入实际可用区域大小
                 FloatingQueueButton(
                   onTap: () =>
@@ -576,8 +599,16 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             label: context.l10n.nav_dictionary,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.settings_outlined),
-            selectedIcon: const Icon(Icons.settings),
+            icon: Badge(
+              isLabelVisible: showUpdateBadge,
+              smallSize: 7,
+              child: const Icon(Icons.settings_outlined),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: showUpdateBadge,
+              smallSize: 7,
+              child: const Icon(Icons.settings),
+            ),
             label: context.l10n.nav_settings,
           ),
           NavigationDestination(

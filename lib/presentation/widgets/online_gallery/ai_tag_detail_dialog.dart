@@ -9,19 +9,25 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as path;
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/cache/danbooru_image_cache_manager.dart';
+import '../../../core/cache/gallery_image_request.dart';
+import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../router/app_router.dart';
 import '../../../core/utils/file_picker_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
+import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../../data/models/queue/replication_task.dart';
+import '../../../data/services/online_gallery/artist_chain_parser.dart';
 import '../../providers/character_prompt_provider.dart';
+import '../../providers/online_gallery_output_filter_provider.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../common/app_toast.dart';
+import '../tag_chip.dart';
+import 'gallery_tag_context_menu.dart';
 
 Future<void> showAiTagDetailDialog(
   BuildContext context, {
@@ -45,15 +51,19 @@ class _AiTagDetailDialog extends ConsumerStatefulWidget {
 
 class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
   late Future<GalleryDetail> _detailFuture;
-  final PageController _pageController = PageController();
+  late final PageController _pageController;
   final FocusNode _keyboardFocus = FocusNode();
   int _mediaIndex = 0;
   int _downloadCompleted = 0;
   int _downloadTotal = 0;
+  bool _didPrefetchInitialAdjacent = false;
+  bool _didResolveInitialMedia = false;
 
   @override
   void initState() {
     super.initState();
+    _mediaIndex = widget.item.focusedMediaIndex ?? 0;
+    _pageController = PageController(initialPage: _mediaIndex);
     _detailFuture = ref
         .read(onlineGalleryNotifierProvider.notifier)
         .loadDetail(widget.item);
@@ -142,6 +152,28 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
   }
 
   Widget _buildDetail(GalleryDetail detail) {
+    if (!_didResolveInitialMedia) {
+      _didResolveInitialMedia = true;
+      final focusedMediaId = widget.item.focusedMediaId;
+      final resolvedIndex = focusedMediaId == null
+          ? _mediaIndex.clamp(0, detail.media.length - 1)
+          : detail.media.indexWhere((media) => media.id == focusedMediaId);
+      final targetIndex = resolvedIndex < 0 ? 0 : resolvedIndex;
+      if (targetIndex != _mediaIndex) {
+        _mediaIndex = targetIndex;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _pageController.hasClients) {
+            _pageController.jumpToPage(targetIndex);
+          }
+        });
+      }
+    }
+    if (!_didPrefetchInitialAdjacent) {
+      _didPrefetchInitialAdjacent = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _prefetchAdjacent(detail, _mediaIndex);
+      });
+    }
     final theme = Theme.of(context);
     final media = detail.media[_mediaIndex.clamp(0, detail.media.length - 1)];
     return KeyboardListener(
@@ -280,10 +312,15 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
                       maxScale: 5,
                       child: CachedNetworkImage(
                         imageUrl: media.displayUrl,
-                        cacheManager: DanbooruImageCacheManager.instance,
+                        cacheManager: OnlineGalleryImageCacheManager.instance,
                         cacheKey: onlineGalleryImageCacheKeyForUrl(
                           media.displayUrl,
                         ),
+                        memCacheWidth:
+                            GalleryImageSizing.detailViewportTargetWidth(
+                              MediaQuery.devicePixelRatioOf(context),
+                              MediaQuery.sizeOf(context).width,
+                            ),
                         httpHeaders: onlineGalleryImageHeadersForUrl(
                           media.displayUrl,
                         ),
@@ -296,7 +333,7 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
                               await CachedNetworkImage.evictFromCache(
                                 media.displayUrl,
                                 cacheManager:
-                                    DanbooruImageCacheManager.instance,
+                                    OnlineGalleryImageCacheManager.instance,
                                 cacheKey: onlineGalleryImageCacheKeyForUrl(
                                   media.displayUrl,
                                 ),
@@ -347,9 +384,15 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
                     clipBehavior: Clip.antiAlias,
                     child: CachedNetworkImage(
                       imageUrl: media.previewUrl,
-                      cacheManager: DanbooruImageCacheManager.instance,
+                      cacheManager: OnlineGalleryImageCacheManager.instance,
                       cacheKey: onlineGalleryImageCacheKeyForUrl(
                         media.previewUrl,
+                      ),
+                      memCacheWidth: GalleryImageSizing.gridTargetWidth(
+                        layoutWidth: 64,
+                        devicePixelRatio: MediaQuery.devicePixelRatioOf(
+                          context,
+                        ),
                       ),
                       httpHeaders: onlineGalleryImageHeadersForUrl(
                         media.previewUrl,
@@ -386,6 +429,15 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
     GalleryMedia media,
   ) {
     final item = detail.item;
+    final outputFilter = ref.watch(onlineGalleryOutputFilterProvider);
+    final artistChain = ArtistChainParser.parse(media.prompt);
+    final filteredArtistChain = outputFilter.filterPrompt(
+      artistChain.formattedText,
+    );
+    final filteredMediaPrompt = media.prompt == null
+        ? null
+        : outputFilter.filterPrompt(media.prompt!);
+    final artistHuntMode = widget.item.focusedMediaId != null;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -431,15 +483,27 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
           spacing: 6,
           runSpacing: 6,
           children: item.tags
-              .map(
-                (tag) => Chip(
-                  label: Text(tag),
-                  visualDensity: VisualDensity.compact,
-                ),
-              )
+              .map((tag) {
+                final filtered = outputFilter.contains(tag);
+                return SimpleTagChip(
+                  tag: tag,
+                  autoTranslate: false,
+                  isOutputFiltered: filtered,
+                  tooltip: filtered
+                      ? context.l10n.onlineGallery_outputFilteredTagTooltip
+                      : context.l10n.onlineGallery_tagContextMenuTooltip,
+                  onSecondaryTapDown: (details) =>
+                      _showTagContextMenu(tag, details),
+                );
+              })
               .toList(growable: false),
         ),
         const SizedBox(height: 16),
+        if (artistHuntMode && artistChain.isNotEmpty)
+          _metadataSection(
+            context.l10n.onlineGallery_artistChain,
+            artistChain.formattedText,
+          ),
         if (media.prompt?.isNotEmpty == true)
           _metadataSection('Prompt', media.prompt!),
         if (media.negativePrompt?.isNotEmpty == true)
@@ -458,13 +522,40 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            OutlinedButton.icon(
-              onPressed: media.prompt?.isNotEmpty == true
-                  ? () => _copy(media.prompt!)
-                  : null,
-              icon: const Icon(Icons.copy, size: 16),
-              label: Text(context.l10n.localGallery_copyPrompt),
-            ),
+            if (artistHuntMode) ...[
+              FilledButton.tonalIcon(
+                onPressed: filteredArtistChain.isNotEmpty
+                    ? () => _copy(filteredArtistChain)
+                    : null,
+                icon: const Icon(Icons.brush_outlined, size: 16),
+                label: Text(
+                  artistChain.isNotEmpty
+                      ? context.l10n.onlineGallery_copyArtistChain
+                      : context.l10n.onlineGallery_noArtistChain,
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: filteredMediaPrompt?.isNotEmpty == true
+                    ? () => _copy(filteredMediaPrompt!)
+                    : null,
+                icon: const Icon(Icons.copy_all, size: 16),
+                label: Text(context.l10n.onlineGallery_copyFullPrompt),
+              ),
+              OutlinedButton.icon(
+                onPressed: artistChain.rawFragments.isNotEmpty
+                    ? () => _copy(artistChain.rawText)
+                    : null,
+                icon: const Icon(Icons.code, size: 16),
+                label: Text(context.l10n.onlineGallery_copyRawArtistFragments),
+              ),
+            ] else
+              OutlinedButton.icon(
+                onPressed: filteredMediaPrompt?.isNotEmpty == true
+                    ? () => _copy(filteredMediaPrompt!)
+                    : null,
+                icon: const Icon(Icons.copy, size: 16),
+                label: Text(context.l10n.localGallery_copyPrompt),
+              ),
             OutlinedButton.icon(
               onPressed: media.negativePrompt?.isNotEmpty == true
                   ? () => _copy(media.negativePrompt!)
@@ -546,16 +637,33 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
     for (final target in [index - 1, index + 1]) {
       if (target < 0 || target >= detail.media.length) continue;
       final media = detail.media[target];
-      precacheImage(
-        CachedNetworkImageProvider(
-          media.displayUrl,
-          cacheManager: DanbooruImageCacheManager.instance,
-          cacheKey: onlineGalleryImageCacheKeyForUrl(media.displayUrl),
-          headers: onlineGalleryImageHeadersForUrl(media.displayUrl),
+      final request = GalleryImageRequest.forUrl(
+        sourceId: GallerySourceId.aiTag,
+        url: media.displayUrl,
+        tier: GalleryImageTier.sample,
+        targetDecodeWidth: GalleryImageSizing.detailViewportTargetWidth(
+          MediaQuery.devicePixelRatioOf(context),
+          MediaQuery.sizeOf(context).width,
         ),
+      );
+      precacheImage(
+        request.createImageProvider(OnlineGalleryImageCacheManager.instance),
         context,
       );
     }
+  }
+
+  Future<void> _showTagContextMenu(String tag, TapDownDetails details) async {
+    final action = await showOnlineGalleryTagContextMenu(
+      context: context,
+      ref: ref,
+      tag: tag,
+      globalPosition: details.globalPosition,
+    );
+    if (!mounted || action != OnlineGalleryTagContextAction.blacklist) return;
+    final notifier = ref.read(onlineGalleryNotifierProvider.notifier);
+    Navigator.pop(context);
+    notifier.refresh();
   }
 
   void _copy(String value) {
@@ -564,7 +672,8 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
   }
 
   String _promptFor(GalleryDetail detail, GalleryMedia media) {
-    return media.prompt ?? detail.prompt ?? detail.item.tags.join(', ');
+    final raw = media.prompt ?? detail.prompt ?? detail.item.tags.join(', ');
+    return ref.read(onlineGalleryOutputFilterProvider).filterPrompt(raw);
   }
 
   String _fullMetadata(GalleryMedia media) {
@@ -614,7 +723,7 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
 
   Future<void> _sendToReverse(GalleryMedia media) async {
     try {
-      final file = await DanbooruImageCacheManager.instance.getSingleFile(
+      final file = await OnlineGalleryImageCacheManager.instance.getSingleFile(
         media.downloadUrl,
         key: onlineGalleryImageCacheKeyForUrl(media.downloadUrl),
         headers: onlineGalleryImageHeadersForUrl(media.downloadUrl),
@@ -658,7 +767,7 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
           final index = start + offset;
           final media = mediaItems[index];
           try {
-            final sourceFile = await DanbooruImageCacheManager.instance
+            final sourceFile = await OnlineGalleryImageCacheManager.instance
                 .getSingleFile(
                   media.downloadUrl,
                   key: onlineGalleryImageCacheKeyForUrl(media.downloadUrl),

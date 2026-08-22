@@ -31,6 +31,7 @@ import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../providers/quality_preset_provider.dart';
+import '../../../providers/preview_transparency_provider.dart';
 import '../../../providers/reverse_prompt_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../providers/shortcuts_provider.dart';
@@ -43,11 +44,13 @@ import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/selectable_image_card.dart';
+import '../../../widgets/common/transparency_background.dart';
 import '../../../widgets/image_editor/image_editor_screen.dart';
 import '../../../utils/image_detail_opener.dart';
 import '../../../utils/krita_send_helper.dart';
 import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../tag_library_page/widgets/entry_add_dialog.dart';
+import 'preview_info_bar.dart';
 
 class PreviewNavShortcuts extends ConsumerWidget {
   const PreviewNavShortcuts({required this.child, super.key});
@@ -500,6 +503,28 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     final details = parts.length > 1 ? parts[1] : null;
 
     switch (errorCode) {
+      case 'GENERATION_ERROR_INVALID_RESOLUTION':
+        if (parts.length >= 5) {
+          final width = int.tryParse(parts[1]);
+          final height = int.tryParse(parts[2]);
+          final suggestedWidth = int.tryParse(parts[3]);
+          final suggestedHeight = int.tryParse(parts[4]);
+          if (width != null &&
+              height != null &&
+              suggestedWidth != null &&
+              suggestedHeight != null) {
+            return (
+              context.l10n.generation_invalidResolution,
+              context.l10n.generation_invalidResolutionHint(
+                width,
+                height,
+                suggestedWidth,
+                suggestedHeight,
+              ),
+            );
+          }
+        }
+        return (context.l10n.generation_invalidResolution, message);
       case 'API_ERROR_429':
         return (context.l10n.api_error_429, context.l10n.api_error_429_hint);
       case 'API_ERROR_401':
@@ -538,14 +563,44 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     GeneratedImage image,
     ThemeData theme,
   ) {
-    return _buildSingleAspectRatioCard(
-      aspectRatio: image.aspectRatio,
-      child: _buildGeneratedImageCard(
-        context: context,
-        ref: ref,
-        image: image,
-        showIndex: false,
-      ),
+    const gap = 8.0;
+
+    // 信息条紧贴图片下沿并与图片左对齐（官网 bottom.start 口径），
+    // 因此先扣掉信息条高度再按比例算卡片尺寸，避免二者互相挤压。
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableHeight = constraints.maxHeight.isFinite
+            ? max(0.0, constraints.maxHeight - PreviewInfoBar.barHeight - gap)
+            : constraints.maxHeight;
+        final cardSize = _fitAspectRatio(
+          aspectRatio: image.aspectRatio,
+          maxSize: Size(constraints.maxWidth, availableHeight),
+        );
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: cardSize.width,
+              height: cardSize.height,
+              child: _buildGeneratedImageCard(
+                context: context,
+                ref: ref,
+                image: image,
+                showIndex: false,
+              ),
+            ),
+            const SizedBox(height: gap),
+            SizedBox(
+              width: cardSize.width,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: PreviewInfoBar(image: image),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -565,6 +620,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       sourceFilePath: image.filePath,
       index: index,
       showIndex: showIndex,
+      // 透明像素透出所选底色（棋盘格/纯色），与官网结果区一致
+      underlay: TransparencyBackgroundLayer(
+        style: ref.watch(previewTransparencyNotifierProvider),
+      ),
       enableSelection: false,
       enableSaveAction: image.canSave,
       enableCopyAction: image.canSave,
@@ -921,6 +980,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         id: img.id,
         showSaveButton: img.canSave,
         showCopyButton: img.canSave,
+        preserveOriginalBytesOnSave: img.preserveOriginalBytesOnSave,
       );
     }).toList();
 
@@ -971,9 +1031,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           ? Random().nextInt(4294967295)
           : finalSeed;
 
-      // 构建最终字节：已有 NAI 元数据则原样保留，否则按当前参数重建
+      // 构建最终字节：外部结果可要求保留原始字节；其他图像缺少 NAI
+      // 元数据时仍按当前参数重建。
       final Uint8List finalBytes;
-      if (ImageSaveUtils.hasEmbeddedNovelAiMetadata(imageBytes)) {
+      if (image.preserveOriginalBytesOnSave) {
+        finalBytes = imageBytes;
+      } else if (ImageSaveUtils.hasEmbeddedNovelAiMetadata(imageBytes)) {
         finalBytes = imageBytes;
       } else {
         final characterConfig = ref.read(characterPromptNotifierProvider);
@@ -1035,6 +1098,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           negativePrompt: presetResolution.negativePrompt,
           qualityToggle: presetResolution.qualityToggle,
           ucPreset: presetResolution.ucPreset,
+          omitQualityTagHint: presetResolution.omitQualityTagHint,
+          omitUcPresetTagHint: presetResolution.omitUcPresetTagHint,
           width: encodedSize?.$1 ?? params.width,
           height: encodedSize?.$2 ?? params.height,
         );

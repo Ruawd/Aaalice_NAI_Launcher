@@ -52,20 +52,21 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects> {
   @override
   void initState() {
     super.initState();
-    _anlasWatcherSubscription = ref.listenManual(
-      widget.anlasWatcher ?? anlasBalanceWatcherProvider,
-      (_, __) {},
-    );
-    _backgroundRefreshSubscription = ref.listenManual(
-      widget.backgroundRefresh ?? backgroundRefreshNotifierProvider,
-      (_, __) {},
-    );
-    if (widget.enableKritaBridge) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _anlasWatcherSubscription = ref.listenManual(
+        widget.anlasWatcher ?? anlasBalanceWatcherProvider,
+        (_, __) {},
+      );
+      _backgroundRefreshSubscription = ref.listenManual(
+        widget.backgroundRefresh ?? backgroundRefreshNotifierProvider,
+        (_, __) {},
+      );
       _kritaBridgeSubscription = ref.listenManual(
         widget.kritaBridge ?? kritaBridgeNotifierProvider,
         (_, __) {},
       );
-    }
+    });
   }
 
   @override

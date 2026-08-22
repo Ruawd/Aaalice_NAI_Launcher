@@ -157,6 +157,28 @@ void main() {
       expect(savedCopy.canSave, isFalse);
     });
 
+    test('rejects non-64-grid resolution before sending a request', () async {
+      container.read(subscriptionNotifierProvider);
+      final params = container
+          .read(generationParamsNotifierProvider)
+          .copyWith(width: 1080, height: 1920);
+
+      await container
+          .read(imageGenerationNotifierProvider.notifier)
+          .generate(params);
+
+      final state = container.read(imageGenerationNotifierProvider);
+      expect(state.status, GenerationStatus.error);
+      expect(
+        state.errorMessage,
+        'GENERATION_ERROR_INVALID_RESOLUTION|1080|1920|1088|1920',
+      );
+      final subscriptionNotifier =
+          container.read(subscriptionNotifierProvider.notifier)
+              as TestSubscriptionNotifier;
+      expect(subscriptionNotifier.refreshBalanceCallCount, 1);
+    });
+
     test(
       'generate applies positive and negative fixed tags before request',
       () async {
@@ -421,6 +443,59 @@ void main() {
             .first;
         expect(savedImage.filePath, isNotNull);
         expect(File(savedImage.filePath!).existsSync(), isTrue);
+      },
+    );
+
+    test(
+      'registerExternalImage should preserve original bytes when metadata embedding is disabled',
+      () async {
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        final params = container.read(generationParamsNotifierProvider);
+        final comfyPrompt = jsonEncode({
+          '1': {
+            'class_type': 'LoadImage',
+            'inputs': {'image': 'launcher_input.png'},
+          },
+          '2': {
+            'class_type': 'SaveImage',
+            'inputs': {'filename_prefix': 'SeedVR2'},
+          },
+        });
+        final originalBytes = UnifiedMetadataParser.embedTextChunkOnly(
+          _validImageBytes(width: 512, height: 768),
+          'prompt',
+          comfyPrompt,
+        );
+        final tempDir = await Directory.systemTemp.createTemp(
+          'nai_launcher_seedvr2_raw_',
+        );
+        addTearDown(() => tempDir.delete(recursive: true));
+
+        await notifier.registerExternalImage(
+          originalBytes,
+          params: params,
+          saveToLocal: true,
+          saveDirectoryPath: tempDir.path,
+          syncToGalleryIndex: false,
+          embedNaiMetadata: false,
+        );
+
+        final savedImage = container
+            .read(imageGenerationNotifierProvider)
+            .history
+            .first;
+        final savedBytes = await File(savedImage.filePath!).readAsBytes();
+
+        expect(savedImage.preserveOriginalBytesOnSave, isTrue);
+        expect(savedImage.bytes, orderedEquals(originalBytes));
+        expect(savedBytes, orderedEquals(originalBytes));
+        expect(
+          UnifiedMetadataParser.extractPngTextData(savedBytes)['prompt'],
+          comfyPrompt,
+        );
+        expect(ImageSaveUtils.hasEmbeddedNovelAiMetadata(savedBytes), isFalse);
       },
     );
 

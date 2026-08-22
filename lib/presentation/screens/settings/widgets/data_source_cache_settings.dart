@@ -49,7 +49,6 @@ class DataSourceCacheSettings extends ConsumerWidget {
                               .notifier,
                         )
                         .set(value);
-                    notifier.setEnabled(value);
                   },
                 ),
                 ListTile(
@@ -87,6 +86,14 @@ class DataSourceCacheSettings extends ConsumerWidget {
                   title: Text(context.l10n.autocomplete_autoComma),
                   value: settings.autoInsertComma,
                   onChanged: notifier.setAutoInsertComma,
+                ),
+                SwitchListTile.adaptive(
+                  title: Text(context.l10n.autocomplete_openOnTagClick),
+                  subtitle: Text(
+                    context.l10n.autocomplete_openOnTagClickSubtitle,
+                  ),
+                  value: settings.openOnTagClick,
+                  onChanged: notifier.setOpenOnTagClick,
                 ),
                 SwitchListTile.adaptive(
                   title: Text(context.l10n.autocomplete_replaceUnderscores),

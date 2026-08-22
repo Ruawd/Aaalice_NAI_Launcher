@@ -228,11 +228,20 @@ void main() {
         controller.setSourceImageDimensions(768, 1024);
         controller.enterEnhanceMode();
 
+        // 官网没有 4x，回落到当前源图最大的可用档
         controller.updateEnhanceUpscaleFactor(4.0);
+        expect(
+          container.read(imageWorkflowControllerProvider).enhance.upscaleFactor,
+          equals(2.0),
+        );
 
-        final workflow = container.read(imageWorkflowControllerProvider);
-
-        expect(workflow.enhance.upscaleFactor, equals(1.5));
+        // 832×1216 只给 1.5x / 1x，2x 同样要回落
+        controller.setSourceImageDimensions(832, 1216);
+        controller.updateEnhanceUpscaleFactor(2.0);
+        expect(
+          container.read(imageWorkflowControllerProvider).enhance.upscaleFactor,
+          equals(1.5),
+        );
       },
     );
 
@@ -725,6 +734,7 @@ void main() {
         controller.updateSeedvr2VaeTileSize(768);
         controller.updateSeedvr2Tiled(true);
         controller.updateSeedvr2TileSize(1280);
+        controller.updateSeedvr2EmbedNaiMetadata(true);
         await Hive.box(StorageKeys.settingsBox).flush();
 
         container.dispose();
@@ -739,6 +749,7 @@ void main() {
         expect(workflow.upscale.seedvr2VaeTileSize, equals(768));
         expect(workflow.upscale.seedvr2Tiled, isTrue);
         expect(workflow.upscale.seedvr2TileSize, equals(1280));
+        expect(workflow.upscale.seedvr2EmbedNaiMetadata, isTrue);
       },
     );
 
@@ -761,25 +772,32 @@ void main() {
       },
     );
 
-    test('updateSeedvr2BlocksToSwap should clamp values to the valid range', () {
-      final controller = container.read(
-        imageWorkflowControllerProvider.notifier,
-      );
+    test(
+      'updateSeedvr2BlocksToSwap should clamp values to the valid range',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
 
-      controller.updateSeedvr2BlocksToSwap(-8);
-      expect(
-        container.read(imageWorkflowControllerProvider).upscale
-            .seedvr2BlocksToSwap,
-        equals(UpscaleWorkflowSettings.minSeedvr2BlocksToSwap),
-      );
+        controller.updateSeedvr2BlocksToSwap(-8);
+        expect(
+          container
+              .read(imageWorkflowControllerProvider)
+              .upscale
+              .seedvr2BlocksToSwap,
+          equals(UpscaleWorkflowSettings.minSeedvr2BlocksToSwap),
+        );
 
-      controller.updateSeedvr2BlocksToSwap(120);
-      expect(
-        container.read(imageWorkflowControllerProvider).upscale
-            .seedvr2BlocksToSwap,
-        equals(UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap),
-      );
-    });
+        controller.updateSeedvr2BlocksToSwap(120);
+        expect(
+          container
+              .read(imageWorkflowControllerProvider)
+              .upscale
+              .seedvr2BlocksToSwap,
+          equals(UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap),
+        );
+      },
+    );
 
     test('build should default upscale settings to safe local defaults', () {
       final workflow = container.read(imageWorkflowControllerProvider);
@@ -791,6 +809,7 @@ void main() {
         workflow.upscale.comfyModel,
         equals(UpscaleWorkflowSettings.defaultComfyModel),
       );
+      expect(workflow.upscale.seedvr2EmbedNaiMetadata, isFalse);
     });
 
     test(
@@ -808,7 +827,7 @@ void main() {
         );
         controller.setSourceImageDimensions(768, 1024);
         controller.enterEnhanceMode();
-        controller.updateEnhanceMagnitude(0.72);
+        controller.updateEnhanceLevel(4);
         controller.toggleEnhanceIndividualSettings(true);
         controller.updateEnhanceUpscaleFactor(1.5);
         controller.updateEnhanceIndividualSettings(strength: 0.38, noise: 0.14);
@@ -820,7 +839,7 @@ void main() {
 
         final workflow = container.read(imageWorkflowControllerProvider);
 
-        expect(workflow.enhance.magnitude, equals(0.72));
+        expect(workflow.enhance.level, equals(4));
         expect(workflow.enhance.showIndividualSettings, isTrue);
         expect(workflow.enhance.upscaleFactor, equals(1.5));
         expect(workflow.enhance.strength, equals(0.38));
@@ -828,6 +847,199 @@ void main() {
         expect(workflow.upscale.backend, equals(UpscaleBackend.novelai));
       },
     );
+
+    test('enhance level should drive the official strength/noise', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.setSourceImageDimensions(768, 1024);
+      controller.enterEnhanceMode();
+      controller.updateEnhanceLevel(5);
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(params.strength, 0.7);
+      expect(params.noise, 0.1);
+
+      controller.updateEnhanceLevel(1);
+      final lowered = container.read(generationParamsNotifierProvider);
+      expect(lowered.strength, 0.2);
+      expect(lowered.noise, 0.0);
+    });
+
+    test('enhance mode should flag and clear the enhance request', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.setSourceImageDimensions(768, 1024);
+      controller.enterEnhanceMode();
+
+      expect(
+        container.read(generationParamsNotifierProvider).isEnhanceRequest,
+        isTrue,
+      );
+
+      controller.exitEnhanceMode();
+
+      expect(
+        container.read(generationParamsNotifierProvider).isEnhanceRequest,
+        isFalse,
+      );
+    });
+
+    test('enhance scales should follow the source dimensions', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.setSourceImageDimensions(768, 1024);
+      controller.enterEnhanceMode();
+
+      expect(controller.availableEnhanceFactors, [2.0, 1.5, 1.0]);
+
+      controller.updateEnhanceUpscaleFactor(2.0);
+      final params = container.read(generationParamsNotifierProvider);
+      expect(params.width, 1536);
+      expect(params.height, 2048);
+
+      // 换成 832×1216 后 2x 不再可用，倍率回落到最大可用档
+      controller.setSourceImageDimensions(832, 1216);
+      expect(controller.availableEnhanceFactors, [1.5, 1.0]);
+      expect(controller.effectiveEnhanceFactor, 1.5);
+    });
+
+    test('enhance level should migrate the legacy magnitude key', () async {
+      await Hive.box(
+        StorageKeys.settingsBox,
+      ).put(StorageKeys.workflowEnhanceMagnitude, 0.72);
+
+      container.dispose();
+      container = ProviderContainer();
+
+      final workflow = container.read(imageWorkflowControllerProvider);
+
+      // 0.72 距离档位 5 的 strength(0.7) 最近
+      expect(workflow.enhance.level, 5);
+    });
+
+    test('max enhance should keep the source size and flag the request', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.updateModel(
+        ImageModels.animeDiffusionV5Curated,
+        persist: false,
+      );
+      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.setSourceImageDimensions(768, 1024);
+      controller.enterEnhanceMode();
+      controller.selectEnhanceMaxScale();
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(controller.isMaxEnhanceAvailable, isTrue);
+      expect(
+        container.read(imageWorkflowControllerProvider).enhance.maxScale,
+        isTrue,
+      );
+      expect(params.width, 768);
+      expect(params.height, 1024);
+      expect(params.upscaledEnhance, isTrue);
+
+      controller.exitEnhanceMode();
+      expect(
+        container.read(generationParamsNotifierProvider).upscaledEnhance,
+        isFalse,
+      );
+    });
+
+    test('max enhance should re-normalize when the model changes', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.updateModel(
+        ImageModels.animeDiffusionV5Curated,
+        persist: false,
+        followDefaults: false,
+      );
+      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.setSourceImageDimensions(768, 1024);
+      controller.enterEnhanceMode();
+      controller.updateEnhanceUpscaleFactor(1.5);
+      controller.selectEnhanceMaxScale();
+
+      paramsNotifier.updateModel(
+        ImageModels.animeDiffusionV45Full,
+        persist: false,
+        followDefaults: false,
+      );
+
+      var params = container.read(generationParamsNotifierProvider);
+      expect(controller.isMaxEnhanceAvailable, isFalse);
+      expect(params.width, 1152);
+      expect(params.height, 1536);
+      expect(params.upscaledEnhance, isFalse);
+
+      paramsNotifier.updateModel(
+        ImageModels.animeDiffusionV5Curated,
+        persist: false,
+        followDefaults: false,
+      );
+
+      params = container.read(generationParamsNotifierProvider);
+      expect(controller.isMaxEnhanceAvailable, isTrue);
+      expect(params.width, 768);
+      expect(params.height, 1024);
+      expect(params.upscaledEnhance, isTrue);
+    });
+
+    test('max enhance should be refused on models without the tier', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.updateModel(
+        ImageModels.animeDiffusionV45Full,
+        persist: false,
+      );
+      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.setSourceImageDimensions(768, 1024);
+      controller.enterEnhanceMode();
+      controller.selectEnhanceMaxScale();
+
+      expect(controller.isMaxEnhanceAvailable, isFalse);
+      expect(
+        container.read(imageWorkflowControllerProvider).enhance.maxScale,
+        isFalse,
+      );
+      expect(
+        container.read(generationParamsNotifierProvider).upscaledEnhance,
+        isFalse,
+      );
+    });
 
     test(
       'upscale settings should clamp persisted comfy scale to safe max',
@@ -856,6 +1068,20 @@ void main() {
     });
 
     test(
+      'selectPreferredUpscaleModel should prefer quantized native models',
+      () {
+        expect(
+          selectPreferredUpscaleModel(const [
+            'seedvr2_7b_fp16.safetensors',
+            'seedvr2_7b_fp8_e4m3fn.safetensors',
+            'seedvr2_7b_sharp_int8_convrot.safetensors',
+          ]),
+          equals('seedvr2_7b_sharp_int8_convrot.safetensors'),
+        );
+      },
+    );
+
+    test(
       'clearSourceImage should preserve workflow setting preferences',
       () async {
         final controller = container.read(
@@ -865,7 +1091,7 @@ void main() {
         controller.updateUpscaleBackend(UpscaleBackend.novelai);
         controller.updateUpscaleComfyScale(1.7);
         controller.updateUpscaleComfyModel('seedvr2_ema_3b_q4_k_m.safetensors');
-        controller.updateEnhanceMagnitude(0.66);
+        controller.updateEnhanceLevel(2);
         controller.toggleEnhanceIndividualSettings(true);
         controller.updateEnhanceIndividualSettings(strength: 0.41, noise: 0.12);
         controller.replaceSourceImage(
@@ -881,7 +1107,7 @@ void main() {
           workflow.upscale.comfyModel,
           equals('seedvr2_ema_3b_q4_k_m.safetensors'),
         );
-        expect(workflow.enhance.magnitude, equals(0.66));
+        expect(workflow.enhance.level, equals(2));
         expect(workflow.enhance.showIndividualSettings, isTrue);
         expect(workflow.enhance.strength, equals(0.41));
         expect(workflow.enhance.noise, equals(0.12));

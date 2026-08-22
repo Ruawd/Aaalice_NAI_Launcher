@@ -8,6 +8,48 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
 
 void main() {
+  testWidgets('layoutAspectRatio keeps masonry card geometry stable', (
+    tester,
+  ) async {
+    const post = DanbooruPost(
+      id: 122,
+      width: 600,
+      height: 900,
+      rating: 'g',
+      previewFileUrl: 'https://example.com/portrait.jpg',
+      tagString: 'test_tag',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: DanbooruPostCard(
+                post: post,
+                itemWidth: 200,
+                layoutAspectRatio: 1,
+                isFavorited: false,
+                onTap: () {},
+                onTagTap: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('online-gallery-card-layout')))
+          .height,
+      200,
+    );
+  });
+
   testWidgets(
     'uses the display image when a high-DPR card exceeds preview size',
     (tester) async {
@@ -183,6 +225,168 @@ void main() {
 
     expect(find.byTooltip('Favorite'), findsNothing);
     expect(find.byTooltip('Unfavorite'), findsNothing);
+  });
+
+  testWidgets('hover preview remains inside a small app viewport', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(500, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const post = DanbooruPost(
+      id: 126,
+      width: 600,
+      height: 900,
+      rating: 'g',
+      previewFileUrl: 'https://example.com/thumbnail.jpg',
+      tagString: 'test_tag',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Stack(
+              children: [
+                Positioned(
+                  right: 2,
+                  bottom: 2,
+                  child: SizedBox(
+                    width: 150,
+                    child: DanbooruPostCard(
+                      post: post,
+                      itemWidth: 150,
+                      isFavorited: false,
+                      onTap: () {},
+                      onTagTap: (_) {},
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final card = find.byType(DanbooruPostCard);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await tester.pump();
+    await mouse.moveTo(tester.getCenter(card));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 301));
+
+    final preview = find.byKey(const ValueKey('online-gallery-hover-preview'));
+    expect(preview, findsOneWidget);
+    final rect = tester.getRect(preview);
+    expect(rect.left, greaterThanOrEqualTo(10));
+    expect(rect.top, greaterThanOrEqualTo(10));
+    expect(rect.right, lessThanOrEqualTo(490));
+    expect(rect.bottom, lessThanOrEqualTo(350));
+    for (var frame = 0; frame < 8; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(
+        tester.getTopLeft(preview).dy,
+        closeTo(rect.top, 0.01),
+        reason: 'bottom-clamped hover previews must not shift between frames',
+      );
+    }
+
+    final media = find.byKey(const ValueKey('online-gallery-hover-media'));
+    final hoverImage = tester.widget<CachedNetworkImage>(
+      find
+          .descendant(of: media, matching: find.byType(CachedNetworkImage))
+          .first,
+    );
+    expect(hoverImage.fit, BoxFit.fitWidth);
+    expect(hoverImage.alignment, Alignment.topCenter);
+  });
+
+  testWidgets('hover preview preserves landscape ratio and wide-image floor', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    Future<void> verify({
+      required DanbooruPost post,
+      required double expectedHeight,
+    }) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 150,
+                  child: DanbooruPostCard(
+                    post: post,
+                    itemWidth: 150,
+                    isFavorited: false,
+                    onTap: () {},
+                    onTagTap: (_) {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final card = find.byType(DanbooruPostCard);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      await tester.pump();
+      await mouse.moveTo(tester.getCenter(card));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 301));
+      await tester.pump();
+
+      final media = find.byKey(const ValueKey('online-gallery-hover-media'));
+      expect(media, findsOneWidget);
+      expect(tester.getSize(media).height, closeTo(expectedHeight, 0.1));
+      final hoverImage = tester.widget<CachedNetworkImage>(
+        find
+            .descendant(of: media, matching: find.byType(CachedNetworkImage))
+            .first,
+      );
+      expect(hoverImage.fit, BoxFit.contain);
+      expect(hoverImage.alignment, Alignment.center);
+      await mouse.removePointer();
+    }
+
+    await verify(
+      post: const DanbooruPost(
+        id: 127,
+        width: 6000,
+        height: 4000,
+        rating: 'g',
+        previewFileUrl: 'https://example.com/landscape.jpg',
+        tagString: 'test_tag',
+      ),
+      expectedHeight: 316 / 1.5,
+    );
+    await verify(
+      post: const DanbooruPost(
+        id: 128,
+        width: 4000,
+        height: 1000,
+        rating: 'g',
+        previewFileUrl: 'https://example.com/wide.jpg',
+        tagString: 'test_tag',
+      ),
+      expectedHeight: 150,
+    );
   });
 
   testWidgets('Gelbooru favorite cards show a static read-only marker', (

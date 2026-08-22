@@ -18,6 +18,24 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_config.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_wrapper.dart';
+import 'package:nai_launcher/presentation/providers/generation/generation_settings_notifiers.dart'
+    as generation_settings;
+import 'package:nai_launcher/presentation/widgets/prompt/nai_syntax_controller.dart';
+
+Future<void> _typeCurrentText(
+  WidgetTester tester,
+  TextEditingController controller,
+) async {
+  final text = controller.text;
+  assert(text.isNotEmpty);
+  final prefix = text.substring(0, text.length - 1);
+  final field = find.byType(TextField);
+  await tester.enterText(field, prefix);
+  await tester.pump();
+  await tester.enterText(field, text);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 30));
+}
 
 void main() {
   late String hivePath;
@@ -75,7 +93,7 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 30));
+    await _typeCurrentText(tester, controller);
 
     expect(find.text('blue_eyes'), findsOneWidget);
     expect(find.text('BASE'), findsOneWidget);
@@ -88,7 +106,137 @@ void main() {
     expect(controller.selection.extentOffset, controller.text.length);
   });
 
-  testWidgets('opens safely from an initially focused field and detaches', (
+  testWidgets(
+    'generation autocomplete toggle updates the unified settings used by dialogs',
+    (tester) async {
+      final controller = NaiSyntaxController(
+        text: '1.4::artist:kazutake_hazano::,\n1g',
+      );
+      controller.selection = TextSelection.collapsed(
+        offset: controller.text.length,
+      );
+      final focusNode = FocusNode();
+      addTearDown(() {
+        controller.dispose();
+        focusNode.dispose();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autocompleteSettingsProvider.overrideWith(
+              (ref) => _DisabledAutocompleteSettingsNotifier(),
+            ),
+            autocompleteServicesProvider.overrideWithValue(
+              AutocompleteServices(
+                localSources: [_BaseSource()],
+                dictionaryTranslations: const _NoTranslations(),
+                llmTranslations: const _NoTranslations(),
+                danbooru: _NoDanbooru(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: focusNode,
+                maxLines: null,
+                child: TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  maxLines: null,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(AutocompleteWrapper)),
+      );
+      expect(container.read(autocompleteSettingsProvider).enabled, isFalse);
+      expect(
+        container.read(generation_settings.autocompleteSettingsProvider),
+        isFalse,
+      );
+
+      await container
+          .read(generation_settings.autocompleteSettingsProvider.notifier)
+          .set(true);
+      await tester.pump();
+
+      expect(container.read(autocompleteSettingsProvider).enabled, isTrue);
+      focusNode.requestFocus();
+      await tester.pump();
+      await _typeCurrentText(tester, controller);
+
+      expect(
+        find.byKey(const ValueKey('autocomplete-popup-surface')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'uses descendant input focus when a caller passes a different focus node',
+    (tester) async {
+      final controller = TextEditingController(text: 'blu');
+      controller.selection = const TextSelection.collapsed(offset: 3);
+      final wrapperFocusNode = FocusNode();
+      final inputFocusNode = FocusNode();
+      addTearDown(() {
+        controller.dispose();
+        wrapperFocusNode.dispose();
+        inputFocusNode.dispose();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autocompleteServicesProvider.overrideWithValue(
+              AutocompleteServices(
+                localSources: [_BaseSource()],
+                dictionaryTranslations: const _NoTranslations(),
+                llmTranslations: const _NoTranslations(),
+                danbooru: _NoDanbooru(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: wrapperFocusNode,
+                child: TextField(
+                  controller: controller,
+                  focusNode: inputFocusNode,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      inputFocusNode.requestFocus();
+      await tester.pump();
+      expect(wrapperFocusNode.hasFocus, isFalse);
+      await _typeCurrentText(tester, controller);
+
+      expect(
+        find.byKey(const ValueKey('autocomplete-popup-surface')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('focus and caret clicks stay quiet until text is edited', (
     tester,
   ) async {
     final controller = TextEditingController(text: 'blu');
@@ -134,8 +282,30 @@ void main() {
 
     expect(
       find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsNothing,
+    );
+
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsNothing,
+    );
+
+    await _typeCurrentText(tester, controller);
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
       findsOneWidget,
     );
+
+    controller.selection = const TextSelection.collapsed(offset: 1);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsNothing,
+    );
+
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     expect(
@@ -145,8 +315,284 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('opens normal autocomplete on tag click when enabled', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'blu');
+    controller.selection = const TextSelection.collapsed(offset: 3);
+    final focusNode = FocusNode();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteSettingsProvider.overrideWith(
+            (ref) => _OpenOnTagClickSettingsNotifier(),
+          ),
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [_BaseSource()],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AutocompleteWrapper(
+              controller: controller,
+              focusNode: focusNode,
+              child: TextField(controller: controller, focusNode: focusNode),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+
+    expect(find.text('Tag autocomplete'), findsOneWidget);
+    expect(find.text('blue_eyes'), findsOneWidget);
+    expect(find.text('Related tags'), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(controller.text, 'blue_eyes, ');
+  });
+
   testWidgets(
-    'selection callback receives the updated full text without auto-related mode',
+    'click-opened autocomplete survives delayed caret sync and empty results',
+    (tester) async {
+      final controller = TextEditingController(text: 'no_watermark');
+      controller.selection = const TextSelection.collapsed(offset: 0);
+      final focusNode = FocusNode();
+      final source = _DelayedEmptyTagSource();
+      addTearDown(() {
+        controller.dispose();
+        focusNode.dispose();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autocompleteSettingsProvider.overrideWith(
+              (ref) => _OpenOnTagClickSettingsNotifier(),
+            ),
+            autocompleteServicesProvider.overrideWithValue(
+              AutocompleteServices(
+                localSources: [source],
+                dictionaryTranslations: const _NoTranslations(),
+                llmTranslations: const _NoTranslations(),
+                danbooru: _NoDanbooru(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: focusNode,
+                child: TextField(controller: controller, focusNode: focusNode),
+              ),
+            ),
+          ),
+        ),
+      );
+      focusNode.requestFocus();
+      await tester.pump();
+
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(find.text('Tag autocomplete'), findsOneWidget);
+
+      controller.selection = const TextSelection.collapsed(offset: 1);
+      await tester.pump();
+      expect(find.text('Tag autocomplete'), findsOneWidget);
+
+      source.complete();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(find.text('Tag autocomplete'), findsOneWidget);
+      expect(find.text('No matching tags found'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Shift+Enter inserts a newline instead of confirming an open popup',
+    (tester) async {
+      final controller = TextEditingController(text: 'blu');
+      controller.selection = const TextSelection.collapsed(offset: 3);
+      final focusNode = FocusNode();
+      addTearDown(() {
+        controller.dispose();
+        focusNode.dispose();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autocompleteSettingsProvider.overrideWith(
+              (ref) => _OpenOnTagClickSettingsNotifier(),
+            ),
+            autocompleteServicesProvider.overrideWithValue(
+              AutocompleteServices(
+                localSources: [_BaseSource()],
+                dictionaryTranslations: const _NoTranslations(),
+                llmTranslations: const _NoTranslations(),
+                danbooru: _NoDanbooru(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: focusNode,
+                maxLines: 4,
+                child: TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  maxLines: 4,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      focusNode.requestFocus();
+      await tester.pump();
+
+      final field = find.byType(TextField);
+      await tester.tapAt(tester.getTopLeft(field) + const Offset(20, 20));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(find.text('Tag autocomplete'), findsOneWidget);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+
+      expect(controller.text, isNot(contains('blue_eyes')));
+      expect(
+        find.byKey(const ValueKey('autocomplete-popup-surface')),
+        findsNothing,
+      );
+
+      // Widget tests do not synthesize the platform's newline text edit from
+      // a hardware key event, so deliver the edit that Flutter receives next.
+      await tester.enterText(field, '${controller.text}\n');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(controller.text, contains('\n'));
+      expect(
+        find.byKey(const ValueKey('autocomplete-popup-surface')),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('structural edits stay quiet but tag text deletion queries', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'first, solo_focus');
+    controller.selection = const TextSelection.collapsed(offset: 7);
+    final focusNode = FocusNode();
+    final source = _BaseSource();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [source],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AutocompleteWrapper(
+              controller: controller,
+              focusNode: focusNode,
+              maxLines: 4,
+              child: TextField(
+                controller: controller,
+                focusNode: focusNode,
+                maxLines: 4,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+
+    controller.value = const TextEditingValue(
+      text: 'first, \nsolo_focus',
+      selection: TextSelection.collapsed(offset: 8),
+    );
+    await tester.pump(const Duration(milliseconds: 30));
+
+    controller.value = const TextEditingValue(
+      text: 'first, solo_focus',
+      selection: TextSelection.collapsed(offset: 7),
+    );
+    await tester.pump(const Duration(milliseconds: 30));
+
+    controller.value = const TextEditingValue(
+      text: 'first,solo_focus',
+      selection: TextSelection.collapsed(offset: 6),
+    );
+    await tester.pump(const Duration(milliseconds: 30));
+
+    expect(source.lastLimit, isNull);
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsNothing,
+    );
+
+    controller.value = const TextEditingValue(
+      text: 'first,olo_focus',
+      selection: TextSelection.collapsed(offset: 6),
+    );
+    await tester.pump(const Duration(milliseconds: 30));
+
+    expect(source.lastLimit, isNotNull);
+    expect(find.text('Tag autocomplete'), findsOneWidget);
+  });
+
+  testWidgets(
+    'selection callback receives full text and normal completion opens related tags',
     (tester) async {
       final controller = TextEditingController(text: 'masterpiece, blu');
       controller.selection = const TextSelection.collapsed(offset: 16);
@@ -188,7 +634,9 @@ void main() {
       );
       focusNode.requestFocus();
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 30));
+      await _typeCurrentText(tester, controller);
+      expect(source.tokens.last, 'blu');
+      final queryCountBeforeSelection = source.tokens.length;
 
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pump();
@@ -196,7 +644,98 @@ void main() {
 
       expect(controller.text, 'masterpiece, blue_eyes');
       expect(selectedText, controller.text);
-      expect(source.tokens, ['blu']);
+      expect(source.tokens, hasLength(queryCountBeforeSelection + 2));
+      expect(source.relatedTags.last, 'blue_eyes');
+      expect(find.text('Related tags'), findsOneWidget);
+      expect(find.text('halo'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+
+      expect(controller.text, 'masterpiece, blue_eyes, halo');
+      expect(source.relatedTags.last, 'halo');
+      expect(find.text('Related tags'), findsOneWidget);
+      expect(find.text('smile'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'syntax repaint notifications do not close a loading related popup',
+    (tester) async {
+      final controller = NaiSyntaxController(text: 'blu');
+      controller.selection = const TextSelection.collapsed(offset: 3);
+      final focusNode = FocusNode();
+      final source = _DelayedEmptyRelatedSource();
+      addTearDown(() {
+        controller.dispose();
+        focusNode.dispose();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autocompleteSettingsProvider.overrideWith(
+              (ref) => _OpenOnTagClickSettingsNotifier(),
+            ),
+            autocompleteServicesProvider.overrideWithValue(
+              AutocompleteServices(
+                localSources: [source],
+                dictionaryTranslations: const _NoTranslations(),
+                llmTranslations: const _NoTranslations(),
+                danbooru: _NoDanbooru(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: focusNode,
+                child: TextField(controller: controller, focusNode: focusNode),
+              ),
+            ),
+          ),
+        ),
+      );
+      focusNode.requestFocus();
+      await tester.pump();
+      await _typeCurrentText(tester, controller);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(find.text('Related tags'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('autocomplete-popup-empty')),
+        findsOneWidget,
+      );
+
+      controller.updateSearchHighlights(
+        matches: const [],
+        activeMatchIndex: -1,
+      );
+      await tester.pump();
+      expect(find.text('Related tags'), findsOneWidget);
+
+      // The real prompt stack can synchronize the selection after applying a
+      // completion. That delayed caret notification must not cancel an active
+      // related query; actual pointer/keyboard movement has its own close path.
+      controller.selection = const TextSelection.collapsed(offset: 2);
+      await tester.pump();
+      expect(find.text('Related tags'), findsOneWidget);
+
+      source.completeRelated();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(find.text('Related tags'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('autocomplete-popup-empty')),
+        findsOneWidget,
+      );
     },
   );
 
@@ -247,7 +786,7 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 30));
+    await _typeCurrentText(tester, controller);
 
     expect(find.text('蓝眼睛'), findsNothing);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -355,6 +894,7 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
+    await _typeCurrentText(tester, controller);
 
     expect(
       find.byKey(const ValueKey('autocomplete-popup-surface')),
@@ -369,6 +909,10 @@ void main() {
 
     source.complete();
     await tester.pump();
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsNothing,
+    );
   });
 
   testWidgets('keyboard repeat navigates candidates without repeated insert', (
@@ -410,7 +954,7 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 30));
+    await _typeCurrentText(tester, controller);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowDown);
     await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowDown);
@@ -473,7 +1017,7 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 30));
+    await _typeCurrentText(tester, controller);
 
     final inputRect = tester.getRect(find.byType(TextField));
     final popupRect = tester.getRect(
@@ -536,22 +1080,34 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 30));
+    await _typeCurrentText(tester, controller);
 
     final listView = tester.widget<ListView>(find.byType(ListView));
     final scrollController = listView.controller!;
+    final popup = find.byKey(const ValueKey('autocomplete-popup-surface'));
+    final initialPopupRect = tester.getRect(popup);
     expect(scrollController.offset, 0);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('autocomplete-candidate-tag_00')),
+        matching: find.byType(AnimatedContainer),
+      ),
+      findsNothing,
+      reason: 'keyboard selection must not start a per-row implicit animation',
+    );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
     expect(scrollController.offset, 0);
+    expect(tester.getRect(popup), initialPopupRect);
 
     for (var i = 0; i < 10; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     }
     await tester.pumpAndSettle();
 
+    expect(tester.getRect(popup), initialPopupRect);
     expect(scrollController.offset, greaterThan(0));
     expect(
       scrollController.offset,
@@ -559,6 +1115,129 @@ void main() {
       reason: 'the selected row must not be aligned to the top edge',
     );
   });
+
+  testWidgets('Ctrl-click keeps related intent until mouse up', (tester) async {
+    final controller = TextEditingController(text: 'solo_focus');
+    controller.selection = const TextSelection.collapsed(offset: 10);
+    final focusNode = FocusNode();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteSettingsProvider.overrideWith(
+            (ref) => _OpenOnTagClickSettingsNotifier(),
+          ),
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [_NormalAndRelatedSource()],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AutocompleteWrapper(
+              controller: controller,
+              focusNode: focusNode,
+              child: TextField(controller: controller, focusNode: focusNode),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+    await _typeCurrentText(tester, controller);
+    expect(find.text('Tag autocomplete'), findsOneWidget);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    expect(HardwareKeyboard.instance.isControlPressed, isTrue);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(
+      location: tester.getCenter(find.byType(TextField)),
+    );
+    await gesture.down(tester.getCenter(find.byType(TextField)));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 30));
+    await tester.pump();
+
+    expect(find.text('Related tags'), findsOneWidget);
+    expect(find.text('halo'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Ctrl-click falls back to normal autocomplete for partial Chinese tags',
+    (tester) async {
+      final controller = TextEditingController(text: '大慈树');
+      controller.selection = TextSelection.collapsed(
+        offset: controller.text.length,
+      );
+      final focusNode = FocusNode();
+      final source = _PartialChineseSource();
+      addTearDown(() {
+        controller.dispose();
+        focusNode.dispose();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autocompleteSettingsProvider.overrideWith(
+              (ref) => _OpenOnTagClickSettingsNotifier(),
+            ),
+            autocompleteServicesProvider.overrideWithValue(
+              AutocompleteServices(
+                localSources: [source],
+                tagLookupSources: [source],
+                dictionaryTranslations: const _NoTranslations(),
+                llmTranslations: const _NoTranslations(),
+                danbooru: _NoDanbooru(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: focusNode,
+                child: TextField(controller: controller, focusNode: focusNode),
+              ),
+            ),
+          ),
+        ),
+      );
+      focusNode.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(
+        location: tester.getCenter(find.byType(TextField)),
+      );
+      await gesture.down(tester.getCenter(find.byType(TextField)));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 30));
+      await tester.pump();
+
+      expect(find.text('Tag autocomplete'), findsOneWidget);
+      expect(find.text('大慈树王 (原神)'), findsOneWidget);
+      expect(find.text('Related tags'), findsNothing);
+    },
+  );
 
   testWidgets(
     'opens, pins, and continuously inserts related tags by keyboard',
@@ -756,7 +1435,14 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 30));
+    await _typeCurrentText(tester, controller);
+
+    final inputRect = tester.getRect(find.byType(TextField));
+    final popupRect = tester.getRect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+    );
+    expect(popupRect.bottom, lessThanOrEqualTo(inputRect.top - 8));
+    expect(popupRect.width, lessThanOrEqualTo(800 * 0.62));
 
     final settingsButton = find.byKey(
       const ValueKey('autocomplete-popup-settings'),
@@ -783,6 +1469,20 @@ void main() {
   });
 }
 
+class _DelayedEmptyTagSource implements CompletionSource {
+  final Completer<List<CompletionCandidate>> _result = Completer();
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) =>
+      _result.future;
+
+  void complete() {
+    if (!_result.isCompleted) {
+      _result.complete(const <CompletionCandidate>[]);
+    }
+  }
+}
+
 class _BaseSource implements CompletionSource {
   int? lastLimit;
 
@@ -801,12 +1501,51 @@ class _BaseSource implements CompletionSource {
   }
 }
 
+class _DelayedEmptyRelatedSource implements CompletionSource {
+  final Completer<List<CompletionCandidate>> _related = Completer();
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) {
+    if (query.relatedTag != null) return _related.future;
+    return Future.value([
+      const CompletionCandidate(
+        canonicalTag: 'blue_eyes',
+        category: TagCategory.general,
+        postCount: 1000,
+        matchKind: CompletionMatchKind.englishPrefix,
+        sources: {CompletionSourceKind.base},
+      ),
+    ]);
+  }
+
+  void completeRelated() {
+    if (!_related.isCompleted) {
+      _related.complete(const <CompletionCandidate>[]);
+    }
+  }
+}
+
 class _RecordingBaseSource implements CompletionSource {
   final List<String> tokens = [];
+  final List<String> relatedTags = [];
 
   @override
   Future<List<CompletionCandidate>> search(CompletionQuery query) async {
     tokens.add(query.token);
+    if (query.relatedTag case final relatedTag?) {
+      relatedTags.add(relatedTag);
+      return [
+        CompletionCandidate(
+          canonicalTag: relatedTag == 'blue_eyes' ? 'halo' : 'smile',
+          category: TagCategory.general,
+          postCount: 250000,
+          matchKind: CompletionMatchKind.related,
+          sources: const {CompletionSourceKind.cooccurrence},
+          relatedScore: 0.77,
+          cooccurrenceCount: 220000,
+        ),
+      ];
+    }
     return [
       CompletionCandidate(
         canonicalTag: query.token == '蓝' ? '蓝色眼睛' : 'blue_eyes',
@@ -881,6 +1620,51 @@ class _LibrarySource implements CompletionSource {
   }
 }
 
+class _NormalAndRelatedSource implements CompletionSource {
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    if (query.relatedTag != null) {
+      return const [
+        CompletionCandidate(
+          canonicalTag: 'halo',
+          category: TagCategory.general,
+          postCount: 250000,
+          matchKind: CompletionMatchKind.related,
+          sources: {CompletionSourceKind.cooccurrence},
+          relatedScore: 0.77,
+          cooccurrenceCount: 220000,
+        ),
+      ];
+    }
+    return const [
+      CompletionCandidate(
+        canonicalTag: 'solo_focus',
+        category: TagCategory.general,
+        postCount: 497667,
+        matchKind: CompletionMatchKind.englishExact,
+        sources: {CompletionSourceKind.base},
+      ),
+    ];
+  }
+}
+
+class _PartialChineseSource implements CompletionSource {
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    if (query.token != '大慈树') return const [];
+    return const [
+      CompletionCandidate(
+        canonicalTag: 'rukkhadevata_(genshin_impact)',
+        category: TagCategory.character,
+        postCount: 593,
+        translation: '大慈树王 (原神)',
+        matchKind: CompletionMatchKind.chinesePrefix,
+        sources: {CompletionSourceKind.zhDictionary},
+      ),
+    ];
+  }
+}
+
 class _RelatedSource implements CompletionSource {
   @override
   Future<List<CompletionCandidate>> search(CompletionQuery query) async {
@@ -909,6 +1693,32 @@ class _RelatedSource implements CompletionSource {
           (candidate) => !query.existingTags.contains(candidate.canonicalTag),
         )
         .toList();
+  }
+}
+
+class _DisabledAutocompleteSettingsNotifier
+    extends AutocompleteSettingsNotifier {
+  _DisabledAutocompleteSettingsNotifier() : super(LocalStorageService()) {
+    state = const AutocompleteSettings(
+      enabled: false,
+      danbooruEnabled: false,
+      zhInstallPromptDismissed: true,
+    );
+  }
+
+  @override
+  Future<void> setEnabled(bool value) async {
+    state = state.copyWith(enabled: value);
+  }
+}
+
+class _OpenOnTagClickSettingsNotifier extends AutocompleteSettingsNotifier {
+  _OpenOnTagClickSettingsNotifier() : super(LocalStorageService()) {
+    state = const AutocompleteSettings(
+      openOnTagClick: true,
+      danbooruEnabled: false,
+      zhInstallPromptDismissed: true,
+    );
   }
 }
 

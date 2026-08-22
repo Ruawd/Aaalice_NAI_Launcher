@@ -21,6 +21,16 @@ class WarmupMessageLocalizer {
     return localized ?? message;
   }
 
+  static String localizeError(AppLocalizations l10n, String message) {
+    const dataMigrationPrefix = 'warmup_dataMigrationFailed|';
+    if (message.startsWith(dataMigrationPrefix)) {
+      return l10n.warmup_dataMigrationFailed(
+        message.substring(dataMigrationPrefix.length),
+      );
+    }
+    return message;
+  }
+
   static String? _localizeKnownMessage(AppLocalizations l10n, String message) {
     if (message.startsWith('warmup_networkCheck_attempt|')) {
       final parts = message.split('|');
@@ -40,6 +50,12 @@ class WarmupMessageLocalizer {
     if (message.startsWith('warmup_fetchingTags|')) {
       final parts = message.split('|');
       return l10n.warmup_fetchingTags(parts.length == 2 ? parts[1] : '');
+    }
+
+    if (message.startsWith('warmup_dataMigrationFailed|')) {
+      return l10n.warmup_dataMigrationFailed(
+        message.substring('warmup_dataMigrationFailed|'.length),
+      );
     }
 
     return switch (message) {

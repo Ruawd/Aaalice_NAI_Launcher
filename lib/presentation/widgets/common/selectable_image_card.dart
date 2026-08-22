@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
+import '../../../core/utils/keyboard_modifier_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
@@ -142,6 +143,9 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   /// 切换本地画廊收藏状态。
   final VoidCallback? onFavoriteToggle;
 
+  /// 图片层下方的垫层，用于让透明像素透出指定底色（如棋盘格）。
+  final Widget? underlay;
+
   // ========== 生成中状态相关参数 ==========
 
   /// 是否处于生成中状态
@@ -212,6 +216,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.onSaveToLibrary,
     this.isFavorite = false,
     this.onFavoriteToggle,
+    this.underlay,
     // 生成中状态参数
     this.isGenerating = false,
     this.progress,
@@ -889,6 +894,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
             child: Stack(
               fit: StackFit.expand,
               children: [
+                // 0. 垫层：图片透明像素处透出的底色
+                if (widget.underlay != null) widget.underlay!,
+
                 // 1. 图片层
                 if (showCompletionPlaceholder)
                   RepaintBoundary(
@@ -1121,8 +1129,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   }
 
   bool get _isMultiSelectModifierPressed {
-    final keyboard = HardwareKeyboard.instance;
-    return keyboard.isControlPressed || keyboard.isMetaPressed;
+    return isPrimarySelectionModifierPressed();
   }
 
   void _handleLegacyTap() {

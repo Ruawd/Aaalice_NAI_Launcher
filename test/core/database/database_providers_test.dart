@@ -94,7 +94,7 @@ void main() {
   );
 
   test(
-    'disposing provider container closes manager owned asset sources',
+    'provider container does not own the global database lifecycle',
     () async {
       final container = ProviderContainer();
 
@@ -106,7 +106,70 @@ void main() {
       container.dispose();
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      expect((await cooccurrence.checkHealth()).status, HealthStatus.corrupted);
+      expect((await cooccurrence.checkHealth()).status, HealthStatus.healthy);
+    },
+  );
+
+  test(
+    'concurrent DatabaseManager initialization shares one instance',
+    () async {
+      final results = await Future.wait([
+        DatabaseManager.initialize(),
+        DatabaseManager.initialize(),
+        DatabaseManager.initialize(),
+      ]);
+
+      expect(identical(results[0], results[1]), isTrue);
+      expect(identical(results[1], results[2]), isTrue);
+    },
+  );
+
+  test(
+    'failed DatabaseManager initialization can retry with a fresh instance',
+    () async {
+      final blockedPath = p.join(tempDir.path, 'not_a_directory');
+      await File(blockedPath).writeAsString('blocked');
+      PathProviderPlatform.instance = _TestPathProviderPlatform(
+        appSupportPath: blockedPath,
+      );
+
+      await expectLater(
+        DatabaseManager.initialize(),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(() => DatabaseManager.instance, throwsStateError);
+
+      PathProviderPlatform.instance = _TestPathProviderPlatform(
+        appSupportPath: appSupportDir.path,
+      );
+      final manager = await DatabaseManager.initialize();
+
+      expect(manager.isInitialized, isTrue);
+      expect(identical(DatabaseManager.instance, manager), isTrue);
+    },
+  );
+
+  test(
+    'local gallery remains available when an optional asset database fails',
+    () async {
+      assetBytes.remove('assets/databases/cooccurrence.db');
+
+      final manager = await DatabaseManager.initialize(maxConnections: 2);
+      final gallery = await manager.ensureGalleryDataSource();
+
+      expect(manager.isInitialized, isTrue);
+      expect(gallery.isInitialized, isTrue);
+
+      final db = await manager.acquireDatabase();
+      try {
+        final tables = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+          ['gallery_images'],
+        );
+        expect(tables, isNotEmpty);
+      } finally {
+        await manager.releaseDatabase(db);
+      }
     },
   );
 

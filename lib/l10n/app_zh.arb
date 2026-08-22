@@ -217,8 +217,14 @@
   "settings_privacySharing": "安全与分享",
   "settings_integrations": "集成",
   "settings_generationInputSection": "输入",
+  "settings_generationOutputSection": "图像输出",
   "settings_generationRetrySection": "失败重试",
   "settings_generationFeedbackSection": "完成提醒",
+  "settings_alphaModeTitle": "透明图像 Alpha 模式",
+  "settings_alphaModeStraight": "直通（Straight）",
+  "settings_alphaModePremultiplied": "预乘（Premultiplied）",
+  "settings_alphaModeStraightDescription": "保留未乘 Alpha 的 RGB，适合继续编辑，也是 NovelAI 官网默认值。",
+  "settings_alphaModePremultipliedDescription": "RGB 已乘 Alpha，适合要求预乘输入的合成与渲染流程。",
   "settings_promptAssistant": "提示词助手",
   "settings_selectStyle": "选择风格",
   "settings_defaultPreset": "默认",
@@ -297,11 +303,30 @@
   "generation_clearHistory": "清除历史记录",
   "generation_clearHistoryConfirm": "确定要清除所有历史记录吗？此操作不可撤销。",
   "generation_model": "模型",
+  "generation_opusUsageRemaining": "Opus 免费生成剩余 {percent}%",
+  "generation_opusUsageEstimate": "约可再生成 {count} 张",
+  "generation_opusUsageRefill": "额度会随时间自动恢复",
+  "generation_opusUsageExhausted": "Opus 免费额度已用完，V5 生成将消耗 Anlas，额度会随时间自动恢复",
   "generation_imageSize": "图像尺寸",
+  "generation_transparentBackground": "透明背景",
+  "generation_e2eUpscaleHint": "服务端输出 {size}",
   "generation_sampler": "采样器",
   "generation_steps": "步数: {steps}",
   "generation_cfgScale": "CFG 强度：{scale}",
   "generation_seed": "种子",
+  "generation_previewApplySeed": "使用当前图片的种子",
+  "generation_transparencyBackgroundTitle": "透明部分显示",
+  "generation_transparencyChecker": "跟随主题棋盘格",
+  "generation_transparencyCheckerLight": "浅色棋盘格",
+  "generation_transparencyCheckerDark": "深色棋盘格",
+  "generation_transparencyNone": "无",
+  "generation_transparencyBlack": "黑色",
+  "generation_transparencyWhite": "白色",
+  "generation_transparencyGray": "灰色",
+  "generation_transparencyRed": "红色",
+  "generation_transparencyGreen": "绿色",
+  "generation_transparencyBlue": "蓝色",
+  "generation_transparencyCustom": "自定义颜色",
   "generation_seedRandom": "随机",
   "generation_seedLock": "固定种子",
   "generation_seedUnlock": "解锁种子",
@@ -383,7 +408,7 @@
   "prompt_smartAutocomplete": "智能补全",
   "prompt_smartAutocompleteSubtitle": "输入时显示标签建议",
   "prompt_autoFormat": "自动格式化",
-  "prompt_autoFormatSubtitle": "中文逗号转英文、空格自动转下划线",
+  "prompt_autoFormatSubtitle": "中文逗号转英文、标签内空格转下划线（保留换行）",
   "prompt_highlightEmphasis": "高亮强调",
   "prompt_highlightEmphasisSubtitle": "括号和权重语法高亮显示",
   "prompt_sdSyntaxAutoConvert": "SD语法自动转换",
@@ -528,6 +553,7 @@
   "img2img_enhanceMagnitude": "幅度",
   "img2img_enhanceShowIndividualSettings": "显示单独设置",
   "img2img_enhanceUpscaleAmount": "放大倍数",
+  "img2img_enhanceScaleMax": "最大",
   "img2img_focusedInpaint": "Focused Inpainting（聚焦重绘）",
   "img2img_focusedInpaintEnabledHint": "已启用。请在重绘编辑器左上角按钮里调整聚焦区域与 Minimum Context Area。",
   "img2img_focusedInpaintDisabledHint": "默认是普通重绘；如需聚焦重绘，请在重绘编辑器左上角按钮中开启并框选区域。",
@@ -538,8 +564,9 @@
   "img2img_upscaleMode": "放大方式",
   "img2img_upscaleRegularModel": "普通模型",
   "img2img_upscaleModel": "超分模型",
-  "img2img_noSeedvr2Models": "未发现 SeedVR2 模型，请刷新模型列表或检查 SeedVR2 节点/模型文件。",
+  "img2img_noSeedvr2Models": "未发现可用的 SeedVR2 模型，请刷新模型列表，并检查 ComfyUI 原生 models/diffusion_models、models/vae 或 SeedVR2 自定义节点模型目录。",
   "img2img_noRegularUpscaleModels": "未发现普通超分模型，请刷新模型列表或检查 models/upscale_models。",
+  "img2img_useNativeSeedvr2Workflow": "将使用 ComfyUI 原生 SeedVR2 一步超分流程。",
   "img2img_useSeedvr2TiledWorkflow": "将使用 SeedVR2TilingUpscaler 分块超分流程。",
   "img2img_useSeedvr2Workflow": "将使用 SeedVR2VideoUpscaler 流程。",
   "img2img_useRegularUpscaleWorkflow": "将使用 UpscaleModelLoader + ImageUpscaleWithModel 流程，并用 Lanczos 修正到目标倍率。",
@@ -574,9 +601,18 @@
   "img2img_metricSpeed": "速度",
   "img2img_metricVram": "显存",
   "img2img_metricQuality": "效果",
-  "img2img_seedvr2VaeTileHint": "同时写入 SeedVR2 VAE MODEL 的 encode/decode tile size。",
+  "img2img_seedvr2Engine": "SeedVR2 引擎",
+  "img2img_seedvr2EngineAuto": "自动",
+  "img2img_seedvr2EngineNative": "原生",
+  "img2img_seedvr2EngineLegacy": "兼容节点",
+  "img2img_seedvr2EngineResolvedNative": "当前使用 ComfyUI 原生 SeedVR2。",
+  "img2img_seedvr2EngineResolvedLegacy": "当前使用已安装的 SeedVR2 自定义节点。",
+  "img2img_seedvr2EngineUnavailable": "当前选择的 SeedVR2 引擎或所需模型不可用，请刷新模型列表或切换引擎。",
+  "img2img_seedvr2VaeTileHint": "设置 SeedVR2 VAE 编码与解码的分块尺寸。",
   "img2img_seedvr2UseTiledUpscale": "使用分块放大",
   "img2img_seedvr2UseTiledUpscaleHint": "启用后改用 SeedVR2TilingUpscaler，适合大图或显存压力较高的场景。",
+  "settings_comfyUiSeedvr2EmbedNaiMetadata": "在 SeedVR2 结果中写入 NAI 生成参数",
+  "settings_comfyUiSeedvr2EmbedNaiMetadataHint": "默认关闭。开启后会写入启动器当前的提示词和生成参数；关闭时保留 ComfyUI 返回的原始 PNG 元数据。",
   "img2img_seedvr2TileSize": "分块图块大小",
   "img2img_seedvr2TileSizeHint": "同时控制 SeedVR2TilingUpscaler 的 tile_width / tile_height。",
   "img2img_seedvr2BlocksToSwap": "内存卸载层数",
@@ -962,7 +998,7 @@
   "reference_disable": "禁用参考",
   "vibe_normalize": "标准化参考强度值",
   "vibe_sourceType_png": "PNG",
-  "vibe_sourceType_v4vibe": "V4 Vibe",
+  "vibe_sourceType_v4vibe": "Vibe 文件",
   "vibe_sourceType_bundle": "组合包",
   "vibe_sourceType_image": "图片",
   "vibe_sourceType": "数据源",
@@ -975,6 +1011,7 @@
 
   "character_buttonLabel": "角色",
   "character_addCharacter": "添加角色",
+  "character_limitReached": "已达当前模型的角色上限（{limit} 个）",
   "character_number": "角色 {index}",
   "gallery_generationParams": "生成参数",
   "gallery_metaModel": "模型",
@@ -1018,6 +1055,12 @@
   "onlineGallery_favorites": "收藏",
   "onlineGallery_searchTags": "搜索标签...",
   "onlineGallery_refresh": "刷新",
+  "onlineGallery_random": "随机",
+  "onlineGallery_randomRedraw": "再抽一组",
+  "onlineGallery_randomDrawing": "抽取中…",
+  "onlineGallery_randomExhausted": "当前范围暂无更多未见图片",
+  "onlineGallery_randomRestart": "重新开始",
+  "onlineGallery_originalRetry": "原图加载失败，重试",
   "onlineGallery_login": "登录",
   "onlineGallery_logout": "退出登录",
   "onlineGallery_dayRank": "日榜",
@@ -1042,6 +1085,9 @@
   "onlineGallery_general": "通用",
   "onlineGallery_copied": "已复制",
   "onlineGallery_copyTags": "复制标签",
+  "onlineGallery_promptTagCategories": "提示词类别",
+  "onlineGallery_promptTagCategoriesTooltip": "选择复制、发送或加入队列时包含的标签类别",
+  "onlineGallery_keepOnePromptTagCategory": "至少保留一个提示词类别",
   "onlineGallery_open": "打开",
   "onlineGallery_send": "发送",
   "onlineGallery_addToQueue": "加入队列",
@@ -1096,6 +1142,36 @@
   "onlineGallery_fuzzySearch": "模糊匹配",
   "onlineGallery_fuzzySearchTooltip": "开启后使用 *tag* 匹配相近标签；关闭时按 Danbooru 精确标签搜索",
   "onlineGallery_blacklistTags": "黑名单标签",
+  "onlineGallery_outputFilter": "输出过滤",
+  "onlineGallery_outputFilterTooltip": "管理复制、发送和加入队列时自动剔除的标签",
+  "onlineGallery_outputFilterTitle": "输出过滤标签",
+  "onlineGallery_outputFilterSubtitle": "图片仍会正常显示；这些标签只会从复制、发送和队列提示词中精确剔除。",
+  "onlineGallery_outputFilterAddHint": "添加需要从输出中剔除的标签",
+  "onlineGallery_outputFilterInputHint": "支持逗号、中文逗号、顿号或换行分隔",
+  "onlineGallery_outputFilterEmpty": "暂未设置输出过滤标签",
+  "onlineGallery_outputFilterRestoreDefaults": "恢复默认过滤词",
+  "onlineGallery_outputFilterClearTitle": "清空输出过滤？",
+  "onlineGallery_outputFilterClearConfirm": "清空后，水印和马赛克等标签也会重新出现在复制与发送的提示词中。",
+  "onlineGallery_addTagToOutputFilter": "加入输出过滤",
+  "onlineGallery_outputFilterAlreadyAdded": "已在输出过滤中",
+  "onlineGallery_outputFilterMenuHint": "保留图片，只从输出提示词中剔除此标签",
+  "onlineGallery_addTagToBlacklist": "加入黑名单",
+  "onlineGallery_blacklistAlreadyAdded": "已在黑名单中",
+  "onlineGallery_blacklistMenuHint": "隐藏包含此标签的画廊图片",
+  "onlineGallery_outputFilteredTagTooltip": "此标签会在复制、发送和加入队列时被剔除；右键可管理",
+  "onlineGallery_tagContextMenuTooltip": "右键可加入黑名单或输出过滤",
+  "onlineGallery_outputFilterTagAdded": "已将 {tag} 加入输出过滤",
+  "@onlineGallery_outputFilterTagAdded": {
+    "placeholders": {
+      "tag": {}
+    }
+  },
+  "onlineGallery_blacklistTagAdded": "已将 {tag} 加入黑名单",
+  "@onlineGallery_blacklistTagAdded": {
+    "placeholders": {
+      "tag": {}
+    }
+  },
   "onlineGallery_blacklistTitle": "在线画廊黑名单",
   "onlineGallery_blacklistSubtitle": "包含黑名单标签的图片会在在线画廊中直接隐藏。",
   "onlineGallery_addBlacklistTagHint": "添加黑名单标签",
@@ -1169,7 +1245,20 @@
   "onlineGallery_gelbooruMalformedResponse": "Gelbooru 返回了无法解析的数据。",
   "onlineGallery_gelbooruRequestFailed": "Gelbooru 请求失败，请稍后重试。",
   "onlineGallery_aiTagQuery": "搜索作品、作者、标题、标签或模型",
-  "onlineGallery_aiTagPromptQuery": "AI Prompt 搜索（支持 ::artist: 等原始语法）",
+  "onlineGallery_aiTagPromptQuery": "AI Prompt 搜索（可搜索 artist: 等 Prompt 原文）",
+  "onlineGallery_artistHunt": "仅画师串",
+  "onlineGallery_artistHuntTooltip": "只显示正向 Prompt 中明确包含 artist: 标签的图片",
+  "onlineGallery_artistChain": "画师串",
+  "onlineGallery_copyArtistChain": "复制画师串",
+  "onlineGallery_copyFullPrompt": "复制完整 Prompt",
+  "onlineGallery_copyRawArtistFragments": "复制原始画师片段",
+  "onlineGallery_noArtistChain": "无可复制画师串",
+  "onlineGallery_artistCount": "{count} 位画师",
+  "@onlineGallery_artistCount": {"placeholders": {"count": {}}},
+  "onlineGallery_artistHuntNoExactResults": "候选作品中没有精确画师串",
+  "onlineGallery_artistHuntPartialFailure": "有 {count} 个作品解析失败，可重试再次检查。",
+  "@onlineGallery_artistHuntPartialFailure": {"placeholders": {"count": {}}},
+  "onlineGallery_artistHuntDetailFailed": "候选作品详情全部解析失败，请重试。",
   "onlineGallery_aiTagTimeRange": "时间范围",
   "onlineGallery_aiTagAllTime": "全部",
   "onlineGallery_aiTagCurrentMonthly": "实时月榜",
@@ -1267,6 +1356,8 @@
   "qualityTags_disabled": "质量标签已关闭\n点击开启",
   "qualityTags_addToEnd": "添加到提示词末尾:",
   "qualityTags_naiDefault": "NAI 默认",
+  "qualityTags_naiDefaultStandard": "NAI 默认（标准）",
+  "qualityTags_naiDefaultLight": "NAI 默认（轻量）",
   "qualityTags_none": "无",
   "qualityTags_addFromLibrary": "从词库添加",
   "qualityTags_selectFromLibrary": "选择质量词条目",
@@ -1358,6 +1449,12 @@
   "warmup_translationInit": "初始化翻译数据...",
   "warmup_danbooruTagsInit": "初始化 Danbooru 标签...",
   "warmup_dataMigration": "迁移 Hive / Vibe / 图片数据...",
+  "warmup_dataMigrationFailed": "数据迁移失败：{details}",
+  "@warmup_dataMigrationFailed": {
+    "placeholders": {
+      "details": {}
+    }
+  },
   "warmup_galleryDataSource": "初始化画廊索引...",
   "warmup_checkAndRecoverData": "检查数据完整性...",
   "warmup_group_dataSourceInitialization": "初始化数据源服务...",
@@ -1385,6 +1482,16 @@
   "resolution_typeCustom": "自定义",
   "resolution_width": "宽度",
   "resolution_height": "高度",
+  "generation_invalidResolution": "分辨率无效",
+  "generation_invalidResolutionHint": "{width}×{height} 无法用于生成。宽度和高度必须是 64 的倍数、单边不能超过 4096，且总像素不能超过 3,145,728。最接近的可用尺寸是 {suggestedWidth}×{suggestedHeight}。",
+  "@generation_invalidResolutionHint": {
+    "placeholders": {
+      "width": { "type": "int" },
+      "height": { "type": "int" },
+      "suggestedWidth": { "type": "int" },
+      "suggestedHeight": { "type": "int" }
+    }
+  },
 
   "api_error_429": "并发限制",
   "api_error_429_hint": "请求过于频繁，请稍后重试（常见于合租账号）",
@@ -1449,7 +1556,7 @@
   "preciseRef_referenceType": "参考类型",
   "preciseRef_strength": "参考强度",
   "preciseRef_fidelity": "保真度",
-  "preciseRef_v4Only": "此功能需要 V4+ 模型",
+  "preciseRef_v4Only": "此功能仅 V4.5 模型支持",
   "preciseRef_typeCharacter": "角色",
   "preciseRef_typeStyle": "风格",
   "preciseRef_typeCharacterAndStyle": "角色+风格",
@@ -1958,16 +2065,6 @@
   "scope_all": "通用",
   "scope_allTooltip": "提示词同时出现在主提示词和角色提示词\n适合：姿势、互动等通用标签",
 
-  "vibeNoEncodingWarning": "此图片没有预编码数据",
-  "vibeWillCostAnlas": "编码将消耗 {count} Anlas",
-  "@vibeWillCostAnlas": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "vibeEncodeConfirm": "是否继续添加并消耗点数？",
-  "vibeCancel": "取消",
-  "vibeConfirmEncode": "确认编码",
   "vibeParseFailed": "无法解析 Vibe 文件",
 
   "localGallery_progressiveLoadError": "图片加载失败",
@@ -3085,12 +3182,6 @@
 
   "tagLibrary_addedToFixed": "已添加到固定词",
   "tagLibrary_entryMoved": "条目已移动到目标分类",
-  "tagLibrary_useCount": "使用 {count} 次",
-  "@tagLibrary_useCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "tagLibrary_addFavorite": "添加收藏",
   "tagLibrary_thumbnail": "预览图",
   "tagLibrary_selectImage": "选择图片",
@@ -3449,7 +3540,6 @@
   "metadataImport_promptsOnly": "仅提示词",
   "metadataImport_generationOnly": "仅参数",
   "metadataImport_clear": "清空",
-  "metadataImport_prompt": "正向提示词",
   "metadataImport_mainPrompt": "主提示词",
   "metadataImport_fixedTags": "固定词",
   "metadataImport_fixedPrefix": "前缀: {text}",
@@ -3527,18 +3617,6 @@
       "fidelity": {}
     }
   },
-  "metadataImport_seed": "种子 (Seed)",
-  "metadataImport_steps": "步数 (Steps)",
-  "metadataImport_scale": "CFG 强度",
-  "metadataImport_size": "尺寸 (Size)",
-  "metadataImport_sampler": "采样器 (Sampler)",
-  "metadataImport_model": "模型 (Model)",
-  "metadataImport_smea": "SMEA",
-  "metadataImport_smeaDyn": "SMEA Dyn",
-  "metadataImport_noiseSchedule": "噪声计划",
-  "metadataImport_cfgRescale": "CFG 重缩放",
-  "metadataImport_qualityToggle": "质量标签",
-  "metadataImport_ucPreset": "UC 预设",
   "metadataImport_noData": "（无数据）",
   "metadataImport_selectedCount": "已选择 {count} 项",
   "@metadataImport_selectedCount": {
@@ -3554,9 +3632,6 @@
       "count": {"type": "int"}
     }
   },
-  "metadataImport_appliedTitle": "元数据已应用",
-  "metadataImport_appliedDescription": "以下参数已应用到当前设置：",
-  "metadataImport_charactersCount": "个角色",
   "shortcut_context_global": "全局",
   "shortcut_context_generation": "生成页面",
   "shortcut_context_gallery": "画廊列表",
@@ -3750,6 +3825,20 @@
   },
   "vibeLibrary_deletedCount": "已删除 {count} 个Vibe",
   "@vibeLibrary_deletedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "vibeLibrary_markEncodingModel": "标记编码模型",
+  "vibeLibrary_markEncodingModelContent": "把选中的 {count} 个 Vibe 标记为「{model}」的编码，并重写库文件。\n\n适用于被错误标记成其它模型、导致每次生成都重新编码扣 Anlas 的条目。如果这些编码确实来自别的模型，标记后画面效果可能与预期不符。",
+  "@vibeLibrary_markEncodingModelContent": {
+    "placeholders": {
+      "count": {},
+      "model": {}
+    }
+  },
+  "vibeLibrary_encodingModelMarked": "已标记 {count} 个Vibe的编码模型",
+  "@vibeLibrary_encodingModelMarked": {
     "placeholders": {
       "count": {}
     }
@@ -4119,18 +4208,8 @@
   "vibe_embedToImage": "嵌入到图片",
   "vibe_import_skip": "跳过",
   "vibe_import_confirm": "确认",
-  "vibe_import_noEncodingData": "无编码数据",
   "vibe_import_encodingCost": "编码将消耗 2 Anlas",
-  "vibe_import_confirmCost": "继续并消耗 Anlas？",
-  "vibe_import_encodeNow": "立即编码 (2 Anlas)",
-  "vibe_addImageOnly": "仅添加图片",
-  "vibe_import_autoSave": "自动保存到库",
   "vibe_import_encodingFailed": "编码失败",
-  "vibe_import_encodingFailedMessage": "Vibe 编码失败，是否继续添加未编码图片？",
-  "vibe_import_encodingInProgress": "编码中...",
-  "vibe_import_encodingComplete": "编码完成",
-  "vibe_import_partialFailed": "部分编码失败",
-  "vibe_import_timeout": "编码超时",
   "vibe_import_title": "从库导入",
   "vibe_import_result": "已导入 {count} 个 vibes",
   "vibe_import_fileParseFailed": "解析文件失败",
@@ -4221,6 +4300,8 @@
   "vibe_statusEncoded": "已编码",
   "vibe_statusEncoding": "编码中...",
   "vibe_statusPendingEncode": "待编码 (2 Anlas)",
+  "vibe_statusNeedsReencode": "需重新编码 (2 Anlas)",
+  "vibe_statusSourceImageRequired": "缺少原图",
   "vibe_encodeDialogTitle": "确认编码 Vibe",
   "vibe_encodeDialogMessage": "是否编码此图片以供生成使用？",
   "vibe_encodeCostWarning": "此操作将消耗 2 Anlas（点数）",
@@ -4441,6 +4522,8 @@
 
   "comfyWorkflow_seedvr2UpscaleName": "SeedVR2 超分",
   "comfyWorkflow_seedvr2UpscaleDescription": "使用 SeedVR2 AI 模型进行超分辨率放大，效果优秀",
+  "comfyWorkflow_seedvr2LegacyUpscaleName": "SeedVR2 兼容节点超分",
+  "comfyWorkflow_seedvr2LegacyUpscaleDescription": "使用已安装的 SeedVR2VideoUpscaler 自定义节点进行超分",
   "comfyWorkflow_seedvr2TiledUpscaleName": "SeedVR2 分块超分",
   "comfyWorkflow_seedvr2TiledUpscaleDescription": "使用 SeedVR2TilingUpscaler 分块放大，降低大图显存压力",
   "comfyWorkflow_modelUpscaleName": "ComfyUI 普通超分模型",
@@ -5053,13 +5136,39 @@
     }
   },
   "updateInstallAndRestart": "安装并重启",
+  "updateInstallNow": "立即安装",
   "updateInstallLater": "稍后安装",
-  "updateDownloadCancelled": "已取消下载",
+  "updateDownload": "下载更新",
+  "updateDownloadCancelled": "已取消下载，稍后可继续",
   "updateDownloadFailed": "下载更新失败",
+  "updateInstallFailed": "安装更新失败",
   "updateInstallingHint": "安装程序已启动，应用即将关闭并自动完成更新。",
-  "remindMeLater": "稍后提醒",
+  "updateInstallConfirmationTitle": "现在安装更新？",
+  "updateInstallConfirmationBody": "应用将安全关闭并安装更新，完成后自动重新启动。进行中的生成和下载任务会停止，请先保存必要内容。",
+  "updateActiveTasksWarning": "检测到队列任务仍在运行，安装会停止当前任务。",
+  "remindMeLater": "4 小时后提醒",
   "skipThisVersion": "忽略此版本",
-  "updateDownloadAndInstall": "下载并安装",
+  "updateNoticeAvailable": "新版本 v{version} 可用",
+  "@updateNoticeAvailable": {
+    "placeholders": {"version": {}}
+  },
+  "updateNoticeAvailableSubtitle": "可在应用内下载并自动完成更新",
+  "updateNoticeManualSubtitle": "当前平台需要前往 Release 页面手动更新",
+  "updateNoticeReady": "新版本 v{version} 已准备好",
+  "@updateNoticeReady": {
+    "placeholders": {"version": {}}
+  },
+  "updateNoticeReadySubtitle": "更新包已校验，重启即可安装",
+  "updateNoticeFailed": "上次更新没有完成",
+  "updateViewDetails": "查看更新",
+  "updateSettingsAvailable": "发现 v{version}，点击查看更新内容",
+  "@updateSettingsAvailable": {
+    "placeholders": {"version": {}}
+  },
+  "updateSettingsReady": "v{version} 已下载，点击安装",
+  "@updateSettingsReady": {
+    "placeholders": {"version": {}}
+  },
   "goToDownload": "前往下载",
   "versionSkipped": "已忽略此版本",
   "cannotOpenUrl": "无法打开链接",
@@ -5484,6 +5593,26 @@
   "@generation_cfgRescale": {
     "placeholders": {
       "value": {}
+    }
+  },
+  "@character_limitReached": {
+    "placeholders": {
+      "limit": {}
+    }
+  },
+  "@generation_opusUsageRemaining": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "@generation_opusUsageEstimate": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@generation_e2eUpscaleHint": {
+    "placeholders": {
+      "size": {}
     }
   },
   "@generation_cfgScale": {
@@ -5963,6 +6092,8 @@
   "autocomplete_showAliases": "显示命中的别名",
   "autocomplete_showTranslations": "显示中文汉化",
   "autocomplete_autoComma": "插入后自动添加逗号",
+  "autocomplete_openOnTagClick": "点击标签时显示补全",
+  "autocomplete_openOnTagClickSubtitle": "开启后，点击已有标签会打开普通补全菜单；Ctrl/Command + 点击仍显示相关标签",
   "autocomplete_replaceUnderscores": "插入时将下划线替换为空格",
   "autocomplete_dataSourcesTitle": "数据源与缓存",
   "autocomplete_relatedTagsTitle": "共现与相关标签推荐",
@@ -6002,6 +6133,8 @@
   "autocomplete_sourceAi": "Prompt Assistant 汉化",
   "autocomplete_headerTitle": "标签补全",
   "autocomplete_relatedHeaderTitle": "相关标签",
+  "autocomplete_loading": "正在查询本地词库与在线标签…",
+  "autocomplete_empty": "没有找到匹配的标签",
   "autocomplete_relatedLoading": "正在查询本地共现库与在线相关标签…",
   "autocomplete_relatedEmpty": "没有找到可用的相关标签",
   "autocomplete_relatedMetric": "共现 {count} 次 · Jaccard {score}",

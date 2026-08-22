@@ -584,10 +584,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_generationInputSection => 'Input';
 
   @override
+  String get settings_generationOutputSection => 'Image Output';
+
+  @override
   String get settings_generationRetrySection => 'Retry on Failure';
 
   @override
   String get settings_generationFeedbackSection => 'Completion Alert';
+
+  @override
+  String get settings_alphaModeTitle => 'Alpha mode for transparent images';
+
+  @override
+  String get settings_alphaModeStraight => 'Straight';
+
+  @override
+  String get settings_alphaModePremultiplied => 'Premultiplied';
+
+  @override
+  String get settings_alphaModeStraightDescription =>
+      'Preserve RGB without multiplying by alpha. Best for further editing and the NovelAI website default.';
+
+  @override
+  String get settings_alphaModePremultipliedDescription =>
+      'Store RGB multiplied by alpha for compositing and rendering pipelines that expect premultiplied input.';
 
   @override
   String get settings_promptAssistant => 'Prompt Assistant';
@@ -807,7 +827,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_model => 'Model';
 
   @override
+  String generation_opusUsageRemaining(Object percent) {
+    return '$percent% of Opus Generations remaining';
+  }
+
+  @override
+  String generation_opusUsageEstimate(Object count) {
+    return 'About $count images left';
+  }
+
+  @override
+  String get generation_opusUsageRefill =>
+      'The allowance refills automatically over time';
+
+  @override
+  String get generation_opusUsageExhausted =>
+      'Your Opus allowance is used up. V5 generations will cost Anlas until it refills.';
+
+  @override
   String get generation_imageSize => 'Image Size';
+
+  @override
+  String get generation_transparentBackground => 'Transparent BG';
+
+  @override
+  String generation_e2eUpscaleHint(Object size) {
+    return 'Server outputs $size';
+  }
 
   @override
   String get generation_sampler => 'Sampler';
@@ -824,6 +870,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get generation_seed => 'Seed';
+
+  @override
+  String get generation_previewApplySeed =>
+      'Use the seed of the displayed image';
+
+  @override
+  String get generation_transparencyBackgroundTitle =>
+      'Transparency Background';
+
+  @override
+  String get generation_transparencyChecker => 'Theme Checkerboard';
+
+  @override
+  String get generation_transparencyCheckerLight => 'Light Checkerboard';
+
+  @override
+  String get generation_transparencyCheckerDark => 'Dark Checkerboard';
+
+  @override
+  String get generation_transparencyNone => 'None';
+
+  @override
+  String get generation_transparencyBlack => 'Black';
+
+  @override
+  String get generation_transparencyWhite => 'White';
+
+  @override
+  String get generation_transparencyGray => 'Gray';
+
+  @override
+  String get generation_transparencyRed => 'Red';
+
+  @override
+  String get generation_transparencyGreen => 'Green';
+
+  @override
+  String get generation_transparencyBlue => 'Blue';
+
+  @override
+  String get generation_transparencyCustom => 'Custom Color';
 
   @override
   String get generation_seedRandom => 'Random';
@@ -995,7 +1082,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get prompt_autoFormatSubtitle =>
-      'Convert Chinese commas to English, auto-add underscores';
+      'Convert Chinese commas and tag spaces while preserving line breaks';
 
   @override
   String get prompt_highlightEmphasis => 'Highlight Emphasis';
@@ -1353,6 +1440,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get img2img_enhanceUpscaleAmount => 'Upscale Amount';
 
   @override
+  String get img2img_enhanceScaleMax => 'Max';
+
+  @override
   String get img2img_focusedInpaint => 'Focused Inpainting';
 
   @override
@@ -1388,11 +1478,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get img2img_noSeedvr2Models =>
-      'No SeedVR2 model found. Refresh the model list or check the SeedVR2 node/model files.';
+      'No usable SeedVR2 model found. Refresh the model list and check ComfyUI\'s native models/diffusion_models and models/vae folders or the SeedVR2 custom-node model folder.';
 
   @override
   String get img2img_noRegularUpscaleModels =>
       'No regular upscale model found. Refresh the model list or check models/upscale_models.';
+
+  @override
+  String get img2img_useNativeSeedvr2Workflow =>
+      'Using the native ComfyUI SeedVR2 one-step upscale workflow.';
 
   @override
   String get img2img_useSeedvr2TiledWorkflow =>
@@ -1455,8 +1549,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get img2img_metricQuality => 'Quality';
 
   @override
+  String get img2img_seedvr2Engine => 'SeedVR2 Engine';
+
+  @override
+  String get img2img_seedvr2EngineAuto => 'Auto';
+
+  @override
+  String get img2img_seedvr2EngineNative => 'Native';
+
+  @override
+  String get img2img_seedvr2EngineLegacy => 'Compatibility';
+
+  @override
+  String get img2img_seedvr2EngineResolvedNative =>
+      'Using native SeedVR2 built into ComfyUI.';
+
+  @override
+  String get img2img_seedvr2EngineResolvedLegacy =>
+      'Using the installed SeedVR2 custom nodes.';
+
+  @override
+  String get img2img_seedvr2EngineUnavailable =>
+      'The selected SeedVR2 engine or its required models are unavailable. Refresh the model list or switch engines.';
+
+  @override
   String get img2img_seedvr2VaeTileHint =>
-      'Also writes the SeedVR2 VAE MODEL encode/decode tile size.';
+      'Sets the tile size used for SeedVR2 VAE encoding and decoding.';
 
   @override
   String get img2img_seedvr2UseTiledUpscale => 'Use tiled upscale';
@@ -1464,6 +1582,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get img2img_seedvr2UseTiledUpscaleHint =>
       'When enabled, uses SeedVR2TilingUpscaler. Recommended for large images or high VRAM pressure.';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadata =>
+      'Write NAI generation parameters to SeedVR2 results';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadataHint =>
+      'Off by default. When enabled, writes the launcher\'s current prompts and generation parameters. When disabled, preserves the PNG metadata returned by ComfyUI.';
 
   @override
   String get img2img_seedvr2TileSize => 'Tile Size';
@@ -2276,7 +2402,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_sourceType_png => 'PNG';
 
   @override
-  String get vibe_sourceType_v4vibe => 'V4 Vibe';
+  String get vibe_sourceType_v4vibe => 'Vibe file';
 
   @override
   String get vibe_sourceType_bundle => 'Bundle';
@@ -2310,6 +2436,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get character_addCharacter => 'Add Character';
+
+  @override
+  String character_limitReached(Object limit) {
+    return 'Character limit for this model reached ($limit)';
+  }
 
   @override
   String character_number(Object index) {
@@ -2403,6 +2534,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_refresh => 'Refresh';
 
   @override
+  String get onlineGallery_random => 'Random';
+
+  @override
+  String get onlineGallery_randomRedraw => 'Draw again';
+
+  @override
+  String get onlineGallery_randomDrawing => 'Drawing…';
+
+  @override
+  String get onlineGallery_randomExhausted =>
+      'No more unseen images in this range';
+
+  @override
+  String get onlineGallery_randomRestart => 'Start over';
+
+  @override
+  String get onlineGallery_originalRetry => 'Original failed to load — retry';
+
+  @override
   String get onlineGallery_login => 'Login';
 
   @override
@@ -2475,6 +2625,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_copyTags => 'Copy Tags';
+
+  @override
+  String get onlineGallery_promptTagCategories => 'Prompt tag categories';
+
+  @override
+  String get onlineGallery_promptTagCategoriesTooltip =>
+      'Choose which tag categories are included when copying, sending, or adding to the queue';
+
+  @override
+  String get onlineGallery_keepOnePromptTagCategory =>
+      'Keep at least one prompt tag category selected';
 
   @override
   String get onlineGallery_open => 'Open';
@@ -2589,6 +2750,81 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_blacklistTags => 'Blacklist Tags';
+
+  @override
+  String get onlineGallery_outputFilter => 'Output Filter';
+
+  @override
+  String get onlineGallery_outputFilterTooltip =>
+      'Manage tags removed automatically when copying, sending, or adding to the queue';
+
+  @override
+  String get onlineGallery_outputFilterTitle => 'Output filter tags';
+
+  @override
+  String get onlineGallery_outputFilterSubtitle =>
+      'Images remain visible. Exact matching tags are removed only from copied, sent, and queued prompts.';
+
+  @override
+  String get onlineGallery_outputFilterAddHint =>
+      'Add a tag to remove from output';
+
+  @override
+  String get onlineGallery_outputFilterInputHint =>
+      'Separate multiple tags with commas or line breaks';
+
+  @override
+  String get onlineGallery_outputFilterEmpty =>
+      'No output filter tags configured';
+
+  @override
+  String get onlineGallery_outputFilterRestoreDefaults => 'Restore defaults';
+
+  @override
+  String get onlineGallery_outputFilterClearTitle => 'Clear the output filter?';
+
+  @override
+  String get onlineGallery_outputFilterClearConfirm =>
+      'Watermark and mosaic tags will appear in copied and sent prompts again.';
+
+  @override
+  String get onlineGallery_addTagToOutputFilter => 'Add to output filter';
+
+  @override
+  String get onlineGallery_outputFilterAlreadyAdded =>
+      'Already in output filter';
+
+  @override
+  String get onlineGallery_outputFilterMenuHint =>
+      'Keep the image visible and remove only this output tag';
+
+  @override
+  String get onlineGallery_addTagToBlacklist => 'Add to blacklist';
+
+  @override
+  String get onlineGallery_blacklistAlreadyAdded => 'Already in blacklist';
+
+  @override
+  String get onlineGallery_blacklistMenuHint =>
+      'Hide gallery images containing this tag';
+
+  @override
+  String get onlineGallery_outputFilteredTagTooltip =>
+      'Removed when copying, sending, or adding to queue; right-click to manage';
+
+  @override
+  String get onlineGallery_tagContextMenuTooltip =>
+      'Right-click to add to the blacklist or output filter';
+
+  @override
+  String onlineGallery_outputFilterTagAdded(Object tag) {
+    return 'Added $tag to the output filter';
+  }
+
+  @override
+  String onlineGallery_blacklistTagAdded(Object tag) {
+    return 'Added $tag to the blacklist';
+  }
 
   @override
   String get onlineGallery_blacklistTitle => 'Online Gallery Blacklist';
@@ -2734,7 +2970,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_aiTagPromptQuery =>
-      'AI Prompt search (raw syntax such as ::artist: is supported)';
+      'AI Prompt search (search raw Prompt text such as artist:)';
+
+  @override
+  String get onlineGallery_artistHunt => 'Artist chains only';
+
+  @override
+  String get onlineGallery_artistHuntTooltip =>
+      'Show only images whose positive Prompt contains explicit artist: tags';
+
+  @override
+  String get onlineGallery_artistChain => 'Artist chain';
+
+  @override
+  String get onlineGallery_copyArtistChain => 'Copy artist chain';
+
+  @override
+  String get onlineGallery_copyFullPrompt => 'Copy full Prompt';
+
+  @override
+  String get onlineGallery_copyRawArtistFragments =>
+      'Copy original artist fragments';
+
+  @override
+  String get onlineGallery_noArtistChain => 'No artist chain';
+
+  @override
+  String onlineGallery_artistCount(Object count) {
+    return '$count artists';
+  }
+
+  @override
+  String get onlineGallery_artistHuntNoExactResults =>
+      'No exact artist chains were found in the candidate works';
+
+  @override
+  String onlineGallery_artistHuntPartialFailure(Object count) {
+    return '$count works could not be parsed. Retry to check them again.';
+  }
+
+  @override
+  String get onlineGallery_artistHuntDetailFailed =>
+      'None of the candidate work details could be parsed. Please retry.';
 
   @override
   String get onlineGallery_aiTagTimeRange => 'Time range';
@@ -3030,6 +3307,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get qualityTags_naiDefault => 'NAI Default';
 
   @override
+  String get qualityTags_naiDefaultStandard => 'NAI Default (Standard)';
+
+  @override
+  String get qualityTags_naiDefaultLight => 'NAI Default (Light)';
+
+  @override
   String get qualityTags_none => 'None';
 
   @override
@@ -3229,6 +3512,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get warmup_dataMigration => 'Migrating Hive / Vibe / image data...';
 
   @override
+  String warmup_dataMigrationFailed(Object details) {
+    return 'Data migration failed: $details';
+  }
+
+  @override
   String get warmup_galleryDataSource => 'Initializing gallery index...';
 
   @override
@@ -3295,6 +3583,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resolution_height => 'Height';
+
+  @override
+  String get generation_invalidResolution => 'Invalid resolution';
+
+  @override
+  String generation_invalidResolutionHint(
+    int width,
+    int height,
+    int suggestedWidth,
+    int suggestedHeight,
+  ) {
+    return '$width×$height cannot be used for generation. Both dimensions must be multiples of 64, neither side can exceed 4096, and the total pixel count cannot exceed 3,145,728. The nearest valid size is $suggestedWidth×$suggestedHeight.';
+  }
 
   @override
   String get api_error_429 => 'Concurrency limit reached';
@@ -4367,23 +4668,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get scope_allTooltip =>
       'Prompt appears in both main and character prompts\nSuitable for: pose, interaction, and other universal tags';
-
-  @override
-  String get vibeNoEncodingWarning => 'This image has no pre-encoded data';
-
-  @override
-  String vibeWillCostAnlas(int count) {
-    return 'Encoding will cost $count Anlas';
-  }
-
-  @override
-  String get vibeEncodeConfirm => 'Continue and consume Anlas?';
-
-  @override
-  String get vibeCancel => 'Cancel';
-
-  @override
-  String get vibeConfirmEncode => 'Encode';
 
   @override
   String get vibeParseFailed => 'Failed to parse Vibe file';
@@ -6480,11 +6764,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tagLibrary_entryMoved => 'Entry moved to target category';
 
   @override
-  String tagLibrary_useCount(Object count) {
-    return 'Used $count times';
-  }
-
-  @override
   String get tagLibrary_addFavorite => 'Add to Favorites';
 
   @override
@@ -7194,9 +7473,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get metadataImport_clear => 'Clear';
 
   @override
-  String get metadataImport_prompt => 'Prompt';
-
-  @override
   String get metadataImport_mainPrompt => 'Main Prompt';
 
   @override
@@ -7272,42 +7548,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get metadataImport_seed => 'Seed';
-
-  @override
-  String get metadataImport_steps => 'Steps';
-
-  @override
-  String get metadataImport_scale => 'CFG Scale';
-
-  @override
-  String get metadataImport_size => 'Size';
-
-  @override
-  String get metadataImport_sampler => 'Sampler';
-
-  @override
-  String get metadataImport_model => 'Model';
-
-  @override
-  String get metadataImport_smea => 'SMEA';
-
-  @override
-  String get metadataImport_smeaDyn => 'SMEA Dyn';
-
-  @override
-  String get metadataImport_noiseSchedule => 'Noise Schedule';
-
-  @override
-  String get metadataImport_cfgRescale => 'CFG Rescale';
-
-  @override
-  String get metadataImport_qualityToggle => 'Quality Toggle';
-
-  @override
-  String get metadataImport_ucPreset => 'Undesired Content Preset';
-
-  @override
   String get metadataImport_noData => '(no data)';
 
   @override
@@ -7325,16 +7565,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String metadataImport_appliedCount(int count) {
     return 'Applied $count parameters';
   }
-
-  @override
-  String get metadataImport_appliedTitle => 'Metadata Applied';
-
-  @override
-  String get metadataImport_appliedDescription =>
-      'The following parameters have been applied:';
-
-  @override
-  String get metadataImport_charactersCount => 'characters';
 
   @override
   String get shortcut_context_global => 'Global';
@@ -7718,7 +7948,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preciseRef_fidelity => 'Fidelity';
 
   @override
-  String get preciseRef_v4Only => 'This feature requires V4+ models';
+  String get preciseRef_v4Only =>
+      'This feature is only available on V4.5 models';
 
   @override
   String get preciseRef_typeCharacter => 'Character';
@@ -7900,6 +8131,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String vibeLibrary_deletedCount(Object count) {
     return 'Deleted $count Vibes';
+  }
+
+  @override
+  String get vibeLibrary_markEncodingModel => 'Mark encoding model';
+
+  @override
+  String vibeLibrary_markEncodingModelContent(Object count, Object model) {
+    return 'Mark the selected $count Vibes as encoded for \"$model\" and rewrite their library files.\n\nUse this for entries mislabelled with another model, which makes every generation re-encode and spend Anlas. If those encodings really came from a different model, results may not match expectations.';
+  }
+
+  @override
+  String vibeLibrary_encodingModelMarked(Object count) {
+    return 'Updated the encoding model of $count Vibes';
   }
 
   @override
@@ -8611,41 +8855,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_import_confirm => 'Confirm';
 
   @override
-  String get vibe_import_noEncodingData => 'No encoding data';
-
-  @override
   String get vibe_import_encodingCost => 'Encoding will cost 2 Anlas';
 
   @override
-  String get vibe_import_confirmCost => 'Continue and consume Anlas?';
-
-  @override
-  String get vibe_import_encodeNow => 'Encode immediately (2 Anlas)';
-
-  @override
-  String get vibe_addImageOnly => 'Add image only';
-
-  @override
-  String get vibe_import_autoSave => 'Auto-save to library';
-
-  @override
   String get vibe_import_encodingFailed => 'Encoding failed';
-
-  @override
-  String get vibe_import_encodingFailedMessage =>
-      'Failed to encode vibe. Continue adding unencoded image?';
-
-  @override
-  String get vibe_import_encodingInProgress => 'Encoding...';
-
-  @override
-  String get vibe_import_encodingComplete => 'Encoding complete';
-
-  @override
-  String get vibe_import_partialFailed => 'Partial encoding failed';
-
-  @override
-  String get vibe_import_timeout => 'Encoding timeout';
 
   @override
   String get vibe_import_title => 'Import from Library';
@@ -8788,6 +9001,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vibe_statusPendingEncode => 'Encode (2 Anlas)';
+
+  @override
+  String get vibe_statusNeedsReencode => 'Re-encode (2 Anlas)';
+
+  @override
+  String get vibe_statusSourceImageRequired => 'Source image required';
 
   @override
   String get vibe_encodeDialogTitle => 'Confirm Vibe Encoding';
@@ -9279,6 +9498,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get comfyWorkflow_seedvr2UpscaleDescription =>
       'Upscale with the SeedVR2 AI model. Produces high-quality results.';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleName =>
+      'SeedVR2 Compatibility Upscale';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleDescription =>
+      'Upscale with the installed SeedVR2VideoUpscaler custom nodes.';
 
   @override
   String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 Tiled Upscale';
@@ -10465,26 +10692,82 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateInstallAndRestart => 'Install and Restart';
 
   @override
+  String get updateInstallNow => 'Install Now';
+
+  @override
   String get updateInstallLater => 'Install Later';
 
   @override
-  String get updateDownloadCancelled => 'Download cancelled';
+  String get updateDownload => 'Download Update';
+
+  @override
+  String get updateDownloadCancelled =>
+      'Download cancelled; you can resume later';
 
   @override
   String get updateDownloadFailed => 'Failed to download the update';
+
+  @override
+  String get updateInstallFailed => 'Failed to install the update';
 
   @override
   String get updateInstallingHint =>
       'The installer has started. The app will close and finish updating automatically.';
 
   @override
-  String get remindMeLater => 'Remind Me Later';
+  String get updateInstallConfirmationTitle => 'Install the update now?';
+
+  @override
+  String get updateInstallConfirmationBody =>
+      'The app will shut down safely, install the update, and restart automatically. Active generation and download tasks will stop, so save anything important first.';
+
+  @override
+  String get updateActiveTasksWarning =>
+      'Queue tasks are still active. Installing will stop the current task.';
+
+  @override
+  String get remindMeLater => 'Remind Me in 4 Hours';
 
   @override
   String get skipThisVersion => 'Skip This Version';
 
   @override
-  String get updateDownloadAndInstall => 'Download and Install';
+  String updateNoticeAvailable(Object version) {
+    return 'Version v$version is available';
+  }
+
+  @override
+  String get updateNoticeAvailableSubtitle =>
+      'Download and finish the update automatically in the app';
+
+  @override
+  String get updateNoticeManualSubtitle =>
+      'This platform must be updated manually from the Release page';
+
+  @override
+  String updateNoticeReady(Object version) {
+    return 'Version v$version is ready';
+  }
+
+  @override
+  String get updateNoticeReadySubtitle =>
+      'The package is verified and ready to install on restart';
+
+  @override
+  String get updateNoticeFailed => 'The previous update did not finish';
+
+  @override
+  String get updateViewDetails => 'View Update';
+
+  @override
+  String updateSettingsAvailable(Object version) {
+    return 'v$version is available; select to view details';
+  }
+
+  @override
+  String updateSettingsReady(Object version) {
+    return 'v$version is downloaded; select to install';
+  }
 
   @override
   String get goToDownload => 'Go to Download';
@@ -11606,6 +11889,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autocomplete_autoComma => 'Add a comma after insertion';
 
   @override
+  String get autocomplete_openOnTagClick =>
+      'Open autocomplete when clicking tags';
+
+  @override
+  String get autocomplete_openOnTagClickSubtitle =>
+      'When enabled, clicking an existing tag opens normal autocomplete; Ctrl/Command-click still shows related tags';
+
+  @override
   String get autocomplete_replaceUnderscores =>
       'Replace underscores with spaces on insertion';
 
@@ -11724,6 +12015,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get autocomplete_relatedHeaderTitle => 'Related tags';
+
+  @override
+  String get autocomplete_loading =>
+      'Searching the local catalog and online tags…';
+
+  @override
+  String get autocomplete_empty => 'No matching tags found';
 
   @override
   String get autocomplete_relatedLoading =>

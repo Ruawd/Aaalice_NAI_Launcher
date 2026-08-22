@@ -171,6 +171,7 @@ cert_thumbprint.txt
 # 临时目录
 logs/
 logs/security/
+tool/.tmp/
 tool/tag_catalog/.cache/
 tool/tag_catalog/.tmp/
 
@@ -191,6 +192,8 @@ tool/tag_catalog/.tmp/
 .claude/
 .gemini/
 .specstory/
+.orca/
+.pi-analyze-worktree/
 
 # GSD (Get Shit Done) 工作流
 .planning/

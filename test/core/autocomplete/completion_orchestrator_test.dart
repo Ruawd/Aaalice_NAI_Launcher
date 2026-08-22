@@ -188,6 +188,30 @@ void main() {
     expect(orchestrator.state.candidates.single.canonicalTag, 'new_tag');
   });
 
+  test('cancel clears state and rejects late local results', () async {
+    final source = _QuerySource();
+    final orchestrator = CompletionOrchestrator(
+      localSources: [source],
+      dictionaryTranslations: _Translations(const {}),
+      llmTranslations: _Translations(const {}),
+      danbooru: _FakeDanbooru(),
+    );
+    addTearDown(orchestrator.dispose);
+
+    final pending = orchestrator.query(
+      _query('old'),
+      const AutocompleteSettings(danbooruEnabled: false),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    orchestrator.cancel();
+    expect(orchestrator.state, const CompletionState());
+
+    source.completeOld();
+    await pending;
+    expect(orchestrator.state, const CompletionState());
+  });
+
   test('merges offline and online related tags after an empty token', () async {
     final remote = _FakeDanbooru();
     final orchestrator = CompletionOrchestrator(
@@ -217,6 +241,102 @@ void main() {
       containsAll(['smile', 'grin']),
     );
   });
+
+  test(
+    'falls back to normal completion for a partial translated related tag',
+    () async {
+      final lookup = _TranslatedTagLookupSource();
+      final related = _CanonicalRelatedSource();
+      final orchestrator = CompletionOrchestrator(
+        localSources: [lookup, related],
+        tagLookupSources: [lookup],
+        dictionaryTranslations: _Translations(const {}),
+        llmTranslations: _Translations(const {}),
+        danbooru: _FakeDanbooru(),
+      );
+      addTearDown(orchestrator.dispose);
+
+      await orchestrator.query(
+        _query('', fullText: '大慈树', relatedTag: '大慈树'),
+        const AutocompleteSettings(danbooruEnabled: false),
+        relatedFallbackQuery: _query('大慈树'),
+      );
+
+      expect(orchestrator.state.query?.token, '大慈树');
+      expect(orchestrator.state.query?.relatedTag, isNull);
+      expect(
+        orchestrator.state.candidates.single.canonicalTag,
+        'rukkhadevata_(genshin_impact)',
+      );
+      expect(orchestrator.state.candidates.single.translation, '大慈树王 (原神)');
+      expect(related.requestedTags, isEmpty);
+    },
+  );
+
+  test('resolves an exact Chinese tag before loading related tags', () async {
+    final lookup = _TranslatedTagLookupSource();
+    final related = _CanonicalRelatedSource();
+    final orchestrator = CompletionOrchestrator(
+      localSources: [lookup, related],
+      tagLookupSources: [lookup],
+      dictionaryTranslations: _Translations(const {}),
+      llmTranslations: _Translations(const {}),
+      danbooru: _FakeDanbooru(),
+    );
+    addTearDown(orchestrator.dispose);
+
+    await orchestrator.query(
+      _query('', fullText: '蓝眼睛', relatedTag: '蓝眼睛'),
+      const AutocompleteSettings(danbooruEnabled: false),
+      relatedFallbackQuery: _query('蓝眼睛'),
+    );
+
+    expect(orchestrator.state.query?.token, isEmpty);
+    expect(orchestrator.state.query?.relatedTag, 'blue_eyes');
+    expect(orchestrator.state.candidates.single.canonicalTag, 'halo');
+    expect(related.requestedTags, ['blue_eyes']);
+  });
+
+  test(
+    'shows an initial related batch before exhaustive expansion finishes',
+    () async {
+      final source = _ProgressiveRelatedSource();
+      final orchestrator = CompletionOrchestrator(
+        localSources: [source],
+        dictionaryTranslations: _Translations(const {}),
+        llmTranslations: _Translations(const {}),
+        danbooru: _FakeDanbooru(),
+      );
+      addTearDown(orchestrator.dispose);
+
+      await orchestrator.query(
+        _query(
+          '',
+          fullText: 'blue_eyes, ',
+          relatedTag: 'blue_eyes',
+          limit: CompletionResultLimits.all,
+        ),
+        const AutocompleteSettings(danbooruEnabled: false),
+      );
+
+      expect(source.requestedLimits, [
+        CompletionResultLimits.initialRelatedTags,
+        CompletionResultLimits.all,
+      ]);
+      expect(orchestrator.state.candidates.single.canonicalTag, 'fast_tag');
+      expect(orchestrator.state.isLocalLoading, isTrue);
+
+      source.completeExpansion();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        orchestrator.state.candidates.map((value) => value.canonicalTag),
+        containsAll(['fast_tag', 'expanded_tag']),
+      );
+      expect(orchestrator.state.isLocalLoading, isFalse);
+    },
+  );
 
   test(
     'does not query related sources when recommendations are disabled',
@@ -323,6 +443,7 @@ void main() {
         dictionaryTranslations: _Translations(const {}),
         llmTranslations: llm,
         danbooru: _FakeDanbooru(),
+        llmDebounceDuration: Duration.zero,
       );
       addTearDown(orchestrator.dispose);
 
@@ -356,6 +477,77 @@ void main() {
       );
     },
   );
+
+  test('debounces LLM translations and cancels a superseded request', () async {
+    final llm = _CancellableRecordingTranslations();
+    final orchestrator = CompletionOrchestrator(
+      localSources: [_TokenCandidateSource()],
+      dictionaryTranslations: _Translations(const {}),
+      llmTranslations: llm,
+      danbooru: _FakeDanbooru(),
+      llmDebounceDuration: const Duration(milliseconds: 30),
+    );
+    addTearDown(orchestrator.dispose);
+    const settings = AutocompleteSettings(
+      danbooruEnabled: false,
+      llmTranslationEnabled: true,
+    );
+
+    await orchestrator.query(_query('first'), settings);
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await orchestrator.query(_query('second'), settings);
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+
+    expect(llm.requestedBatches, [
+      ['second_tag'],
+    ]);
+    await orchestrator.query(_query('third'), settings);
+    expect(llm.cancelCount, 1);
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    expect(llm.requestedBatches.last, ['third_tag']);
+
+    llm.completeActive({'third_tag': '第三个标签'});
+    await Future<void>.delayed(Duration.zero);
+    expect(orchestrator.state.query?.token, 'third');
+    expect(orchestrator.state.candidates.single.translation, '第三个标签');
+  });
+
+  test('isolates LLM cancellation between orchestrators', () async {
+    final sharedLlm = _ScopedRecordingTranslations();
+    final first = CompletionOrchestrator(
+      localSources: [_TokenCandidateSource()],
+      dictionaryTranslations: _Translations(const {}),
+      llmTranslations: sharedLlm,
+      danbooru: _FakeDanbooru(),
+      llmDebounceDuration: Duration.zero,
+    );
+    final second = CompletionOrchestrator(
+      localSources: [_TokenCandidateSource()],
+      dictionaryTranslations: _Translations(const {}),
+      llmTranslations: sharedLlm,
+      danbooru: _FakeDanbooru(),
+      llmDebounceDuration: Duration.zero,
+    );
+    addTearDown(first.dispose);
+    addTearDown(second.dispose);
+    const settings = AutocompleteSettings(
+      danbooruEnabled: false,
+      llmTranslationEnabled: true,
+    );
+
+    await first.query(_query('positive'), settings);
+    await second.query(_query('negative'), settings);
+    await Future<void>.delayed(Duration.zero);
+    expect(sharedLlm.scopes, hasLength(2));
+
+    first.cancel();
+
+    expect(sharedLlm.scopes[0].cancelCount, 1);
+    expect(sharedLlm.scopes[1].cancelCount, 0);
+    sharedLlm.scopes[1].completeActive({'negative_tag': '负面标签'});
+    await Future<void>.delayed(Duration.zero);
+    expect(second.state.candidates.single.translation, '负面标签');
+  });
 }
 
 CompletionQuery _query(
@@ -393,6 +585,62 @@ class _Source implements CompletionSource {
       values;
 }
 
+class _TokenCandidateSource implements CompletionSource {
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async => [
+    _candidate('${query.token}_tag', CompletionSourceKind.base),
+  ];
+}
+
+class _TranslatedTagLookupSource implements CompletionSource {
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    return switch (query.token) {
+      '大慈树' => const [
+        CompletionCandidate(
+          canonicalTag: 'rukkhadevata_(genshin_impact)',
+          category: TagCategory.character,
+          postCount: 593,
+          translation: '大慈树王 (原神)',
+          matchKind: CompletionMatchKind.chinesePrefix,
+          sources: {CompletionSourceKind.zhDictionary},
+        ),
+      ],
+      '蓝眼睛' => const [
+        CompletionCandidate(
+          canonicalTag: 'blue_eyes',
+          category: TagCategory.general,
+          postCount: 1000,
+          translation: '蓝眼睛',
+          matchKind: CompletionMatchKind.chineseExact,
+          sources: {CompletionSourceKind.zhDictionary},
+        ),
+      ],
+      _ => const [],
+    };
+  }
+}
+
+class _CanonicalRelatedSource implements CompletionSource {
+  final List<String> requestedTags = [];
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    final relatedTag = query.relatedTag;
+    if (relatedTag == null) return const [];
+    requestedTags.add(relatedTag);
+    return const [
+      CompletionCandidate(
+        canonicalTag: 'halo',
+        category: TagCategory.general,
+        postCount: 100,
+        matchKind: CompletionMatchKind.related,
+        sources: {CompletionSourceKind.cooccurrence},
+      ),
+    ];
+  }
+}
+
 class _RecordingRelatedSource implements CompletionSource {
   int searchCount = 0;
 
@@ -400,6 +648,29 @@ class _RecordingRelatedSource implements CompletionSource {
   Future<List<CompletionCandidate>> search(CompletionQuery query) async {
     searchCount++;
     return [_candidate('smile', CompletionSourceKind.cooccurrence)];
+  }
+}
+
+class _ProgressiveRelatedSource implements CompletionSource {
+  final List<int> requestedLimits = [];
+  final Completer<List<CompletionCandidate>> _expansion = Completer();
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) {
+    requestedLimits.add(query.limit);
+    if (query.limit == CompletionResultLimits.initialRelatedTags) {
+      return Future.value([
+        _candidate('fast_tag', CompletionSourceKind.cooccurrence),
+      ]);
+    }
+    return _expansion.future;
+  }
+
+  void completeExpansion() {
+    _expansion.complete([
+      _candidate('fast_tag', CompletionSourceKind.cooccurrence),
+      _candidate('expanded_tag', CompletionSourceKind.cooccurrence),
+    ]);
   }
 }
 
@@ -463,6 +734,57 @@ class _RecordingTranslations implements TranslationResolver {
   }
 
   void complete(Map<String, String> values) => _completer.complete(values);
+}
+
+class _CancellableRecordingTranslations
+    implements CancellableTranslationResolver {
+  final List<List<String>> requestedBatches = [];
+  Completer<Map<String, String>>? _active;
+  int cancelCount = 0;
+
+  @override
+  Future<Map<String, String>> resolve(
+    List<String> canonicalTags, {
+    required String locale,
+  }) {
+    requestedBatches.add(List.unmodifiable(canonicalTags));
+    _active = Completer<Map<String, String>>();
+    return _active!.future;
+  }
+
+  @override
+  void cancelPending() {
+    final active = _active;
+    _active = null;
+    if (active == null || active.isCompleted) return;
+    cancelCount++;
+    active.completeError(StateError('translation request cancelled'));
+  }
+
+  void completeActive(Map<String, String> values) {
+    final active = _active;
+    _active = null;
+    active!.complete(values);
+  }
+}
+
+class _ScopedRecordingTranslations implements ScopedTranslationResolver {
+  final List<_CancellableRecordingTranslations> scopes = [];
+
+  @override
+  TranslationResolver createScope() {
+    final scope = _CancellableRecordingTranslations();
+    scopes.add(scope);
+    return scope;
+  }
+
+  @override
+  Future<Map<String, String>> resolve(
+    List<String> canonicalTags, {
+    required String locale,
+  }) {
+    throw StateError('A scoped resolver must not be used directly.');
+  }
 }
 
 class _FakeDanbooru extends DanbooruCompletionSource {

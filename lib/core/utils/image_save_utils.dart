@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
 import '../../data/models/gallery/nai_image_metadata.dart';
@@ -43,6 +42,16 @@ class ImageSaveUtils {
     List<Map<String, dynamic>>? charNegCaptions,
     bool useCoords = false,
   }) {
+    final qualityTagHint = QualityTags.toTagHint(
+      model: params.model,
+      enabled: params.qualityToggle,
+      tier: params.qualityTier,
+      omit: params.omitQualityTagHint,
+    );
+    final ucPresetTagHint = UcPresets.toTagHint(
+      params.ucPreset,
+      omit: params.omitUcPresetTagHint,
+    );
     final commentJson = <String, dynamic>{
       'prompt': params.prompt,
       'uc': params.negativePrompt,
@@ -61,6 +70,8 @@ class ImageSaveUtils {
       'model': params.model,
       'quality_toggle': params.qualityToggle,
       'uc_preset': params.ucPreset,
+      if (qualityTagHint != null) 'tag_hint_qt': qualityTagHint,
+      if (ucPresetTagHint != null) 'tag_hint_uc_preset': ucPresetTagHint,
       // NAI官方格式字段
       'version': params.isV4Model ? 1 : 'v3',
       'legacy_v3_extend': false,
@@ -69,6 +80,15 @@ class ImageSaveUtils {
         'strength': params.strength,
         'noise': params.noise,
       },
+      // V5 专属参数：官网写回元数据时保留 upscale 与透明背景，只剔除
+      // upscaled_enhance（增强 max 档是一次性动作，不属于图片参数）。
+      if (params.capabilities.supportsTransparentBackground) ...{
+        'straight_alpha': params.straightAlpha,
+        if (params.transparentBackground)
+          'tag_hint_transparent_background': true,
+      },
+      if (params.effectiveE2eUpscale)
+        'upscale': {'declared_blur_sigma': E2eUpscale.declaredBlurSigma},
     };
 
     if (fixedPrefixTags?.isNotEmpty == true) {
@@ -154,7 +174,7 @@ class ImageSaveUtils {
     return {
       'Description': params.prompt,
       'Software': 'NovelAI',
-      'Source': _getModelSourceName(params.model),
+      'Source': getModelSourceName(params.model),
       'Comment': jsonEncode(commentJson),
     };
   }
@@ -221,8 +241,10 @@ class ImageSaveUtils {
             model: params.model,
             qualityToggle: params.qualityToggle,
             ucPreset: params.ucPreset,
+            transparentBackground: params.transparentBackground,
+            qualityTier: params.qualityTier,
           ).effectivePrompt,
-      source: existingMetadata?.source ?? _getModelSourceName(params.model),
+      source: existingMetadata?.source ?? getModelSourceName(params.model),
       software: existingMetadata?.software ?? 'NovelAI',
       useStealth: useStealth,
     );
@@ -377,7 +399,9 @@ class ImageSaveUtils {
         smeaDyn: metadata.smeaDyn ?? false,
         varietyPlus: metadata.varietyPlus ?? false,
         qualityToggle: metadata.qualityToggle ?? false,
+        qualityTier: metadata.qualityTier ?? QualityTags.standardTier,
         ucPreset: metadata.ucPreset ?? UcPresets.noneApiValue,
+        transparentBackground: metadata.transparentBackground ?? false,
       );
 
       // 恢复Vibe数据
@@ -409,15 +433,29 @@ class ImageSaveUtils {
   }
 
   /// 获取模型显示名称
-  static String _getModelSourceName(String model) {
-    if (model.contains('diffusion-4-5')) {
-      return 'NovelAI Diffusion V4.5';
+  static String getModelSourceName(String model) {
+    if (model.contains('diffusion-5') || model == ImageModels.v5StagingKey) {
+      // 官方解析按已知 Full 指纹区分，其余 V5 一律归 Curated；
+      // Full 带上网页端的真实指纹保证自家图能被官网与启动器双向识别。
+      return model.contains('diffusion-5-full')
+          ? 'NovelAI Diffusion V5 657484A5'
+          : 'NovelAI Diffusion V5';
+    } else if (model.contains('diffusion-4-5')) {
+      return model.contains('curated')
+          ? 'NovelAI Diffusion V4.5 Curated'
+          : 'NovelAI Diffusion V4.5 Full';
     } else if (model.contains('diffusion-4')) {
-      return 'NovelAI Diffusion V4';
+      return model.contains('curated')
+          ? 'NovelAI Diffusion V4 Curated'
+          : 'NovelAI Diffusion V4 Full';
+    } else if (model.contains('furry') && model.contains('-3')) {
+      return 'NovelAI Furry Diffusion V3';
     } else if (model.contains('diffusion-3')) {
       return 'NovelAI Diffusion V3';
     } else if (model.contains('diffusion-2')) {
       return 'NovelAI Diffusion V2';
+    } else if (model.contains('furry')) {
+      return 'NovelAI Furry Diffusion';
     }
     return 'NovelAI';
   }
@@ -428,13 +466,7 @@ class ImageSaveUtils {
     }
 
     try {
-      final decoder = img.PngDecoder();
-      final info = decoder.startDecode(bytes);
-      if (info is! img.PngInfo) {
-        return null;
-      }
-
-      final textData = info.textData;
+      final textData = UnifiedMetadataParser.extractPngTextData(bytes);
       final rawComment = textData['Comment'];
       if (rawComment == null || rawComment.isEmpty) {
         return null;
@@ -645,8 +677,9 @@ class ImageSaveUtils {
       return metadata.seed;
     }
     if (bytes != null) {
-      final extracted = await ImageMetadataService()
-          .getMetadataFromBytes(bytes);
+      final extracted = await ImageMetadataService().getMetadataFromBytes(
+        bytes,
+      );
       if (extracted?.seed != null && extracted!.seed! >= 0) {
         return extracted.seed;
       }

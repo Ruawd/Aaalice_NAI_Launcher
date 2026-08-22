@@ -1,21 +1,27 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/cache/online_gallery_detail_coordinator.dart';
+import '../../core/network/online_gallery_retry_interceptor.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/danbooru_api_service.dart';
 import '../../data/datasources/remote/gelbooru_api_service.dart';
 import '../../data/datasources/remote/online_gallery/ai_tag_gallery_source_adapter.dart';
 import '../../data/datasources/remote/online_gallery/donmai_gallery_source_adapter.dart';
+import '../../data/datasources/remote/online_gallery/gallery_random_sampler.dart';
 import '../../data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import '../../data/datasources/remote/online_gallery/gelbooru_gallery_source_adapter.dart';
+import '../../data/models/online_gallery/chunked_gallery_items.dart';
 import '../../data/models/online_gallery/gallery_item.dart';
 import '../../data/models/online_gallery/gallery_source.dart';
 import '../../data/models/online_gallery/gelbooru_post_parser.dart';
 import '../../data/services/danbooru_auth_service.dart';
 import '../../data/services/gelbooru_auth_service.dart';
+import '../../data/services/online_gallery/artist_chain_parser.dart';
 import 'online_gallery_blacklist_provider.dart';
 
 part 'online_gallery_provider.g.dart';
@@ -82,6 +88,7 @@ enum OnlineGalleryErrorCode {
   gelbooruNetwork,
   gelbooruMalformedResponse,
   gelbooruRequestFailed,
+  artistHuntDetailFailed,
 }
 
 enum OnlineGalleryNotice { gelbooruCredentialsInvalid }
@@ -90,13 +97,15 @@ String onlineGalleryPostKey(GalleryItem item) => item.stableKey;
 
 @Riverpod(keepAlive: true)
 Dio onlineGalleryHttpClient(Ref ref) {
-  return Dio(
+  final dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 30),
     ),
   );
+  dio.interceptors.add(OnlineGalleryRetryInterceptor(dio: dio));
+  return dio;
 }
 
 @Riverpod(keepAlive: true)
@@ -108,10 +117,12 @@ Map<GallerySourceId, GallerySourceAdapter> onlineGallerySourceAdapters(
     GallerySourceId.danbooru: DonmaiGallerySourceAdapter(
       sourceId: GallerySourceId.danbooru,
       dio: dio,
+      authHeader: () => ref.read(danbooruAuthProvider.notifier).getAuthHeader(),
     ),
     GallerySourceId.safebooru: DonmaiGallerySourceAdapter(
       sourceId: GallerySourceId.safebooru,
       dio: dio,
+      authHeader: () => ref.read(danbooruAuthProvider.notifier).getAuthHeader(),
     ),
     GallerySourceId.gelbooru: GelbooruGallerySourceAdapter(
       dio: dio,
@@ -128,6 +139,52 @@ Map<GallerySourceId, GallerySourceAdapter> onlineGallerySourceAdapters(
   };
 }
 
+class RandomGallerySession {
+  const RandomGallerySession({
+    this.scopeKey = '',
+    this.cache = const ModeCache(),
+    this.seenStableKeys = const <String>{},
+    this.seenCandidateStableKeys = const <String>{},
+    this.nextCursor,
+    this.consecutiveMisses = 0,
+    this.drawRevision = 0,
+    this.exhausted = false,
+  });
+
+  final String scopeKey;
+  final ModeCache cache;
+  final Set<String> seenStableKeys;
+  final Set<String> seenCandidateStableKeys;
+  final String? nextCursor;
+  final int consecutiveMisses;
+  final int drawRevision;
+  final bool exhausted;
+
+  RandomGallerySession copyWith({
+    String? scopeKey,
+    ModeCache? cache,
+    Set<String>? seenStableKeys,
+    Set<String>? seenCandidateStableKeys,
+    String? nextCursor,
+    bool clearNextCursor = false,
+    int? consecutiveMisses,
+    int? drawRevision,
+    bool? exhausted,
+  }) {
+    return RandomGallerySession(
+      scopeKey: scopeKey ?? this.scopeKey,
+      cache: cache ?? this.cache,
+      seenStableKeys: seenStableKeys ?? this.seenStableKeys,
+      seenCandidateStableKeys:
+          seenCandidateStableKeys ?? this.seenCandidateStableKeys,
+      nextCursor: clearNextCursor ? null : nextCursor ?? this.nextCursor,
+      consecutiveMisses: consecutiveMisses ?? this.consecutiveMisses,
+      drawRevision: drawRevision ?? this.drawRevision,
+      exhausted: exhausted ?? this.exhausted,
+    );
+  }
+}
+
 class ModeCache {
   const ModeCache({
     this.posts = const [],
@@ -136,8 +193,13 @@ class ModeCache {
     this.hasMore = true,
     this.total,
     this.scrollOffset = 0,
+    this.anchorStableKey,
+    this.anchorLocalOffset = 0,
     this.appendErrorCode,
     this.endedByDuplicatePage = false,
+    this.artistHuntCandidateCount = 0,
+    this.artistHuntResolvedCount = 0,
+    this.artistHuntFailureCount = 0,
   });
 
   final List<GalleryItem> posts;
@@ -146,8 +208,13 @@ class ModeCache {
   final bool hasMore;
   final int? total;
   final double scrollOffset;
+  final String? anchorStableKey;
+  final double anchorLocalOffset;
   final OnlineGalleryErrorCode? appendErrorCode;
   final bool endedByDuplicatePage;
+  final int artistHuntCandidateCount;
+  final int artistHuntResolvedCount;
+  final int artistHuntFailureCount;
 
   ModeCache copyWith({
     List<GalleryItem>? posts,
@@ -156,9 +223,14 @@ class ModeCache {
     bool? hasMore,
     int? total,
     double? scrollOffset,
+    String? anchorStableKey,
+    double? anchorLocalOffset,
     OnlineGalleryErrorCode? appendErrorCode,
     bool clearAppendError = false,
     bool? endedByDuplicatePage,
+    int? artistHuntCandidateCount,
+    int? artistHuntResolvedCount,
+    int? artistHuntFailureCount,
   }) {
     return ModeCache(
       posts: posts ?? this.posts,
@@ -167,12 +239,52 @@ class ModeCache {
       hasMore: hasMore ?? this.hasMore,
       total: total ?? this.total,
       scrollOffset: scrollOffset ?? this.scrollOffset,
+      anchorStableKey: anchorStableKey ?? this.anchorStableKey,
+      anchorLocalOffset: anchorLocalOffset ?? this.anchorLocalOffset,
       appendErrorCode: clearAppendError
           ? null
           : (appendErrorCode ?? this.appendErrorCode),
       endedByDuplicatePage: endedByDuplicatePage ?? this.endedByDuplicatePage,
+      artistHuntCandidateCount:
+          artistHuntCandidateCount ?? this.artistHuntCandidateCount,
+      artistHuntResolvedCount:
+          artistHuntResolvedCount ?? this.artistHuntResolvedCount,
+      artistHuntFailureCount:
+          artistHuntFailureCount ?? this.artistHuntFailureCount,
     );
   }
+}
+
+class _ArtistHuntResolution {
+  const _ArtistHuntResolution({
+    required this.items,
+    required this.successfulCandidateKeys,
+    required this.resolvedCount,
+    required this.failureCount,
+  });
+
+  final List<GalleryItem> items;
+  final Set<String> successfulCandidateKeys;
+  final int resolvedCount;
+  final int failureCount;
+}
+
+class _ArtistHuntCandidateOutcome {
+  const _ArtistHuntCandidateOutcome.success(this.detail) : error = null;
+  const _ArtistHuntCandidateOutcome.failure(this.error) : detail = null;
+
+  final GalleryDetail? detail;
+  final Object? error;
+  bool get succeeded => detail != null;
+}
+
+class _ArtistHuntDetailException implements Exception {
+  const _ArtistHuntDetailException(this.failureCount);
+
+  final int failureCount;
+
+  @override
+  String toString() => 'Failed to resolve $failureCount AI TAG works';
 }
 
 class OnlineGalleryState {
@@ -206,6 +318,9 @@ class OnlineGalleryState {
     this.favoriteLoadingPostKeys = const {},
     this.dateRangeStart,
     this.dateRangeEnd,
+    this.randomEnabled = false,
+    this.randomSession = const RandomGallerySession(),
+    this.artistHuntEnabled = false,
   });
 
   final bool isLoading;
@@ -237,18 +352,39 @@ class OnlineGalleryState {
   final Set<String> favoriteLoadingPostKeys;
   final DateTime? dateRangeStart;
   final DateTime? dateRangeEnd;
+  final bool randomEnabled;
+  final RandomGallerySession randomSession;
+  final bool artistHuntEnabled;
+
+  GallerySourceId get activeSourceId => switch (viewMode) {
+    GalleryViewMode.search => sourceId,
+    GalleryViewMode.popular => popularSourceId,
+    GalleryViewMode.favorites => favoritesSourceId,
+  };
+
+  GalleryFeedKind get activeFeedKind => switch (viewMode) {
+    GalleryViewMode.search => GalleryFeedKind.search,
+    GalleryViewMode.popular => GalleryFeedKind.ranking,
+    GalleryViewMode.favorites => GalleryFeedKind.favorites,
+  };
 
   GallerySourceCapabilities get activeCapabilities =>
-      gallerySourceCapabilities[viewMode == GalleryViewMode.popular
-          ? popularSourceId
-          : sourceId]!;
+      gallerySourceCapabilities[activeSourceId]!;
+
+  bool get supportsRandom =>
+      activeCapabilities.supportsRandomFeed(activeFeedKind);
+
+  bool get isArtistHuntActive =>
+      artistHuntEnabled &&
+      activeSourceId == GallerySourceId.aiTag &&
+      viewMode != GalleryViewMode.favorites;
 
   String get currentCacheKey {
     switch (viewMode) {
       case GalleryViewMode.search:
-        return 'search:${sourceId.key}:${searchQuery.trim()}|${promptQuery.trim()}|$fuzzySearchEnabled|${_ratingsKey(selectedRatings)}|${dateRangeStart?.toIso8601String() ?? ''}|${dateRangeEnd?.toIso8601String() ?? ''}|$aiTagTimeRange';
+        return 'search:${sourceId.key}:${searchQuery.trim()}|${promptQuery.trim()}|$fuzzySearchEnabled|${_ratingsKey(selectedRatings)}|${dateRangeStart?.toIso8601String() ?? ''}|${dateRangeEnd?.toIso8601String() ?? ''}|$aiTagTimeRange|artistHunt:${sourceId == GallerySourceId.aiTag && artistHuntEnabled}';
       case GalleryViewMode.popular:
-        return 'popular:${popularSourceId.key}:${popularScale.name}|${popularDate?.toIso8601String() ?? ''}|$aiTagPopularPeriod|${popularQuery.trim()}|${popularPromptQuery.trim()}|${_ratingsKey(selectedRatings)}';
+        return 'popular:${popularSourceId.key}:${popularScale.name}|${popularDate?.toIso8601String() ?? ''}|$aiTagPopularPeriod|${popularQuery.trim()}|${popularPromptQuery.trim()}|${_ratingsKey(selectedRatings)}|artistHunt:${popularSourceId == GallerySourceId.aiTag && artistHuntEnabled}';
       case GalleryViewMode.favorites:
         return 'favorites:${favoritesSourceId.key}|${_ratingsKey(selectedRatings)}';
     }
@@ -282,10 +418,14 @@ class OnlineGalleryState {
   }
 
   bool get hasError => error != null || errorCode != null;
-  List<GalleryItem> get posts => currentCache.posts;
-  int get page => currentCache.page;
-  bool get hasMore => currentCache.hasMore;
-  double get scrollOffset => currentCache.scrollOffset;
+  List<GalleryItem> get posts =>
+      randomEnabled ? randomSession.cache.posts : currentCache.posts;
+  int get page => randomEnabled ? 1 : currentCache.page;
+  bool get hasMore =>
+      randomEnabled ? !randomSession.exhausted : currentCache.hasMore;
+  double get scrollOffset => randomEnabled
+      ? randomSession.cache.scrollOffset
+      : currentCache.scrollOffset;
 
   OnlineGalleryState copyWith({
     bool? isLoading,
@@ -321,12 +461,15 @@ class OnlineGalleryState {
     bool clearNotice = false,
     bool clearPopularDate = false,
     bool clearDateRange = false,
+    bool? randomEnabled,
+    RandomGallerySession? randomSession,
+    bool? artistHuntEnabled,
   }) {
     return OnlineGalleryState(
       isLoading: isLoading ?? this.isLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       error: clearError ? null : (error ?? this.error),
-      errorCode: clearError ? null : (errorCode ?? this.errorCode),
+      errorCode: errorCode ?? (clearError ? null : this.errorCode),
       notice: clearNotice ? null : (notice ?? this.notice),
       searchQuery: searchQuery ?? this.searchQuery,
       promptQuery: promptQuery ?? this.promptQuery,
@@ -362,11 +505,17 @@ class OnlineGalleryState {
           ? null
           : (dateRangeStart ?? this.dateRangeStart),
       dateRangeEnd: clearDateRange ? null : (dateRangeEnd ?? this.dateRangeEnd),
+      randomEnabled: randomEnabled ?? this.randomEnabled,
+      randomSession: randomSession ?? this.randomSession,
+      artistHuntEnabled: artistHuntEnabled ?? this.artistHuntEnabled,
     );
   }
 
   OnlineGalleryState updateCurrentCache(ModeCache cache) {
-    final updated = {...caches, currentCacheKey: cache};
+    final updated = LinkedHashMap<String, ModeCache>.of(caches)
+      ..remove(currentCacheKey)
+      ..[currentCacheKey] = cache;
+    _trimCaches(updated, currentCacheKey);
     switch (viewMode) {
       case GalleryViewMode.search:
         return copyWith(caches: updated, searchCache: cache);
@@ -384,15 +533,27 @@ class OnlineGalleryState {
     ModeCache cache,
   ) {
     final key = 'favorites:${sourceId.key}|${_ratingsKey(selectedRatings)}';
+    final updated = LinkedHashMap<String, ModeCache>.of(caches)
+      ..remove(key)
+      ..[key] = cache;
+    _trimCaches(updated, currentCacheKey);
     return sourceId == GallerySourceId.gelbooru
-        ? copyWith(
-            caches: {...caches, key: cache},
-            gelbooruFavoritesCache: cache,
-          )
-        : copyWith(
-            caches: {...caches, key: cache},
-            danbooruFavoritesCache: cache,
-          );
+        ? copyWith(caches: updated, gelbooruFavoritesCache: cache)
+        : copyWith(caches: updated, danbooruFavoritesCache: cache);
+  }
+
+  static void _trimCaches(
+    LinkedHashMap<String, ModeCache> caches,
+    String protectedKey,
+  ) {
+    while (caches.length > 12) {
+      final oldestEvictable = caches.keys.cast<String?>().firstWhere(
+        (key) => key != protectedKey,
+        orElse: () => null,
+      );
+      if (oldestEvictable == null) return;
+      caches.remove(oldestEvictable);
+    }
   }
 
   static String _ratingsKey(Set<String> ratings) {
@@ -404,18 +565,61 @@ class OnlineGalleryState {
 @riverpod
 class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   static const int _pageSize = 40;
-  static const int _maxConcurrentDetailRequests = 6;
+  static const int _maxFilteredEmptyPagesPerLoad = 5;
 
   CancelToken? _cancelToken;
   int _requestGeneration = 0;
-  int _activeDetailRequests = 0;
-  final List<Completer<void>> _detailRequestQueue = [];
-  final Map<String, Future<GalleryDetail>> _detailRequests = {};
+  OnlineGalleryState? _normalRestorePoint;
+  OnlineGalleryDetailCoordinator? _detailCoordinator;
+
+  OnlineGalleryDetailCoordinator get _details =>
+      _detailCoordinator ??= OnlineGalleryDetailCoordinator(
+        loader: (item, cancelToken) =>
+            _adapters[item.sourceId]!.detail(item, cancelToken: cancelToken),
+      );
 
   @override
   OnlineGalleryState build() {
     ref.keepAlive();
+    ref.onDispose(() => _detailCoordinator?.clear());
+    ref.listen<String?>(
+      danbooruAuthProvider.select((value) => value.user?.name),
+      (_, _) => _handleRandomAccountIdentityChanged(GallerySourceId.danbooru),
+    );
+    ref.listen<String?>(
+      gelbooruAuthProvider.select(
+        (value) => value.credentials?.userId.toString(),
+      ),
+      (_, _) => _handleRandomAccountIdentityChanged(GallerySourceId.gelbooru),
+    );
+    ref.listen<String>(
+      onlineGalleryBlacklistNotifierProvider.select((value) {
+        final tags = value.effectiveTags.toList()..sort();
+        return tags.join('\u0000');
+      }),
+      (_, _) => _handleRandomScopeInputChanged(),
+    );
     return const OnlineGalleryState();
+  }
+
+  void _handleRandomScopeInputChanged() {
+    if (!state.randomEnabled) return;
+    _cancelCurrentRequest();
+    state = state.copyWith(
+      randomSession: const RandomGallerySession(),
+      clearError: true,
+    );
+    unawaited(_loadRandom(replace: true, restart: true));
+  }
+
+  void _handleRandomAccountIdentityChanged(GallerySourceId sourceId) {
+    if (!state.randomEnabled || state.activeSourceId != sourceId) return;
+    _cancelCurrentRequest();
+    state = state.copyWith(
+      randomSession: const RandomGallerySession(),
+      clearError: true,
+    );
+    unawaited(_loadRandom(replace: true, restart: true));
   }
 
   Map<GallerySourceId, GallerySourceAdapter> get _adapters =>
@@ -436,6 +640,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   void _cancelCurrentRequest() {
     _beginRequest();
+    _detailCoordinator?.cancelQueuedVisible();
+    if (state.isLoading || state.isLoadingMore) {
+      state = state.copyWith(isLoading: false, isLoadingMore: false);
+    }
   }
 
   bool _isCurrentRequest(int generation, String cacheKey) {
@@ -443,24 +651,44 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         state.currentCacheKey == cacheKey;
   }
 
-  void saveScrollOffset(double offset) {
-    state = state.updateCurrentCache(
-      state.currentCache.copyWith(scrollOffset: offset),
+  void saveScrollOffset(
+    double offset, {
+    String? anchorStableKey,
+    double anchorLocalOffset = 0,
+  }) {
+    final activeCache = state.randomEnabled
+        ? state.randomSession.cache
+        : state.currentCache;
+    final cache = activeCache.copyWith(
+      scrollOffset: offset,
+      anchorStableKey: anchorStableKey,
+      anchorLocalOffset: anchorLocalOffset,
     );
+    if (state.randomEnabled) {
+      state = state.copyWith(
+        randomSession: state.randomSession.copyWith(cache: cache),
+      );
+      return;
+    }
+    state = state.updateCurrentCache(cache);
   }
 
   Future<void> switchToSearch() async {
     if (state.viewMode == GalleryViewMode.search) return;
     _cancelCurrentRequest();
     state = state.copyWith(viewMode: GalleryViewMode.search, clearError: true);
-    if (state.currentCache.posts.isEmpty) await loadPosts(refresh: true);
+    if (state.randomEnabled || state.currentCache.posts.isEmpty) {
+      await loadPosts(refresh: true);
+    }
   }
 
   Future<void> switchToPopular() async {
     if (state.viewMode == GalleryViewMode.popular) return;
     _cancelCurrentRequest();
     state = state.copyWith(viewMode: GalleryViewMode.popular, clearError: true);
-    if (state.currentCache.posts.isEmpty) await loadPosts(refresh: true);
+    if (state.randomEnabled || state.currentCache.posts.isEmpty) {
+      await loadPosts(refresh: true);
+    }
   }
 
   Future<void> switchToFavorites() async {
@@ -469,7 +697,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       viewMode: GalleryViewMode.favorites,
       clearError: true,
     );
-    if (state.currentCache.posts.isEmpty) await loadPosts(refresh: true);
+    if (state.randomEnabled || state.currentCache.posts.isEmpty) {
+      await loadPosts(refresh: true);
+    }
   }
 
   Future<void> setSource(Object source) async {
@@ -478,7 +708,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     if (state.sourceId == sourceId) return;
     _cancelCurrentRequest();
     state = state.copyWith(sourceId: sourceId, clearError: true);
-    if (state.currentCache.posts.isEmpty) await loadPosts(refresh: true);
+    if (state.randomEnabled || state.currentCache.posts.isEmpty) {
+      await loadPosts(refresh: true);
+    }
   }
 
   Future<void> setPopularSource(Object source) async {
@@ -488,7 +720,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     _cancelCurrentRequest();
     state = state.copyWith(popularSourceId: sourceId, clearError: true);
     if (state.viewMode == GalleryViewMode.popular &&
-        state.currentCache.posts.isEmpty) {
+        (state.randomEnabled || state.currentCache.posts.isEmpty)) {
       await loadPosts(refresh: true);
     }
   }
@@ -507,7 +739,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       clearNotice: true,
     );
     if (state.viewMode == GalleryViewMode.favorites &&
-        state.currentCache.posts.isEmpty) {
+        (state.randomEnabled || state.currentCache.posts.isEmpty)) {
       await loadPosts(refresh: true);
     }
   }
@@ -549,6 +781,28 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     state = state.copyWith(aiTagPopularPeriod: period, clearError: true);
     if (state.viewMode == GalleryViewMode.popular &&
         state.popularSourceId == GallerySourceId.aiTag) {
+      await loadPosts(refresh: true);
+    }
+  }
+
+  Future<void> setArtistHuntEnabled(bool enabled) async {
+    if (state.artistHuntEnabled == enabled) return;
+    _cancelCurrentRequest();
+    final next = state.copyWith(artistHuntEnabled: enabled, clearError: true);
+    if (_normalRestorePoint != null) {
+      _normalRestorePoint = _normalRestorePoint!.copyWith(
+        artistHuntEnabled: enabled,
+        clearError: true,
+      );
+    }
+    state = next;
+
+    if (state.randomEnabled) {
+      state = state.copyWith(randomSession: const RandomGallerySession());
+      await _loadRandom(replace: true, restart: true);
+      return;
+    }
+    if (state.currentCache.posts.isEmpty) {
       await loadPosts(refresh: true);
     }
   }
@@ -623,7 +877,309 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   Future<void> clearDateRange() => setDateRange(null, null);
 
+  Future<void> setRandomEnabled(bool enabled) async {
+    if (state.randomEnabled == enabled) return;
+    _cancelCurrentRequest();
+    if (!enabled) {
+      final restore = _normalRestorePoint;
+      _normalRestorePoint = null;
+      state = (restore ?? state).copyWith(
+        randomEnabled: false,
+        randomSession: state.randomSession,
+        favoritedPostKeys: state.favoritedPostKeys,
+        favoriteLoadingPostKeys: state.favoriteLoadingPostKeys,
+        aiTagConfig: state.aiTagConfig,
+        artistHuntEnabled: state.artistHuntEnabled,
+        isLoading: false,
+        isLoadingMore: false,
+        clearError: true,
+      );
+      return;
+    }
+    if (!state.supportsRandom) return;
+    _normalRestorePoint = state;
+    state = state.copyWith(
+      randomEnabled: true,
+      randomSession: const RandomGallerySession(),
+      clearError: true,
+    );
+    await _loadRandom(replace: true, restart: true);
+  }
+
+  Future<void> restartRandom() async {
+    if (!state.randomEnabled) return;
+    state = state.copyWith(randomSession: const RandomGallerySession());
+    await _loadRandom(replace: true, restart: true);
+  }
+
+  Future<void> _loadRandom({
+    required bool replace,
+    bool restart = false,
+  }) async {
+    if (!state.randomEnabled || !state.supportsRandom) return;
+    if (!replace &&
+        (state.isLoading ||
+            state.isLoadingMore ||
+            state.randomSession.exhausted)) {
+      return;
+    }
+
+    final generation = _beginRequest();
+    final cacheKey = state.currentCacheKey;
+    state = state.copyWith(
+      isLoading: replace,
+      isLoadingMore: !replace,
+      clearError: true,
+    );
+    try {
+      await ref
+          .read(onlineGalleryBlacklistNotifierProvider.notifier)
+          .ensureInitialized();
+      if (generation != _requestGeneration || !state.randomEnabled) return;
+      final blacklist = ref
+          .read(onlineGalleryBlacklistNotifierProvider)
+          .effectiveTags;
+      final scopeKey = _randomScopeKey(blacklist);
+      var session = state.randomSession;
+      if (restart || session.scopeKey != scopeKey) {
+        session = RandomGallerySession(scopeKey: scopeKey);
+      }
+      if (session.seenStableKeys.length >= 20000) {
+        state = state.copyWith(
+          isLoading: false,
+          isLoadingMore: false,
+          randomSession: session.copyWith(exhausted: true),
+        );
+        return;
+      }
+
+      final sourceId = state.activeSourceId;
+      final adapter = _adapters[sourceId]!;
+      final request = _randomRequest(session, blacklist);
+      final page = await adapter.random(request, cancelToken: _cancelToken);
+      if (generation != _requestGeneration ||
+          !state.randomEnabled ||
+          state.currentCacheKey != cacheKey) {
+        return;
+      }
+
+      final normalizedBlacklist = blacklist
+          .map((tag) => tag.trim().toLowerCase().replaceAll(' ', '_'))
+          .where((tag) => tag.isNotEmpty)
+          .toSet();
+      final artistHuntActive = state.isArtistHuntActive;
+      final seen = Set<String>.of(session.seenStableKeys);
+      final seenCandidates = Set<String>.of(session.seenCandidateStableKeys);
+      final candidates = <GalleryItem>[];
+      for (final item in page.items) {
+        final blocked = item.tags.any(
+          (tag) => normalizedBlacklist.contains(
+            tag.trim().toLowerCase().replaceAll(' ', '_'),
+          ),
+        );
+        final identity = artistHuntActive
+            ? item.detailStableKey
+            : item.stableKey;
+        final alreadySeen = artistHuntActive
+            ? seenCandidates.contains(identity)
+            : seen.contains(identity);
+        if (blocked || alreadySeen || seen.length >= 20000) continue;
+        candidates.add(item);
+      }
+
+      var posts = replace
+          ? ChunkedGalleryItems()
+          : session.cache.posts is ChunkedGalleryItems
+          ? session.cache.posts as ChunkedGalleryItems
+          : ChunkedGalleryItems.from(session.cache.posts);
+      final unique = <GalleryItem>[];
+      final candidateCount = replace
+          ? candidates.length
+          : session.cache.artistHuntCandidateCount + candidates.length;
+      var resolvedCount = replace ? 0 : session.cache.artistHuntResolvedCount;
+      var failureCount = replace ? 0 : session.cache.artistHuntFailureCount;
+
+      if (artistHuntActive) {
+        final artistHuntDeduplicationKeys = _artistHuntDeduplicationKeys(posts);
+        final resolution = await _resolveArtistHuntCandidates(
+          candidates,
+          generation: generation,
+          cacheKey: cacheKey,
+          deduplicationKeys: artistHuntDeduplicationKeys,
+          onProgress: (items, resolvedDelta, failureDelta) {
+            if (generation != _requestGeneration || !state.randomEnabled) {
+              return;
+            }
+            resolvedCount += resolvedDelta;
+            failureCount += failureDelta;
+            final freshItems = items
+                .where((item) {
+                  if (seen.length >= 20000 || !seen.add(item.stableKey)) {
+                    return false;
+                  }
+                  return true;
+                })
+                .toList(growable: false);
+            unique.addAll(freshItems);
+            if (freshItems.isNotEmpty) posts = posts.appendPage(freshItems);
+            state = state.copyWith(
+              randomSession: session.copyWith(
+                cache: session.cache.copyWith(
+                  posts: posts,
+                  artistHuntCandidateCount: candidateCount,
+                  artistHuntResolvedCount: resolvedCount,
+                  artistHuntFailureCount: failureCount,
+                ),
+                seenStableKeys: Set.unmodifiable(seen),
+              ),
+            );
+          },
+        );
+        if (resolution == null) return;
+        if (candidates.isNotEmpty &&
+            resolution.resolvedCount == 0 &&
+            resolution.failureCount > 0) {
+          throw _ArtistHuntDetailException(resolution.failureCount);
+        }
+        seenCandidates.addAll(resolution.successfulCandidateKeys);
+      } else {
+        for (final item in candidates) {
+          if (seen.length >= 20000 || !seen.add(item.stableKey)) continue;
+          unique.add(item);
+        }
+        posts = posts.appendPage(unique);
+      }
+
+      final misses = unique.isEmpty ? session.consecutiveMisses + 1 : 0;
+      final exhausted = misses >= 4 || seen.length >= 20000;
+      final nextSession = RandomGallerySession(
+        scopeKey: scopeKey,
+        cache: session.cache.copyWith(
+          posts: posts,
+          page: 1,
+          nextCursor: page.nextCursor ?? session.nextCursor ?? 'random',
+          hasMore: !exhausted,
+          total: artistHuntActive ? null : page.total,
+          endedByDuplicatePage: exhausted,
+          artistHuntCandidateCount: candidateCount,
+          artistHuntResolvedCount: resolvedCount,
+          artistHuntFailureCount: failureCount,
+        ),
+        seenStableKeys: Set.unmodifiable(seen),
+        seenCandidateStableKeys: Set.unmodifiable(seenCandidates),
+        nextCursor: page.nextCursor,
+        consecutiveMisses: misses,
+        drawRevision: session.drawRevision + 1,
+        exhausted: exhausted,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        isLoadingMore: false,
+        randomSession: nextSession,
+        clearError: true,
+      );
+    } catch (error) {
+      if (generation != _requestGeneration || !state.randomEnabled) return;
+      final isArtistHuntDetailFailure = error is _ArtistHuntDetailException;
+      state = state.copyWith(
+        isLoading: false,
+        isLoadingMore: false,
+        error: isArtistHuntDetailFailure ? null : error.toString(),
+        errorCode: _errorCode(error),
+        clearError: isArtistHuntDetailFailure,
+      );
+    }
+  }
+
+  String _randomScopeKey(Set<String> blacklist) {
+    final sortedBlacklist = blacklist.toList()..sort();
+    final accountIdentity = switch (state.activeSourceId) {
+      GallerySourceId.danbooru => _danbooruAuth.user?.name ?? 'anonymous',
+      GallerySourceId.gelbooru =>
+        _gelbooruAuth.credentials?.userId.toString() ?? 'anonymous',
+      _ => 'anonymous',
+    };
+    final feedKind = switch (state.viewMode) {
+      GalleryViewMode.search => GalleryFeedKind.search,
+      GalleryViewMode.popular => GalleryFeedKind.ranking,
+      GalleryViewMode.favorites => GalleryFeedKind.favorites,
+    };
+    return GalleryRandomScope(
+      sourceId: state.activeSourceId,
+      feedKind: feedKind,
+      fields: {
+        'query': state.currentCacheKey,
+        'blacklist': sortedBlacklist.join(','),
+        'account': accountIdentity,
+      },
+    ).stableKey;
+  }
+
+  GalleryRandomRequest _randomRequest(
+    RandomGallerySession session,
+    Set<String> blacklist,
+  ) {
+    switch (state.viewMode) {
+      case GalleryViewMode.search:
+        return GalleryRandomSearchRequest(
+          pageSize: _pageSize,
+          query: state.activeSourceId == GallerySourceId.aiTag
+              ? state.searchQuery.trim()
+              : buildOnlineGallerySearchQuery(
+                  state.searchQuery,
+                  fuzzyMatch: state.fuzzySearchEnabled,
+                ),
+          prompt: _effectivePromptQuery(state.promptQuery),
+          timeRange: state.aiTagTimeRange,
+          ratings: state.selectedRatings,
+          dateStart: state.dateRangeStart,
+          dateEnd: state.dateRangeEnd,
+          blacklistTags: blacklist,
+        );
+      case GalleryViewMode.popular:
+        return GalleryRandomRankingRequest(
+          pageSize: _pageSize,
+          kind: state.popularSourceId == GallerySourceId.aiTag
+              ? GalleryRankingKind.aiTagMonthly
+              : _rankingKind(state.popularScale),
+          date: state.popularDate,
+          period: state.aiTagPopularPeriod,
+          query: state.popularQuery,
+          prompt: _effectivePromptQuery(state.popularPromptQuery),
+          ratings: state.selectedRatings,
+          blacklistTags: blacklist,
+          cursor: session.nextCursor,
+        );
+      case GalleryViewMode.favorites:
+        final identity = state.favoritesSourceId == GallerySourceId.danbooru
+            ? _danbooruAuth.user?.name
+            : _gelbooruAuth.credentials?.userId.toString();
+        if (identity == null || identity.isEmpty) {
+          throw GallerySourceException(
+            GallerySourceErrorCode.credentialsRequired,
+            source: state.favoritesSourceId,
+          );
+        }
+        return GalleryRandomFavoritesRequest(
+          pageSize: _pageSize,
+          username: identity,
+          ratings: state.selectedRatings,
+          blacklistTags: blacklist,
+        );
+    }
+  }
+
+  String _effectivePromptQuery(String prompt) {
+    return state.isArtistHuntActive
+        ? ArtistChainParser.withArtistConstraint(prompt)
+        : prompt;
+  }
+
   Future<void> loadPosts({bool refresh = false}) async {
+    if (state.randomEnabled) {
+      await _loadRandom(replace: refresh);
+      return;
+    }
     if (!refresh && (state.isLoading || state.isLoadingMore)) return;
     switch (state.viewMode) {
       case GalleryViewMode.search:
@@ -693,72 +1249,151 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         aiTagConfig = await adapter.getConfig(cancelToken: _cancelToken);
         if (!_isCurrentRequest(generation, cacheKey)) return;
       }
-      final GalleryPage page;
-      if (state.viewMode == GalleryViewMode.popular) {
-        page = await adapter.ranking(
-          GalleryRankingRequest(
-            cursor: cursor,
-            pageSize: sourceId == GallerySourceId.aiTag
-                ? (aiTagConfig?.pageSize ?? 60)
-                : _pageSize,
-            kind: sourceId == GallerySourceId.aiTag
-                ? GalleryRankingKind.aiTagMonthly
-                : _rankingKind(state.popularScale),
-            date: state.popularDate,
-            period: state.aiTagPopularPeriod,
-            query: state.popularQuery,
-            prompt: state.popularPromptQuery,
-            ratings: state.selectedRatings,
-            blacklistTags: blacklist,
-          ),
-          cancelToken: _cancelToken,
-        );
-      } else {
-        final query = sourceId == GallerySourceId.aiTag
-            ? state.searchQuery.trim()
-            : buildOnlineGallerySearchQuery(
-                state.searchQuery,
-                fuzzyMatch: state.fuzzySearchEnabled,
+      final artistHuntActive = state.isArtistHuntActive;
+      final baseItems = refresh
+          ? ChunkedGalleryItems()
+          : cache.posts is ChunkedGalleryItems
+          ? cache.posts as ChunkedGalleryItems
+          : ChunkedGalleryItems.from(cache.posts);
+      final artistHuntDeduplicationKeys = artistHuntActive
+          ? _artistHuntDeduplicationKeys(baseItems)
+          : null;
+      var merged = baseItems;
+      var candidateCount = refresh ? 0 : cache.artistHuntCandidateCount;
+      var resolvedCount = refresh ? 0 : cache.artistHuntResolvedCount;
+      var failureCount = refresh ? 0 : cache.artistHuntFailureCount;
+      var matchedItemCount = 0;
+      var requestCursor = cursor;
+      var pagesFetched = 0;
+      var stalledCursor = false;
+      final visitedCursors = <String>{};
+      late GalleryPage page;
+      while (true) {
+        pagesFetched++;
+        visitedCursors.add(requestCursor);
+        if (state.viewMode == GalleryViewMode.popular) {
+          page = await adapter.ranking(
+            GalleryRankingRequest(
+              cursor: requestCursor,
+              pageSize: sourceId == GallerySourceId.aiTag
+                  ? (aiTagConfig?.pageSize ?? 60)
+                  : _pageSize,
+              kind: sourceId == GallerySourceId.aiTag
+                  ? GalleryRankingKind.aiTagMonthly
+                  : _rankingKind(state.popularScale),
+              date: state.popularDate,
+              period: state.aiTagPopularPeriod,
+              query: state.popularQuery,
+              prompt: _effectivePromptQuery(state.popularPromptQuery),
+              ratings: state.selectedRatings,
+              blacklistTags: blacklist,
+            ),
+            cancelToken: _cancelToken,
+          );
+        } else {
+          final query = sourceId == GallerySourceId.aiTag
+              ? state.searchQuery.trim()
+              : buildOnlineGallerySearchQuery(
+                  state.searchQuery,
+                  fuzzyMatch: state.fuzzySearchEnabled,
+                );
+          page = await adapter.search(
+            GallerySearchRequest(
+              cursor: requestCursor,
+              pageSize: sourceId == GallerySourceId.aiTag
+                  ? (aiTagConfig?.pageSize ?? 60)
+                  : _pageSize,
+              query: query,
+              prompt: _effectivePromptQuery(state.promptQuery),
+              timeRange: state.aiTagTimeRange,
+              ratings: state.selectedRatings,
+              dateStart: state.dateRangeStart,
+              dateEnd: state.dateRangeEnd,
+              blacklistTags: blacklist,
+            ),
+            cancelToken: _cancelToken,
+          );
+        }
+        if (!_isCurrentRequest(generation, cacheKey)) return;
+
+        List<GalleryItem> visiblePageItems = page.items;
+        if (artistHuntActive) {
+          candidateCount += page.items.length;
+          final resolution = await _resolveArtistHuntCandidates(
+            page.items,
+            generation: generation,
+            cacheKey: cacheKey,
+            deduplicationKeys: artistHuntDeduplicationKeys!,
+            onProgress: (items, resolvedDelta, failureDelta) {
+              if (!_isCurrentRequest(generation, cacheKey)) return;
+              resolvedCount += resolvedDelta;
+              failureCount += failureDelta;
+              if (items.isNotEmpty) merged = merged.appendPage(items);
+              state = state.updateCurrentCache(
+                cache.copyWith(
+                  posts: merged,
+                  scrollOffset: refresh ? 0 : cache.scrollOffset,
+                  artistHuntCandidateCount: candidateCount,
+                  artistHuntResolvedCount: resolvedCount,
+                  artistHuntFailureCount: failureCount,
+                  clearAppendError: true,
+                ),
               );
-        page = await adapter.search(
-          GallerySearchRequest(
-            cursor: cursor,
-            pageSize: sourceId == GallerySourceId.aiTag
-                ? (aiTagConfig?.pageSize ?? 60)
-                : _pageSize,
-            query: query,
-            prompt: state.promptQuery,
-            timeRange: state.aiTagTimeRange,
-            ratings: state.selectedRatings,
-            dateStart: state.dateRangeStart,
-            dateEnd: state.dateRangeEnd,
-            blacklistTags: blacklist,
-          ),
-          cancelToken: _cancelToken,
-        );
-      }
-      if (!_isCurrentRequest(generation, cacheKey)) return;
-      final baseItems = refresh ? const <GalleryItem>[] : cache.posts;
-      final existingKeys = baseItems.map(onlineGalleryPostKey).toSet();
-      final uniqueNew = <GalleryItem>[];
-      for (final item in page.items) {
-        if (existingKeys.add(onlineGalleryPostKey(item))) uniqueNew.add(item);
+            },
+          );
+          if (resolution == null) return;
+          if (page.items.isNotEmpty &&
+              resolution.resolvedCount == 0 &&
+              resolution.failureCount > 0) {
+            throw _ArtistHuntDetailException(resolution.failureCount);
+          }
+          visiblePageItems = resolution.items;
+          matchedItemCount += visiblePageItems.length;
+        } else {
+          merged = merged.appendPage(visiblePageItems);
+          matchedItemCount += visiblePageItems.length;
+        }
+
+        final nextCursor = page.nextCursor;
+        final filteredEmptyPage =
+            page.rawItemCount > 0 && visiblePageItems.isEmpty;
+        stalledCursor =
+            filteredEmptyPage &&
+            nextCursor != null &&
+            visitedCursors.contains(nextCursor);
+        final shouldContinue =
+            filteredEmptyPage &&
+            page.hasMore &&
+            nextCursor != null &&
+            !stalledCursor &&
+            pagesFetched < _maxFilteredEmptyPagesPerLoad;
+        if (!shouldContinue) break;
+        requestCursor = nextCursor;
       }
       final duplicatePage =
-          !refresh && page.rawItemCount > 0 && uniqueNew.isEmpty;
-      final merged = [...baseItems, ...uniqueNew];
+          !refresh && matchedItemCount > 0 && merged.length == baseItems.length;
+      final endedByDuplicatePage = duplicatePage || stalledCursor;
+      final isInitialLoad =
+          !refresh && cache.posts.isEmpty && cache.page == 1 && cursor == '1';
+      final firstRequestedPage = refresh || isInitialLoad
+          ? galleryCursorPage(cursor)
+          : cache.page + 1;
       final parsedPage = galleryCursorPage(
         page.cursor,
-        fallback: refresh ? 1 : cache.page + 1,
+        fallback: firstRequestedPage + pagesFetched - 1,
       );
       final nextCache = ModeCache(
-        posts: List.unmodifiable(merged),
+        posts: merged,
         page: parsedPage,
-        nextCursor: duplicatePage ? null : page.nextCursor,
-        total: page.total,
-        hasMore: !duplicatePage && page.hasMore && page.nextCursor != null,
+        nextCursor: endedByDuplicatePage ? null : page.nextCursor,
+        total: artistHuntActive ? null : page.total,
+        hasMore:
+            !endedByDuplicatePage && page.hasMore && page.nextCursor != null,
         scrollOffset: refresh ? 0 : cache.scrollOffset,
-        endedByDuplicatePage: duplicatePage,
+        endedByDuplicatePage: endedByDuplicatePage,
+        artistHuntCandidateCount: candidateCount,
+        artistHuntResolvedCount: resolvedCount,
+        artistHuntFailureCount: failureCount,
       );
       final gelbooruCredentialsBecameInvalid =
           sourceId == GallerySourceId.gelbooru &&
@@ -850,7 +1485,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       final int rawCount;
       if (sourceId == GallerySourceId.danbooru) {
         raw = await _danbooruApi.getFavorites(
-          userId: _danbooruAuth.user!.id,
+          username: _danbooruAuth.user!.name,
           page: pageNumber,
           limit: _pageSize,
         );
@@ -867,14 +1502,18 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       }
       if (!_isCurrentRequest(generation, cacheKey)) return;
       final filtered = _filterLocal(raw, blacklist);
-      final base = refresh ? const <GalleryItem>[] : cache.posts;
-      final keys = base.map(onlineGalleryPostKey).toSet();
-      final added = filtered.where((item) => keys.add(item.stableKey)).toList();
-      final duplicatePage = !refresh && rawCount > 0 && added.isEmpty;
+      final base = refresh
+          ? ChunkedGalleryItems()
+          : cache.posts is ChunkedGalleryItems
+          ? cache.posts as ChunkedGalleryItems
+          : ChunkedGalleryItems.from(cache.posts);
+      final merged = base.appendPage(filtered);
+      final duplicatePage =
+          !refresh && rawCount > 0 && merged.length == base.length;
       final favorites = {...state.favoritedPostKeys}
         ..addAll(filtered.map(onlineGalleryPostKey));
       final nextCache = ModeCache(
-        posts: List.unmodifiable([...base, ...added]),
+        posts: merged,
         page: pageNumber,
         nextCursor: duplicatePage ? null : '${pageNumber + 1}',
         hasMore: !duplicatePage && rawCount >= _pageSize,
@@ -922,41 +1561,119 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         .toList(growable: false);
   }
 
+  Set<String> _artistHuntDeduplicationKeys(Iterable<GalleryItem> items) {
+    final keys = <String>{};
+    for (final item in items) {
+      final extraction = item.artistChain;
+      final prompt = item.cover.prompt;
+      if (extraction == null || extraction.isEmpty || prompt == null) continue;
+      keys.add(ArtistChainParser.deduplicationKey(prompt, extraction));
+    }
+    return keys;
+  }
+
+  Future<_ArtistHuntResolution?> _resolveArtistHuntCandidates(
+    List<GalleryItem> candidates, {
+    required int generation,
+    required String cacheKey,
+    required Set<String> deduplicationKeys,
+    void Function(List<GalleryItem> items, int resolvedDelta, int failureDelta)?
+    onProgress,
+  }) async {
+    final pending = candidates
+        .map((candidate) async {
+          try {
+            final detail = await _details.request(
+              candidate,
+              priority: GalleryDetailPriority.visible,
+            );
+            return _ArtistHuntCandidateOutcome.success(detail);
+          } catch (error) {
+            return _ArtistHuntCandidateOutcome.failure(error);
+          }
+        })
+        .toList(growable: false);
+
+    final allItems = <GalleryItem>[];
+    final successfulKeys = <String>{};
+    final progressItems = <GalleryItem>[];
+    var resolvedCount = 0;
+    var failureCount = 0;
+    var pendingResolved = 0;
+    var pendingFailures = 0;
+
+    for (
+      var candidateIndex = 0;
+      candidateIndex < candidates.length;
+      candidateIndex++
+    ) {
+      final outcome = await pending[candidateIndex];
+      if (!_isCurrentRequest(generation, cacheKey)) return null;
+
+      if (!outcome.succeeded) {
+        failureCount++;
+        pendingFailures++;
+      } else {
+        resolvedCount++;
+        pendingResolved++;
+        final candidate = candidates[candidateIndex];
+        successfulKeys.add(candidate.detailStableKey);
+        final media = outcome.detail!.media;
+        for (var mediaIndex = 0; mediaIndex < media.length; mediaIndex++) {
+          final focusedMedia = media[mediaIndex];
+          final prompt = focusedMedia.prompt;
+          final extraction = ArtistChainParser.parse(prompt);
+          if (extraction.isEmpty || prompt == null) continue;
+          final deduplicationKey = ArtistChainParser.deduplicationKey(
+            prompt,
+            extraction,
+          );
+          if (!deduplicationKeys.add(deduplicationKey)) continue;
+          final focusedItem = candidate.copyWith(
+            cover: focusedMedia,
+            focusedMediaId: focusedMedia.id,
+            focusedMediaIndex: mediaIndex,
+            artistChain: extraction,
+          );
+          allItems.add(focusedItem);
+          progressItems.add(focusedItem);
+          break;
+        }
+      }
+
+      final flush =
+          pendingResolved + pendingFailures >= 4 ||
+          candidateIndex == candidates.length - 1;
+      if (flush && onProgress != null) {
+        onProgress(
+          List.unmodifiable(progressItems),
+          pendingResolved,
+          pendingFailures,
+        );
+        progressItems.clear();
+        pendingResolved = 0;
+        pendingFailures = 0;
+      }
+    }
+
+    return _ArtistHuntResolution(
+      items: List.unmodifiable(allItems),
+      successfulCandidateKeys: Set.unmodifiable(successfulKeys),
+      resolvedCount: resolvedCount,
+      failureCount: failureCount,
+    );
+  }
+
   Future<GalleryDetail> loadDetail(
     GalleryItem item, {
     bool forceRefresh = false,
+    GalleryDetailPriority priority = GalleryDetailPriority.interactive,
   }) {
-    final key = item.stableKey;
-    if (forceRefresh) _detailRequests.remove(key);
-    return _detailRequests.putIfAbsent(key, () async {
-      await _acquireDetailRequestSlot();
-      try {
-        return await _adapters[item.sourceId]!.detail(item);
-      } catch (_) {
-        _detailRequests.remove(key);
-        rethrow;
-      } finally {
-        _releaseDetailRequestSlot();
-      }
-    });
-  }
-
-  Future<void> _acquireDetailRequestSlot() async {
-    if (_activeDetailRequests < _maxConcurrentDetailRequests) {
-      _activeDetailRequests++;
-      return;
-    }
-    final completer = Completer<void>();
-    _detailRequestQueue.add(completer);
-    await completer.future;
-  }
-
-  void _releaseDetailRequestSlot() {
-    if (_detailRequestQueue.isNotEmpty) {
-      _detailRequestQueue.removeAt(0).complete();
-      return;
-    }
-    _activeDetailRequests--;
+    return _details.request(
+      item,
+      forceRefresh: forceRefresh,
+      priority: priority,
+    );
   }
 
   Future<bool> addFavorite(Object postOrId) async {
@@ -996,9 +1713,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           state.favoritesSourceId == GallerySourceId.danbooru) {
         state = state.updateCurrentCache(
           state.currentCache.copyWith(
-            posts: state.currentCache.posts
-                .where((item) => item.id != postId)
-                .toList(growable: false),
+            posts: ChunkedGalleryItems.from(
+              state.currentCache.posts.where((item) => item.id != postId),
+            ),
           ),
         );
       }
@@ -1051,6 +1768,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   }
 
   OnlineGalleryErrorCode _errorCode(Object error) {
+    if (error is _ArtistHuntDetailException) {
+      return OnlineGalleryErrorCode.artistHuntDetailFailed;
+    }
     if (error is GallerySourceException) {
       if (error.source == GallerySourceId.gelbooru) {
         return switch (error.code) {

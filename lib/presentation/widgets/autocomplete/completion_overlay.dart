@@ -179,6 +179,7 @@ class _EmptyCompletionBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final loading = state.isLocalLoading || state.isRemoteLoading;
+    final related = state.query?.relatedTag != null;
     final error = state.localError ?? state.remoteError;
     return SizedBox(
       key: const ValueKey('autocomplete-popup-empty'),
@@ -214,9 +215,13 @@ class _EmptyCompletionBody extends StatelessWidget {
                   message: error ?? '',
                   child: Text(
                     loading
-                        ? context.l10n.autocomplete_relatedLoading
+                        ? related
+                              ? context.l10n.autocomplete_relatedLoading
+                              : context.l10n.autocomplete_loading
                         : error == null
-                        ? context.l10n.autocomplete_relatedEmpty
+                        ? related
+                              ? context.l10n.autocomplete_relatedEmpty
+                              : context.l10n.autocomplete_empty
                         : context.l10n.autocomplete_statusError,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -270,9 +275,9 @@ class _CompletionHeader extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final showTitle = constraints.maxWidth >= 590;
+          final showTitle = constraints.maxWidth >= 440;
           final showFullShortcuts = constraints.maxWidth >= 650;
-          final showCompactShortcuts = constraints.maxWidth >= 440;
+          final showCompactShortcuts = constraints.maxWidth >= 540;
           return Row(
             children: [
               if (showTitle) ...[
@@ -477,9 +482,7 @@ class _CompletionTile extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: candidate.isExisting ? null : onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 90),
-            curve: Curves.easeOut,
+          child: Container(
             height: 35,
             decoration: BoxDecoration(
               color: selected
@@ -526,9 +529,7 @@ class _CompletionTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: categoryColor,
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w600,
+                        fontWeight: FontWeight.w600,
                         letterSpacing: 0.05,
                       ),
                     ),

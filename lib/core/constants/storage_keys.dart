@@ -50,6 +50,8 @@ class StorageKeys {
   static const String promptMaximized = 'prompt_maximized';
   static const String generationLayoutMode = 'generation_layout_mode';
   static const String historyClickBehavior = 'history_click_behavior';
+  static const String previewTransparencyBackground =
+      'preview_transparency_background';
   static const String mainNavRailExpanded = 'main_nav_rail_expanded';
   static const String webLeftPanelWidth = 'web_left_panel_width';
   static const String webLeftPanelExpanded = 'web_left_panel_expanded';
@@ -76,12 +78,14 @@ class StorageKeys {
       'selected_resolution_preset_id';
   static const String imageSavePath = 'image_save_path';
   static const String autoSaveImages = 'auto_save_images';
+  static const String imageStraightAlpha = 'image_straight_alpha';
   static const String shareStripMetadata = 'share_strip_metadata';
   static const String addQualityTags = 'add_quality_tags';
   static const String ucPresetType = 'uc_preset_type';
 
   // 质量词预设（新版）
   static const String qualityPresetMode = 'quality_preset_mode';
+  static const String qualityPresetNaiTier = 'quality_preset_nai_tier';
   static const String qualityPresetCustomId = 'quality_preset_custom_id';
   static const String qualityPresetCustomIds =
       'quality_preset_custom_ids'; // 自定义条目ID列表
@@ -101,6 +105,8 @@ class StorageKeys {
   static const String autocompleteAutoComma = 'autocomplete_auto_comma';
   static const String autocompleteReplaceUnderscores =
       'autocomplete_replace_underscores';
+  static const String autocompleteOpenOnTagClick =
+      'autocomplete_open_on_tag_click';
   static const String autocompleteDanbooruEnabled =
       'autocomplete_danbooru_enabled';
   static const String autocompleteLlmTranslationEnabled =
@@ -128,6 +134,8 @@ class StorageKeys {
   static const String lastCfgRescale = 'last_cfg_rescale';
   static const String lastNoiseSchedule = 'last_noise_schedule';
   static const String lastVarietyPlus = 'last_variety_plus';
+  static const String lastTransparentBackground = 'last_transparent_background';
+  static const String lastE2eUpscale = 'last_e2e_upscale';
 
   // Gallery Keys (画廊相关)
   static const String generationHistory = 'generation_history';
@@ -210,7 +218,11 @@ class StorageKeys {
 
   // Update Check Keys (更新检查相关)
   static const String lastUpdateCheckTime = 'last_update_check_time';
+  static const String lastUpdateCheckAttemptTime =
+      'last_update_check_attempt_time';
   static const String skippedUpdateVersion = 'skipped_update_version';
+  static const String lastKnownUpdateVersion = 'last_known_update_version';
+  static const String updateRemindAfter = 'update_remind_after';
   static const String includePrereleaseUpdates = 'include_prerelease_updates';
 
   // Data Source Cache Settings (数据源缓存设置)
@@ -273,6 +285,10 @@ class StorageKeys {
       'online_gallery_blacklist_last_sync_at';
   static const String onlineGalleryBlacklistLastSyncError =
       'online_gallery_blacklist_last_sync_error';
+  static const String onlineGalleryPromptTagCategories =
+      'online_gallery_prompt_tag_categories';
+  static const String onlineGalleryOutputFilterTags =
+      'online_gallery_output_filter_tags';
 
   // ComfyUI 设置
   static const String comfyuiEnabled = 'comfyui_enabled';
@@ -282,6 +298,10 @@ class StorageKeys {
       'comfyui_upscale_regular_model';
   static const String comfyuiUpscaleSeedvr2Model =
       'comfyui_upscale_seedvr2_model';
+  static const String comfyuiUpscaleSeedvr2NativeModel =
+      'comfyui_upscale_seedvr2_native_model';
+  static const String comfyuiUpscaleSeedvr2LegacyModel =
+      'comfyui_upscale_seedvr2_legacy_model';
   static const String comfyuiUpscaleScale = 'comfyui_upscale_scale';
   static const String comfyuiUpscaleBackend = 'comfyui_upscale_backend';
   static const String comfyuiUpscaleModule = 'comfyui_upscale_module';
@@ -291,12 +311,18 @@ class StorageKeys {
   static const String comfyuiSeedvr2TileSize = 'comfyui_seedvr2_tile_size';
   static const String comfyuiSeedvr2BlocksToSwap =
       'comfyui_seedvr2_blocks_to_swap';
+  static const String comfyuiSeedvr2Engine = 'comfyui_seedvr2_engine';
+  static const String comfyuiSeedvr2EmbedNaiMetadata =
+      'comfyui_seedvr2_embed_nai_metadata';
 
   // Krita Bridge 设置
   static const String kritaBridgeEnabled = 'krita_bridge_enabled';
 
   // 工作流设置
+  /// 旧版连续幅度（0-1），只用于迁移到 [workflowEnhanceLevel]。
   static const String workflowEnhanceMagnitude = 'workflow_enhance_magnitude';
+  static const String workflowEnhanceLevel = 'workflow_enhance_level';
+  static const String workflowEnhanceMaxScale = 'workflow_enhance_max_scale';
   static const String workflowEnhanceShowIndividualSettings =
       'workflow_enhance_show_individual_settings';
   static const String workflowEnhanceUpscaleFactor =

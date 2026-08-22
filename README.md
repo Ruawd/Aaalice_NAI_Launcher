@@ -13,9 +13,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Ruawd/Aaalice_NAI_Launcher/releases"><img src="https://img.shields.io/badge/version-1.5.0-blue" alt="Version"></a>
-  <img src="https://img.shields.io/badge/Flutter-3.44.2-blue?logo=flutter" alt="Flutter">
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20iOS-lightgrey" alt="Platforms">
+  <a href="https://github.com/Ruawd/Aaalice_NAI_Launcher/releases/latest"><img src="https://img.shields.io/github/v/release/Ruawd/Aaalice_NAI_Launcher?display_name=tag&sort=semver" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey" alt="Platforms">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <a href="https://discord.gg/R48n6GwXzD"><img src="https://img.shields.io/badge/Discord-加入服务器-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
@@ -28,7 +27,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 
 | 能力 | 说明 |
 | --- | --- |
-| 🎨 图像生成 | 支持 NovelAI Diffusion V1/V2/V3/V4/V4.5、Furry 系列、常用采样器、尺寸预设、多角色参数和 Anlas 估算。 |
+| 🎨 图像生成 | 支持 NovelAI Diffusion V1/V2/V3/V4/V4.5/V5、Furry 系列、常用采样器、尺寸预设、多角色参数和 Anlas 估算。 |
 | 🖼️ 图生图与编辑 | 支持图生图、局部重绘、Focused Inpaint、Outpaint、虚拟画布扩图、硬边蒙版和点击式区域填充。 |
 | 🌈 参考与风格 | 支持 Vibe Transfer、Precise Reference、多图参考、Vibe 整包导入导出、PNG 元数据嵌入导出。 |
 | ✍️ Prompt 工具 | 内置完整离线 Danbooru/e621 合并标签、别名及 Danbooru 共现关系补全，支持 `Ctrl/⌘+Shift+Space` 查询光标前标签的相关词、固定来源标签后连续选词、Danbooru 在线相关标签补充、可选中文词库与 AI 缺失汉化，以及 NAI/SD 权重语法辅助、Token 统计、提示词框内搜索和固定词。 |
@@ -90,12 +89,12 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 
 ## 📦 下载与安装
 
-前往 [Releases](https://github.com/Ruawd/Aaalice_NAI_Launcher/releases) 下载最新版本。
+前往 [Releases](https://github.com/Ruawd/Aaalice_NAI_Launcher/releases) 下载最新版本。应用会在登录前后持续提示可用更新，并完整渲染 Release“更新内容”中的 GitHub Flavored Markdown（标题、列表、表格、引用、代码、链接与图片），不重复显示平台下载与文件校验区段。
 
 | 平台 | 下载文件 | 使用方式 |
 | --- | --- | --- |
-| Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | 安装版，推荐普通用户，安装到当前用户目录，支持应用内一键更新。 |
-| Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | 便携版，解压后运行 `nai_launcher.exe`，支持应用内下载更新、自动覆盖文件并重启。 |
+| Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | 安装版，推荐普通用户，安装到当前用户目录；支持应用内断点下载、校验、自动安装并重启。手动运行安装包时也会检测并关闭托盘中的旧版本。 |
+| Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | 便携版，解压后运行 `nai_launcher.exe`；应用内更新会暂存新版、保留用户文件、原子切换目录，失败时自动回滚并重启旧版。 |
 | macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | 便携版，解压后打开 `Aaalice NAI Launcher.app`。未公证版本如被拦截，可在系统设置的隐私与安全中允许打开。 |
 | iOS | `NAI_Launcher_iOS_<version>_TrollStore.ipa` | 使用 TrollStore 安装的 ad-hoc 签名测试版。应用文档可通过“文件”App访问，Token 保存在 iOS Keychain。 |
 
@@ -108,166 +107,12 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 - Danbooru 在线补充默认开启，只发送光标所在的当前英文 token，不发送完整提示词；可在“设置 → 数据源与缓存”关闭并单独清除缓存。
 - AI 缺失汉化默认关闭。开启后会复用 Prompt Assistant 的 `Translate` 路由，向用户选择的模型服务发送最多 8 个待翻译标签，可能产生 API 费用；AI 翻译缓存可单独清除。
 
-## 🛠️ 从源码构建
+## 💬 支持与贡献
 
-### 环境要求
-
-- Flutter `3.44.2`（项目最低要求 Flutter `3.35.0` / Dart `3.10.7`）
-- Git LFS，用于拉取 `assets/databases/*.db`
-- Windows 构建：Visual Studio 2022 Desktop development with C++
-- Windows 构建：[NuGet CLI](https://learn.microsoft.com/nuget/install-nuget-client-tools)，`nuget.exe` 所在目录必须加入 `PATH`
-- macOS / iOS 构建：完整 Xcode、CocoaPods、Git LFS
-
-### 通用步骤
-
-```bash
-git clone https://github.com/Ruawd/Aaalice_NAI_Launcher.git
-cd Aaalice_NAI_Launcher
-
-git lfs install
-git lfs pull --include="assets/databases/*.db"
-
-flutter pub get
-dart run build_runner build --delete-conflicting-outputs
-flutter analyze
-flutter test
-```
-
-### Windows
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_nuget.ps1
-flutter build windows --release
-```
-
-`flutter_inappwebview` 的 Windows 实现会在编译阶段通过 NuGet 获取 WebView2 SDK 等原生依赖。`verify_nuget.ps1` 检查失败时，请先安装 NuGet CLI，并确认新 PowerShell 窗口中可以直接运行 `nuget help`。
-
-产物目录：
-
-```text
-build/windows/x64/runner/Release/
-```
-
-Windows 桌面开发可启动独立热重载会话：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev_hot_reload_window.ps1
-```
-
-代码修改后可从任意终端安全触发现有会话，不会启动第二个 `flutter attach`：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1
-# 需要重置应用状态时：
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1 -Restart
-```
-
-需要检查实际桌面窗口时，可直接截图到项目临时目录（窗口被遮挡时也可直接渲染）：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/capture_dev_window.ps1
-# 自定义输出路径或不激活窗口：
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/capture_dev_window.ps1 -OutputPath tool/.tmp/ui.png -NoActivate
-```
-
-### macOS
-
-```bash
-flutter build macos --release
-```
-
-产物路径：
-
-```text
-build/macos/Build/Products/Release/Aaalice NAI Launcher.app
-```
-
-本地开发时如果 Keychain 反复弹授权，可以先创建稳定的本地签名证书，再运行签名启动脚本：
-
-```bash
-scripts/create_macos_dev_cert.sh
-scripts/dev_run_macos_signed.sh debug
-```
-
-### iOS / TrollStore IPA
-
-iOS 必须在 macOS 与完整 Xcode 环境构建：
-
-```bash
-flutter config --no-enable-swift-package-manager
-cd ios && pod install --repo-update && cd ..
-flutter build ios --release --no-codesign
-./scripts/package_ios_ipa.sh
-```
-
-产物路径：
-
-```text
-dist/NAI_Launcher_iOS_<version>_TrollStore.ipa
-```
-
-也可运行 GitHub Actions 的 `Build iOS IPA` workflow。推送 `ios-v*` tag 会在构建通过后创建带 IPA 的预发布版本。
-
-## 🚀 发布流程
-
-发布由 GitHub Actions 的 `Release` workflow 处理。推送 `v*` tag 后，工作流会分别构建 Windows 安装版、Windows 便携版和 macOS 便携版，并生成 `release_manifest.json`、`checksums.txt` 与 Release notes。
-
-```bash
-git tag v1.0.0
-git push origin main
-git push origin v1.0.0
-```
-
-发布前请确保：
-
-- `pubspec.yaml` 版本号已更新；tag 必须匹配去掉 `+build` 后的版本，例如 `1.0.0+17` 对应 `v1.0.0`。
-- `CHANGELOG.md` 已按 `✨ 新增`、`🛠 改进`、`🐛 修复`、`📦 发布文件` 分类补好。
-- `assets/databases/tag_catalog.db` 与 `assets/databases/cooccurrence.db` 是真实 SQLite 文件而不是 Git LFS pointer，并已通过 `dart run tool/tag_catalog/verify_bundled_databases.dart` 校验。
-- Windows 安装器依赖 NSIS；本地打包可运行 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/package_windows_release.ps1`。
-
-## 🗂️ 项目结构
-
-```text
-nai_launcher/
-├── assets/                 # 图标、截图、音效、标签数据、预置数据库
-├── installer/              # 安装器脚本
-├── krita_plugin/           # Krita 插件与打包/验收脚本
-├── lib/
-│   ├── core/               # 网络、数据库、缓存、加密、文件、快捷键等基础能力
-│   ├── data/               # API、模型、仓库和业务数据服务
-│   ├── l10n/               # 中/英/日界面文案与生成文件
-│   └── presentation/       # 页面、组件、状态管理、主题和路由
-├── macos/                  # macOS runner
-├── ios/                    # iOS runner
-├── scripts/                # 构建、签名、数据库和测试辅助脚本
-├── test/                   # 单元测试和组件测试
-├── tool/                   # 开发工具、数据处理、图标生成和诊断脚本
-└── windows/                # Windows runner
-```
-
-## 💻 开发约定
-
-常用命令：
-
-```bash
-flutter pub get
-dart run build_runner build --delete-conflicting-outputs
-dart format lib test
-flutter analyze
-flutter test
-```
-
-提交信息使用：
-
-```text
-type(scope): 中文描述
-```
-
-常用 type：`feat`、`fix`、`refactor`、`perf`、`style`、`docs`、`test`、`chore`。
-
-## 🤝 贡献
-
-欢迎通过 Issue 和 Pull Request 参与。提交 PR 前请说明变更目标、影响范围、验证方式；涉及 UI 或跨平台行为时，尽量附上截图或录屏。
+- 遇到问题或有功能建议，请提交 [GitHub Issue](https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues)。
+- 交流使用经验、获取社区帮助可加入 [Discord](https://discord.gg/R48n6GwXzD)。
+- 欢迎提交 Pull Request；请说明变更目标、验证方式，界面改动尽量附上截图或录屏。
+- 每个版本的完整变化请查看 [CHANGELOG.md](CHANGELOG.md) 或 [Releases](https://github.com/Ruawd/Aaalice_NAI_Launcher/releases)。
 
 ## 🙏 致谢
 

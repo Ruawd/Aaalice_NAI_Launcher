@@ -1174,6 +1174,12 @@ abstract class AppLocalizations {
   /// **'Input'**
   String get settings_generationInputSection;
 
+  /// No description provided for @settings_generationOutputSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Output'**
+  String get settings_generationOutputSection;
+
   /// No description provided for @settings_generationRetrySection.
   ///
   /// In en, this message translates to:
@@ -1185,6 +1191,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Completion Alert'**
   String get settings_generationFeedbackSection;
+
+  /// No description provided for @settings_alphaModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Alpha mode for transparent images'**
+  String get settings_alphaModeTitle;
+
+  /// No description provided for @settings_alphaModeStraight.
+  ///
+  /// In en, this message translates to:
+  /// **'Straight'**
+  String get settings_alphaModeStraight;
+
+  /// No description provided for @settings_alphaModePremultiplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Premultiplied'**
+  String get settings_alphaModePremultiplied;
+
+  /// No description provided for @settings_alphaModeStraightDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Preserve RGB without multiplying by alpha. Best for further editing and the NovelAI website default.'**
+  String get settings_alphaModeStraightDescription;
+
+  /// No description provided for @settings_alphaModePremultipliedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Store RGB multiplied by alpha for compositing and rendering pipelines that expect premultiplied input.'**
+  String get settings_alphaModePremultipliedDescription;
 
   /// No description provided for @settings_promptAssistant.
   ///
@@ -1588,11 +1624,47 @@ abstract class AppLocalizations {
   /// **'Model'**
   String get generation_model;
 
+  /// No description provided for @generation_opusUsageRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% of Opus Generations remaining'**
+  String generation_opusUsageRemaining(Object percent);
+
+  /// No description provided for @generation_opusUsageEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'About {count} images left'**
+  String generation_opusUsageEstimate(Object count);
+
+  /// No description provided for @generation_opusUsageRefill.
+  ///
+  /// In en, this message translates to:
+  /// **'The allowance refills automatically over time'**
+  String get generation_opusUsageRefill;
+
+  /// No description provided for @generation_opusUsageExhausted.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Opus allowance is used up. V5 generations will cost Anlas until it refills.'**
+  String get generation_opusUsageExhausted;
+
   /// No description provided for @generation_imageSize.
   ///
   /// In en, this message translates to:
   /// **'Image Size'**
   String get generation_imageSize;
+
+  /// No description provided for @generation_transparentBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Transparent BG'**
+  String get generation_transparentBackground;
+
+  /// No description provided for @generation_e2eUpscaleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Server outputs {size}'**
+  String generation_e2eUpscaleHint(Object size);
 
   /// No description provided for @generation_sampler.
   ///
@@ -1617,6 +1689,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Seed'**
   String get generation_seed;
+
+  /// No description provided for @generation_previewApplySeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the seed of the displayed image'**
+  String get generation_previewApplySeed;
+
+  /// No description provided for @generation_transparencyBackgroundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transparency Background'**
+  String get generation_transparencyBackgroundTitle;
+
+  /// No description provided for @generation_transparencyChecker.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme Checkerboard'**
+  String get generation_transparencyChecker;
+
+  /// No description provided for @generation_transparencyCheckerLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light Checkerboard'**
+  String get generation_transparencyCheckerLight;
+
+  /// No description provided for @generation_transparencyCheckerDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark Checkerboard'**
+  String get generation_transparencyCheckerDark;
+
+  /// No description provided for @generation_transparencyNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get generation_transparencyNone;
+
+  /// No description provided for @generation_transparencyBlack.
+  ///
+  /// In en, this message translates to:
+  /// **'Black'**
+  String get generation_transparencyBlack;
+
+  /// No description provided for @generation_transparencyWhite.
+  ///
+  /// In en, this message translates to:
+  /// **'White'**
+  String get generation_transparencyWhite;
+
+  /// No description provided for @generation_transparencyGray.
+  ///
+  /// In en, this message translates to:
+  /// **'Gray'**
+  String get generation_transparencyGray;
+
+  /// No description provided for @generation_transparencyRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get generation_transparencyRed;
+
+  /// No description provided for @generation_transparencyGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get generation_transparencyGreen;
+
+  /// No description provided for @generation_transparencyBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get generation_transparencyBlue;
+
+  /// No description provided for @generation_transparencyCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Color'**
+  String get generation_transparencyCustom;
 
   /// No description provided for @generation_seedRandom.
   ///
@@ -1909,7 +2059,7 @@ abstract class AppLocalizations {
   /// No description provided for @prompt_autoFormatSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Convert Chinese commas to English, auto-add underscores'**
+  /// **'Convert Chinese commas and tag spaces while preserving line breaks'**
   String get prompt_autoFormatSubtitle;
 
   /// No description provided for @prompt_highlightEmphasis.
@@ -2530,6 +2680,12 @@ abstract class AppLocalizations {
   /// **'Upscale Amount'**
   String get img2img_enhanceUpscaleAmount;
 
+  /// No description provided for @img2img_enhanceScaleMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get img2img_enhanceScaleMax;
+
   /// No description provided for @img2img_focusedInpaint.
   ///
   /// In en, this message translates to:
@@ -2593,7 +2749,7 @@ abstract class AppLocalizations {
   /// No description provided for @img2img_noSeedvr2Models.
   ///
   /// In en, this message translates to:
-  /// **'No SeedVR2 model found. Refresh the model list or check the SeedVR2 node/model files.'**
+  /// **'No usable SeedVR2 model found. Refresh the model list and check ComfyUI\'s native models/diffusion_models and models/vae folders or the SeedVR2 custom-node model folder.'**
   String get img2img_noSeedvr2Models;
 
   /// No description provided for @img2img_noRegularUpscaleModels.
@@ -2601,6 +2757,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No regular upscale model found. Refresh the model list or check models/upscale_models.'**
   String get img2img_noRegularUpscaleModels;
+
+  /// No description provided for @img2img_useNativeSeedvr2Workflow.
+  ///
+  /// In en, this message translates to:
+  /// **'Using the native ComfyUI SeedVR2 one-step upscale workflow.'**
+  String get img2img_useNativeSeedvr2Workflow;
 
   /// No description provided for @img2img_useSeedvr2TiledWorkflow.
   ///
@@ -2698,10 +2860,52 @@ abstract class AppLocalizations {
   /// **'Quality'**
   String get img2img_metricQuality;
 
+  /// No description provided for @img2img_seedvr2Engine.
+  ///
+  /// In en, this message translates to:
+  /// **'SeedVR2 Engine'**
+  String get img2img_seedvr2Engine;
+
+  /// No description provided for @img2img_seedvr2EngineAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get img2img_seedvr2EngineAuto;
+
+  /// No description provided for @img2img_seedvr2EngineNative.
+  ///
+  /// In en, this message translates to:
+  /// **'Native'**
+  String get img2img_seedvr2EngineNative;
+
+  /// No description provided for @img2img_seedvr2EngineLegacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Compatibility'**
+  String get img2img_seedvr2EngineLegacy;
+
+  /// No description provided for @img2img_seedvr2EngineResolvedNative.
+  ///
+  /// In en, this message translates to:
+  /// **'Using native SeedVR2 built into ComfyUI.'**
+  String get img2img_seedvr2EngineResolvedNative;
+
+  /// No description provided for @img2img_seedvr2EngineResolvedLegacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Using the installed SeedVR2 custom nodes.'**
+  String get img2img_seedvr2EngineResolvedLegacy;
+
+  /// No description provided for @img2img_seedvr2EngineUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected SeedVR2 engine or its required models are unavailable. Refresh the model list or switch engines.'**
+  String get img2img_seedvr2EngineUnavailable;
+
   /// No description provided for @img2img_seedvr2VaeTileHint.
   ///
   /// In en, this message translates to:
-  /// **'Also writes the SeedVR2 VAE MODEL encode/decode tile size.'**
+  /// **'Sets the tile size used for SeedVR2 VAE encoding and decoding.'**
   String get img2img_seedvr2VaeTileHint;
 
   /// No description provided for @img2img_seedvr2UseTiledUpscale.
@@ -2715,6 +2919,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When enabled, uses SeedVR2TilingUpscaler. Recommended for large images or high VRAM pressure.'**
   String get img2img_seedvr2UseTiledUpscaleHint;
+
+  /// No description provided for @settings_comfyUiSeedvr2EmbedNaiMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Write NAI generation parameters to SeedVR2 results'**
+  String get settings_comfyUiSeedvr2EmbedNaiMetadata;
+
+  /// No description provided for @settings_comfyUiSeedvr2EmbedNaiMetadataHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default. When enabled, writes the launcher\'s current prompts and generation parameters. When disabled, preserves the PNG metadata returned by ComfyUI.'**
+  String get settings_comfyUiSeedvr2EmbedNaiMetadataHint;
 
   /// No description provided for @img2img_seedvr2TileSize.
   ///
@@ -4139,7 +4355,7 @@ abstract class AppLocalizations {
   /// No description provided for @vibe_sourceType_v4vibe.
   ///
   /// In en, this message translates to:
-  /// **'V4 Vibe'**
+  /// **'Vibe file'**
   String get vibe_sourceType_v4vibe;
 
   /// No description provided for @vibe_sourceType_bundle.
@@ -4207,6 +4423,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add Character'**
   String get character_addCharacter;
+
+  /// No description provided for @character_limitReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Character limit for this model reached ({limit})'**
+  String character_limitReached(Object limit);
 
   /// No description provided for @character_number.
   ///
@@ -4370,6 +4592,42 @@ abstract class AppLocalizations {
   /// **'Refresh'**
   String get onlineGallery_refresh;
 
+  /// No description provided for @onlineGallery_random.
+  ///
+  /// In en, this message translates to:
+  /// **'Random'**
+  String get onlineGallery_random;
+
+  /// No description provided for @onlineGallery_randomRedraw.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw again'**
+  String get onlineGallery_randomRedraw;
+
+  /// No description provided for @onlineGallery_randomDrawing.
+  ///
+  /// In en, this message translates to:
+  /// **'Drawing…'**
+  String get onlineGallery_randomDrawing;
+
+  /// No description provided for @onlineGallery_randomExhausted.
+  ///
+  /// In en, this message translates to:
+  /// **'No more unseen images in this range'**
+  String get onlineGallery_randomExhausted;
+
+  /// No description provided for @onlineGallery_randomRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start over'**
+  String get onlineGallery_randomRestart;
+
+  /// No description provided for @onlineGallery_originalRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Original failed to load — retry'**
+  String get onlineGallery_originalRetry;
+
   /// No description provided for @onlineGallery_login.
   ///
   /// In en, this message translates to:
@@ -4513,6 +4771,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy Tags'**
   String get onlineGallery_copyTags;
+
+  /// No description provided for @onlineGallery_promptTagCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt tag categories'**
+  String get onlineGallery_promptTagCategories;
+
+  /// No description provided for @onlineGallery_promptTagCategoriesTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which tag categories are included when copying, sending, or adding to the queue'**
+  String get onlineGallery_promptTagCategoriesTooltip;
+
+  /// No description provided for @onlineGallery_keepOnePromptTagCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep at least one prompt tag category selected'**
+  String get onlineGallery_keepOnePromptTagCategory;
 
   /// No description provided for @onlineGallery_open.
   ///
@@ -4717,6 +4993,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Blacklist Tags'**
   String get onlineGallery_blacklistTags;
+
+  /// No description provided for @onlineGallery_outputFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Output Filter'**
+  String get onlineGallery_outputFilter;
+
+  /// No description provided for @onlineGallery_outputFilterTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage tags removed automatically when copying, sending, or adding to the queue'**
+  String get onlineGallery_outputFilterTooltip;
+
+  /// No description provided for @onlineGallery_outputFilterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Output filter tags'**
+  String get onlineGallery_outputFilterTitle;
+
+  /// No description provided for @onlineGallery_outputFilterSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Images remain visible. Exact matching tags are removed only from copied, sent, and queued prompts.'**
+  String get onlineGallery_outputFilterSubtitle;
+
+  /// No description provided for @onlineGallery_outputFilterAddHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a tag to remove from output'**
+  String get onlineGallery_outputFilterAddHint;
+
+  /// No description provided for @onlineGallery_outputFilterInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Separate multiple tags with commas or line breaks'**
+  String get onlineGallery_outputFilterInputHint;
+
+  /// No description provided for @onlineGallery_outputFilterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No output filter tags configured'**
+  String get onlineGallery_outputFilterEmpty;
+
+  /// No description provided for @onlineGallery_outputFilterRestoreDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore defaults'**
+  String get onlineGallery_outputFilterRestoreDefaults;
+
+  /// No description provided for @onlineGallery_outputFilterClearTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear the output filter?'**
+  String get onlineGallery_outputFilterClearTitle;
+
+  /// No description provided for @onlineGallery_outputFilterClearConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Watermark and mosaic tags will appear in copied and sent prompts again.'**
+  String get onlineGallery_outputFilterClearConfirm;
+
+  /// No description provided for @onlineGallery_addTagToOutputFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to output filter'**
+  String get onlineGallery_addTagToOutputFilter;
+
+  /// No description provided for @onlineGallery_outputFilterAlreadyAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Already in output filter'**
+  String get onlineGallery_outputFilterAlreadyAdded;
+
+  /// No description provided for @onlineGallery_outputFilterMenuHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the image visible and remove only this output tag'**
+  String get onlineGallery_outputFilterMenuHint;
+
+  /// No description provided for @onlineGallery_addTagToBlacklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to blacklist'**
+  String get onlineGallery_addTagToBlacklist;
+
+  /// No description provided for @onlineGallery_blacklistAlreadyAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Already in blacklist'**
+  String get onlineGallery_blacklistAlreadyAdded;
+
+  /// No description provided for @onlineGallery_blacklistMenuHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide gallery images containing this tag'**
+  String get onlineGallery_blacklistMenuHint;
+
+  /// No description provided for @onlineGallery_outputFilteredTagTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed when copying, sending, or adding to queue; right-click to manage'**
+  String get onlineGallery_outputFilteredTagTooltip;
+
+  /// No description provided for @onlineGallery_tagContextMenuTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Right-click to add to the blacklist or output filter'**
+  String get onlineGallery_tagContextMenuTooltip;
+
+  /// No description provided for @onlineGallery_outputFilterTagAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {tag} to the output filter'**
+  String onlineGallery_outputFilterTagAdded(Object tag);
+
+  /// No description provided for @onlineGallery_blacklistTagAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {tag} to the blacklist'**
+  String onlineGallery_blacklistTagAdded(Object tag);
 
   /// No description provided for @onlineGallery_blacklistTitle.
   ///
@@ -4943,8 +5339,74 @@ abstract class AppLocalizations {
   /// No description provided for @onlineGallery_aiTagPromptQuery.
   ///
   /// In en, this message translates to:
-  /// **'AI Prompt search (raw syntax such as ::artist: is supported)'**
+  /// **'AI Prompt search (search raw Prompt text such as artist:)'**
   String get onlineGallery_aiTagPromptQuery;
+
+  /// No description provided for @onlineGallery_artistHunt.
+  ///
+  /// In en, this message translates to:
+  /// **'Artist chains only'**
+  String get onlineGallery_artistHunt;
+
+  /// No description provided for @onlineGallery_artistHuntTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Show only images whose positive Prompt contains explicit artist: tags'**
+  String get onlineGallery_artistHuntTooltip;
+
+  /// No description provided for @onlineGallery_artistChain.
+  ///
+  /// In en, this message translates to:
+  /// **'Artist chain'**
+  String get onlineGallery_artistChain;
+
+  /// No description provided for @onlineGallery_copyArtistChain.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy artist chain'**
+  String get onlineGallery_copyArtistChain;
+
+  /// No description provided for @onlineGallery_copyFullPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy full Prompt'**
+  String get onlineGallery_copyFullPrompt;
+
+  /// No description provided for @onlineGallery_copyRawArtistFragments.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy original artist fragments'**
+  String get onlineGallery_copyRawArtistFragments;
+
+  /// No description provided for @onlineGallery_noArtistChain.
+  ///
+  /// In en, this message translates to:
+  /// **'No artist chain'**
+  String get onlineGallery_noArtistChain;
+
+  /// No description provided for @onlineGallery_artistCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} artists'**
+  String onlineGallery_artistCount(Object count);
+
+  /// No description provided for @onlineGallery_artistHuntNoExactResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No exact artist chains were found in the candidate works'**
+  String get onlineGallery_artistHuntNoExactResults;
+
+  /// No description provided for @onlineGallery_artistHuntPartialFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} works could not be parsed. Retry to check them again.'**
+  String onlineGallery_artistHuntPartialFailure(Object count);
+
+  /// No description provided for @onlineGallery_artistHuntDetailFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'None of the candidate work details could be parsed. Please retry.'**
+  String get onlineGallery_artistHuntDetailFailed;
 
   /// No description provided for @onlineGallery_aiTagTimeRange.
   ///
@@ -5480,6 +5942,18 @@ abstract class AppLocalizations {
   /// **'NAI Default'**
   String get qualityTags_naiDefault;
 
+  /// No description provided for @qualityTags_naiDefaultStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'NAI Default (Standard)'**
+  String get qualityTags_naiDefaultStandard;
+
+  /// No description provided for @qualityTags_naiDefaultLight.
+  ///
+  /// In en, this message translates to:
+  /// **'NAI Default (Light)'**
+  String get qualityTags_naiDefaultLight;
+
   /// No description provided for @qualityTags_none.
   ///
   /// In en, this message translates to:
@@ -5846,6 +6320,12 @@ abstract class AppLocalizations {
   /// **'Migrating Hive / Vibe / image data...'**
   String get warmup_dataMigration;
 
+  /// No description provided for @warmup_dataMigrationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Data migration failed: {details}'**
+  String warmup_dataMigrationFailed(Object details);
+
   /// No description provided for @warmup_galleryDataSource.
   ///
   /// In en, this message translates to:
@@ -5971,6 +6451,23 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Height'**
   String get resolution_height;
+
+  /// No description provided for @generation_invalidResolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid resolution'**
+  String get generation_invalidResolution;
+
+  /// No description provided for @generation_invalidResolutionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{width}×{height} cannot be used for generation. Both dimensions must be multiples of 64, neither side can exceed 4096, and the total pixel count cannot exceed 3,145,728. The nearest valid size is {suggestedWidth}×{suggestedHeight}.'**
+  String generation_invalidResolutionHint(
+    int width,
+    int height,
+    int suggestedWidth,
+    int suggestedHeight,
+  );
 
   /// No description provided for @api_error_429.
   ///
@@ -7873,36 +8370,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Prompt appears in both main and character prompts\nSuitable for: pose, interaction, and other universal tags'**
   String get scope_allTooltip;
-
-  /// No description provided for @vibeNoEncodingWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'This image has no pre-encoded data'**
-  String get vibeNoEncodingWarning;
-
-  /// No description provided for @vibeWillCostAnlas.
-  ///
-  /// In en, this message translates to:
-  /// **'Encoding will cost {count} Anlas'**
-  String vibeWillCostAnlas(int count);
-
-  /// No description provided for @vibeEncodeConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue and consume Anlas?'**
-  String get vibeEncodeConfirm;
-
-  /// No description provided for @vibeCancel.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel'**
-  String get vibeCancel;
-
-  /// No description provided for @vibeConfirmEncode.
-  ///
-  /// In en, this message translates to:
-  /// **'Encode'**
-  String get vibeConfirmEncode;
 
   /// No description provided for @vibeParseFailed.
   ///
@@ -11562,12 +12029,6 @@ abstract class AppLocalizations {
   /// **'Entry moved to target category'**
   String get tagLibrary_entryMoved;
 
-  /// No description provided for @tagLibrary_useCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Used {count} times'**
-  String tagLibrary_useCount(Object count);
-
   /// No description provided for @tagLibrary_addFavorite.
   ///
   /// In en, this message translates to:
@@ -12840,12 +13301,6 @@ abstract class AppLocalizations {
   /// **'Clear'**
   String get metadataImport_clear;
 
-  /// No description provided for @metadataImport_prompt.
-  ///
-  /// In en, this message translates to:
-  /// **'Prompt'**
-  String get metadataImport_prompt;
-
   /// No description provided for @metadataImport_mainPrompt.
   ///
   /// In en, this message translates to:
@@ -12947,78 +13402,6 @@ abstract class AppLocalizations {
     Object fidelity,
   );
 
-  /// No description provided for @metadataImport_seed.
-  ///
-  /// In en, this message translates to:
-  /// **'Seed'**
-  String get metadataImport_seed;
-
-  /// No description provided for @metadataImport_steps.
-  ///
-  /// In en, this message translates to:
-  /// **'Steps'**
-  String get metadataImport_steps;
-
-  /// No description provided for @metadataImport_scale.
-  ///
-  /// In en, this message translates to:
-  /// **'CFG Scale'**
-  String get metadataImport_scale;
-
-  /// No description provided for @metadataImport_size.
-  ///
-  /// In en, this message translates to:
-  /// **'Size'**
-  String get metadataImport_size;
-
-  /// No description provided for @metadataImport_sampler.
-  ///
-  /// In en, this message translates to:
-  /// **'Sampler'**
-  String get metadataImport_sampler;
-
-  /// No description provided for @metadataImport_model.
-  ///
-  /// In en, this message translates to:
-  /// **'Model'**
-  String get metadataImport_model;
-
-  /// No description provided for @metadataImport_smea.
-  ///
-  /// In en, this message translates to:
-  /// **'SMEA'**
-  String get metadataImport_smea;
-
-  /// No description provided for @metadataImport_smeaDyn.
-  ///
-  /// In en, this message translates to:
-  /// **'SMEA Dyn'**
-  String get metadataImport_smeaDyn;
-
-  /// No description provided for @metadataImport_noiseSchedule.
-  ///
-  /// In en, this message translates to:
-  /// **'Noise Schedule'**
-  String get metadataImport_noiseSchedule;
-
-  /// No description provided for @metadataImport_cfgRescale.
-  ///
-  /// In en, this message translates to:
-  /// **'CFG Rescale'**
-  String get metadataImport_cfgRescale;
-
-  /// No description provided for @metadataImport_qualityToggle.
-  ///
-  /// In en, this message translates to:
-  /// **'Quality Toggle'**
-  String get metadataImport_qualityToggle;
-
-  /// No description provided for @metadataImport_ucPreset.
-  ///
-  /// In en, this message translates to:
-  /// **'Undesired Content Preset'**
-  String get metadataImport_ucPreset;
-
   /// No description provided for @metadataImport_noData.
   ///
   /// In en, this message translates to:
@@ -13048,24 +13431,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Applied {count} parameters'**
   String metadataImport_appliedCount(int count);
-
-  /// No description provided for @metadataImport_appliedTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Metadata Applied'**
-  String get metadataImport_appliedTitle;
-
-  /// No description provided for @metadataImport_appliedDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'The following parameters have been applied:'**
-  String get metadataImport_appliedDescription;
-
-  /// No description provided for @metadataImport_charactersCount.
-  ///
-  /// In en, this message translates to:
-  /// **'characters'**
-  String get metadataImport_charactersCount;
 
   /// No description provided for @shortcut_context_global.
   ///
@@ -13802,7 +14167,7 @@ abstract class AppLocalizations {
   /// No description provided for @preciseRef_v4Only.
   ///
   /// In en, this message translates to:
-  /// **'This feature requires V4+ models'**
+  /// **'This feature is only available on V4.5 models'**
   String get preciseRef_v4Only;
 
   /// No description provided for @preciseRef_typeCharacter.
@@ -14104,6 +14469,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deleted {count} Vibes'**
   String vibeLibrary_deletedCount(Object count);
+
+  /// No description provided for @vibeLibrary_markEncodingModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark encoding model'**
+  String get vibeLibrary_markEncodingModel;
+
+  /// No description provided for @vibeLibrary_markEncodingModelContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark the selected {count} Vibes as encoded for \"{model}\" and rewrite their library files.\n\nUse this for entries mislabelled with another model, which makes every generation re-encode and spend Anlas. If those encodings really came from a different model, results may not match expectations.'**
+  String vibeLibrary_markEncodingModelContent(Object count, Object model);
+
+  /// No description provided for @vibeLibrary_encodingModelMarked.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated the encoding model of {count} Vibes'**
+  String vibeLibrary_encodingModelMarked(Object count);
 
   /// No description provided for @vibeLibrary_importImageDialogTitle.
   ///
@@ -15221,77 +15604,17 @@ abstract class AppLocalizations {
   /// **'Confirm'**
   String get vibe_import_confirm;
 
-  /// No description provided for @vibe_import_noEncodingData.
-  ///
-  /// In en, this message translates to:
-  /// **'No encoding data'**
-  String get vibe_import_noEncodingData;
-
   /// No description provided for @vibe_import_encodingCost.
   ///
   /// In en, this message translates to:
   /// **'Encoding will cost 2 Anlas'**
   String get vibe_import_encodingCost;
 
-  /// No description provided for @vibe_import_confirmCost.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue and consume Anlas?'**
-  String get vibe_import_confirmCost;
-
-  /// No description provided for @vibe_import_encodeNow.
-  ///
-  /// In en, this message translates to:
-  /// **'Encode immediately (2 Anlas)'**
-  String get vibe_import_encodeNow;
-
-  /// No description provided for @vibe_addImageOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'Add image only'**
-  String get vibe_addImageOnly;
-
-  /// No description provided for @vibe_import_autoSave.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-save to library'**
-  String get vibe_import_autoSave;
-
   /// No description provided for @vibe_import_encodingFailed.
   ///
   /// In en, this message translates to:
   /// **'Encoding failed'**
   String get vibe_import_encodingFailed;
-
-  /// No description provided for @vibe_import_encodingFailedMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to encode vibe. Continue adding unencoded image?'**
-  String get vibe_import_encodingFailedMessage;
-
-  /// No description provided for @vibe_import_encodingInProgress.
-  ///
-  /// In en, this message translates to:
-  /// **'Encoding...'**
-  String get vibe_import_encodingInProgress;
-
-  /// No description provided for @vibe_import_encodingComplete.
-  ///
-  /// In en, this message translates to:
-  /// **'Encoding complete'**
-  String get vibe_import_encodingComplete;
-
-  /// No description provided for @vibe_import_partialFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Partial encoding failed'**
-  String get vibe_import_partialFailed;
-
-  /// No description provided for @vibe_import_timeout.
-  ///
-  /// In en, this message translates to:
-  /// **'Encoding timeout'**
-  String get vibe_import_timeout;
 
   /// No description provided for @vibe_import_title.
   ///
@@ -15520,6 +15843,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Encode (2 Anlas)'**
   String get vibe_statusPendingEncode;
+
+  /// No description provided for @vibe_statusNeedsReencode.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-encode (2 Anlas)'**
+  String get vibe_statusNeedsReencode;
+
+  /// No description provided for @vibe_statusSourceImageRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Source image required'**
+  String get vibe_statusSourceImageRequired;
 
   /// No description provided for @vibe_encodeDialogTitle.
   ///
@@ -16378,6 +16713,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upscale with the SeedVR2 AI model. Produces high-quality results.'**
   String get comfyWorkflow_seedvr2UpscaleDescription;
+
+  /// No description provided for @comfyWorkflow_seedvr2LegacyUpscaleName.
+  ///
+  /// In en, this message translates to:
+  /// **'SeedVR2 Compatibility Upscale'**
+  String get comfyWorkflow_seedvr2LegacyUpscaleName;
+
+  /// No description provided for @comfyWorkflow_seedvr2LegacyUpscaleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Upscale with the installed SeedVR2VideoUpscaler custom nodes.'**
+  String get comfyWorkflow_seedvr2LegacyUpscaleDescription;
 
   /// No description provided for @comfyWorkflow_seedvr2TiledUpscaleName.
   ///
@@ -18389,16 +18736,28 @@ abstract class AppLocalizations {
   /// **'Install and Restart'**
   String get updateInstallAndRestart;
 
+  /// No description provided for @updateInstallNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Install Now'**
+  String get updateInstallNow;
+
   /// No description provided for @updateInstallLater.
   ///
   /// In en, this message translates to:
   /// **'Install Later'**
   String get updateInstallLater;
 
+  /// No description provided for @updateDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download Update'**
+  String get updateDownload;
+
   /// No description provided for @updateDownloadCancelled.
   ///
   /// In en, this message translates to:
-  /// **'Download cancelled'**
+  /// **'Download cancelled; you can resume later'**
   String get updateDownloadCancelled;
 
   /// No description provided for @updateDownloadFailed.
@@ -18407,16 +18766,40 @@ abstract class AppLocalizations {
   /// **'Failed to download the update'**
   String get updateDownloadFailed;
 
+  /// No description provided for @updateInstallFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to install the update'**
+  String get updateInstallFailed;
+
   /// No description provided for @updateInstallingHint.
   ///
   /// In en, this message translates to:
   /// **'The installer has started. The app will close and finish updating automatically.'**
   String get updateInstallingHint;
 
+  /// No description provided for @updateInstallConfirmationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Install the update now?'**
+  String get updateInstallConfirmationTitle;
+
+  /// No description provided for @updateInstallConfirmationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The app will shut down safely, install the update, and restart automatically. Active generation and download tasks will stop, so save anything important first.'**
+  String get updateInstallConfirmationBody;
+
+  /// No description provided for @updateActiveTasksWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue tasks are still active. Installing will stop the current task.'**
+  String get updateActiveTasksWarning;
+
   /// No description provided for @remindMeLater.
   ///
   /// In en, this message translates to:
-  /// **'Remind Me Later'**
+  /// **'Remind Me in 4 Hours'**
   String get remindMeLater;
 
   /// No description provided for @skipThisVersion.
@@ -18425,11 +18808,59 @@ abstract class AppLocalizations {
   /// **'Skip This Version'**
   String get skipThisVersion;
 
-  /// No description provided for @updateDownloadAndInstall.
+  /// No description provided for @updateNoticeAvailable.
   ///
   /// In en, this message translates to:
-  /// **'Download and Install'**
-  String get updateDownloadAndInstall;
+  /// **'Version v{version} is available'**
+  String updateNoticeAvailable(Object version);
+
+  /// No description provided for @updateNoticeAvailableSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download and finish the update automatically in the app'**
+  String get updateNoticeAvailableSubtitle;
+
+  /// No description provided for @updateNoticeManualSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This platform must be updated manually from the Release page'**
+  String get updateNoticeManualSubtitle;
+
+  /// No description provided for @updateNoticeReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Version v{version} is ready'**
+  String updateNoticeReady(Object version);
+
+  /// No description provided for @updateNoticeReadySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The package is verified and ready to install on restart'**
+  String get updateNoticeReadySubtitle;
+
+  /// No description provided for @updateNoticeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The previous update did not finish'**
+  String get updateNoticeFailed;
+
+  /// No description provided for @updateViewDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'View Update'**
+  String get updateViewDetails;
+
+  /// No description provided for @updateSettingsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'v{version} is available; select to view details'**
+  String updateSettingsAvailable(Object version);
+
+  /// No description provided for @updateSettingsReady.
+  ///
+  /// In en, this message translates to:
+  /// **'v{version} is downloaded; select to install'**
+  String updateSettingsReady(Object version);
 
   /// No description provided for @goToDownload.
   ///
@@ -20339,6 +20770,18 @@ abstract class AppLocalizations {
   /// **'Add a comma after insertion'**
   String get autocomplete_autoComma;
 
+  /// No description provided for @autocomplete_openOnTagClick.
+  ///
+  /// In en, this message translates to:
+  /// **'Open autocomplete when clicking tags'**
+  String get autocomplete_openOnTagClick;
+
+  /// No description provided for @autocomplete_openOnTagClickSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, clicking an existing tag opens normal autocomplete; Ctrl/Command-click still shows related tags'**
+  String get autocomplete_openOnTagClickSubtitle;
+
   /// No description provided for @autocomplete_replaceUnderscores.
   ///
   /// In en, this message translates to:
@@ -20542,6 +20985,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Related tags'**
   String get autocomplete_relatedHeaderTitle;
+
+  /// No description provided for @autocomplete_loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching the local catalog and online tags…'**
+  String get autocomplete_loading;
+
+  /// No description provided for @autocomplete_empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching tags found'**
+  String get autocomplete_empty;
 
   /// No description provided for @autocomplete_relatedLoading.
   ///

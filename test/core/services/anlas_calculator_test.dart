@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
@@ -171,6 +172,168 @@ void main() {
     });
   });
 
+  group('AnlasCalculator model pricing family', () {
+    test('prices modern models with the area and steps formula', () {
+      for (final model in [
+        ImageModels.animeDiffusionV45Full,
+        ImageModels.animeDiffusionV45Curated,
+        ImageModels.animeDiffusionV4Full,
+        ImageModels.animeDiffusionV3,
+      ]) {
+        expect(
+          AnlasCalculator.calculateFromValues(
+            width: 832,
+            height: 1216,
+            steps: 23,
+            nSamples: 1,
+            smea: false,
+            smeaDyn: false,
+            model: model,
+          ),
+          17,
+          reason: '$model should follow the modern pricing formula',
+        );
+      }
+    });
+
+    // 正式版 V5 在现代公式之上乘 1.5：ceil(线性部分)×1.5 后与重绘强度
+    // 连乘再收尾取整。832×1216@23 步：ceil(16.38)=17，17×1.5=25.5 → 26。
+    test('prices V5 at 1.5x the modern formula', () {
+      for (final model in [
+        ImageModels.v5StagingKey,
+        ImageModels.animeDiffusionV5Curated,
+        ImageModels.animeDiffusionV5Full,
+      ]) {
+        expect(
+          AnlasCalculator.calculateFromValues(
+            width: 832,
+            height: 1216,
+            steps: 23,
+            nSamples: 1,
+            smea: false,
+            smeaDyn: false,
+            model: model,
+          ),
+          26,
+          reason: '$model should carry the 1.5x multiplier',
+        );
+      }
+    });
+
+    test('keeps the V5 base price at 1.5x of V4.5', () {
+      int priceFor(String model) => AnlasCalculator.calculateFromValues(
+        width: 1024,
+        height: 1024,
+        steps: 28,
+        nSamples: 1,
+        smea: false,
+        smeaDyn: false,
+        model: model,
+      );
+
+      final v45 = priceFor(model);
+      expect(priceFor(ImageModels.v5StagingKey), (v45 * 1.5).ceil());
+    });
+
+    test('does not grant the V5 Opus discount once the quota runs dry', () {
+      int cost({required bool exhausted}) =>
+          AnlasCalculator.calculateFromValues(
+            width: 832,
+            height: 1216,
+            steps: 23,
+            nSamples: 1,
+            smea: false,
+            smeaDyn: false,
+            model: ImageModels.animeDiffusionV5Curated,
+            subscriptionTier: AnlasCalculator.opusTier,
+            opusQuotaExhausted: exhausted,
+          );
+
+      expect(cost(exhausted: false), 0);
+      expect(cost(exhausted: true), 26);
+    });
+
+    test('keeps the V4.5 Opus discount independent of the V5 quota', () {
+      final cost = AnlasCalculator.calculateFromValues(
+        width: 832,
+        height: 1216,
+        steps: 23,
+        nSamples: 1,
+        smea: false,
+        smeaDyn: false,
+        model: ImageModels.animeDiffusionV45Full,
+        subscriptionTier: AnlasCalculator.opusTier,
+        opusQuotaExhausted: true,
+      );
+
+      expect(cost, 0);
+    });
+
+    test('keeps pre-V3 models on the legacy exponential estimate', () {
+      final legacyCost = AnlasCalculator.calculateFromValues(
+        width: 832,
+        height: 1216,
+        steps: 23,
+        nSamples: 1,
+        smea: false,
+        smeaDyn: false,
+        model: ImageModels.animeV2,
+      );
+
+      expect(legacyCost, 11);
+    });
+
+    test('rounds SMEA and strength in one pass like the web client', () {
+      // 网页端只在面积与步数部分取整，SMEA 倍率和重绘强度连乘后才收尾取整；
+      // 分两次取整会在这个组合上多算 1 Anlas。
+      final cost = AnlasCalculator.calculateFromValues(
+        width: 512,
+        height: 768,
+        steps: 28,
+        nSamples: 1,
+        smea: true,
+        smeaDyn: false,
+        model: ImageModels.animeDiffusionV3,
+        strength: 0.71,
+      );
+
+      expect(cost, 7);
+    });
+
+    test('does not bill vibe fees on models without vibe support', () {
+      for (final model in [ImageModels.animeV2, ImageModels.v5StagingKey]) {
+        final params = ImageParams(
+          model: model,
+          vibeReferencesV4: const [
+            VibeReference(
+              displayName: 'pre',
+              vibeEncoding: 'pre-encoded',
+              sourceType: VibeSourceType.png,
+            ),
+          ],
+        );
+
+        expect(AnlasCalculator.usesVibeReferences(params), isFalse);
+        expect(AnlasCalculator.resolveVibeReferenceExtraCost(params), 0);
+        expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+      }
+    });
+
+    test('uses the real pixel area below the old 65536 floor', () {
+      final tinyCost = AnlasCalculator.calculateFromValues(
+        width: 64,
+        height: 64,
+        steps: 28,
+        nSamples: 1,
+        smea: false,
+        smeaDyn: false,
+        model: model,
+      );
+
+      expect(tinyCost, 2, reason: '极小分辨率按实际面积计算后落到每张最低价');
+    });
+  });
+
   group('AnlasCalculator request pricing', () {
     test('applies the Opus free image once per request', () {
       final cost = AnlasCalculator.calculateRequestCost(
@@ -188,7 +351,7 @@ void main() {
       expect(cost, 80);
     });
 
-    test('does not apply the Opus free image to base-image requests', () {
+    test('applies the Opus free image to eligible redraw requests', () {
       final cost = AnlasCalculator.calculateRequestCost(
         width: 1024,
         height: 1024,
@@ -199,14 +362,39 @@ void main() {
         smeaDyn: false,
         model: model,
         subscriptionTier: AnlasCalculator.opusTier,
-        hasBaseImage: true,
         strength: 0.5,
       );
 
-      expect(cost, 10);
+      expect(cost, 0);
     });
 
-    test('does not apply the Opus free image with character references', () {
+    test('uses the request calculator for Opus redraw eligibility', () {
+      const eligible = ImageParams(
+        model: model,
+        action: ImageGenerationAction.infill,
+        width: 832,
+        height: 1216,
+        steps: 28,
+      );
+      const overStepLimit = ImageParams(
+        model: model,
+        action: ImageGenerationAction.infill,
+        width: 832,
+        height: 1216,
+        steps: 29,
+      );
+
+      expect(
+        AnlasCalculator.isOpusFreeGeneration(eligible, isOpus: true),
+        isTrue,
+      );
+      expect(
+        AnlasCalculator.isOpusFreeGeneration(overStepLimit, isOpus: true),
+        isFalse,
+      );
+    });
+
+    test('keeps the Opus free base price with precise references', () {
       final cost = AnlasCalculator.calculateRequestCost(
         width: 1024,
         height: 1024,
@@ -217,11 +405,10 @@ void main() {
         smeaDyn: false,
         model: model,
         subscriptionTier: AnlasCalculator.opusTier,
-        hasCharacterReference: true,
         extraPerSampleCost: 5,
       );
 
-      expect(cost, 25);
+      expect(cost, 5);
     });
 
     test('keeps per-image, per-request, and one-time fees distinct', () {
@@ -245,37 +432,41 @@ void main() {
   });
 
   group('AnlasCalculator upscale pricing', () {
-    test(
-      'uses the official input-area tiers instead of output generation cost',
-      () {
-        expect(
+    test('matches the current web client input-area tiers', () {
+      int costForPixels(int pixels) =>
           AnlasCalculator.calculateNovelAiUpscaleCost(
-            inputWidth: 512,
-            inputHeight: 512,
+            inputWidth: pixels,
+            inputHeight: 1,
             scale: 4,
-          ),
-          1,
-        );
-        expect(
-          AnlasCalculator.calculateNovelAiUpscaleCost(
-            inputWidth: 512,
-            inputHeight: 768,
-            scale: 4,
-          ),
-          2,
-        );
-        expect(
-          AnlasCalculator.calculateNovelAiUpscaleCost(
-            inputWidth: 1024,
-            inputHeight: 1024,
-            scale: 4,
-          ),
-          7,
-        );
-      },
-    );
+          );
 
-    test('applies the Opus threshold and reports unsupported input sizes', () {
+      expect(
+        AnlasCalculator.calculateNovelAiUpscaleCost(
+          inputWidth: 512,
+          inputHeight: 512,
+          scale: 4,
+        ),
+        1,
+      );
+      expect(
+        AnlasCalculator.calculateNovelAiUpscaleCost(
+          inputWidth: 512,
+          inputHeight: 768,
+          scale: 4,
+        ),
+        1,
+      );
+      expect(costForPixels(1048576), 1);
+      expect(costForPixels(1048577), 2);
+      expect(costForPixels(1747627), 2);
+      expect(costForPixels(1747628), 3);
+      expect(costForPixels(2446678), 3);
+      expect(costForPixels(2446679), 4);
+      expect(costForPixels(3145728), 4);
+      expect(costForPixels(3145729), AnlasCalculator.invalidCost);
+    });
+
+    test('applies the Opus threshold and reports inputs above 3MP', () {
       expect(
         AnlasCalculator.calculateNovelAiUpscaleCost(
           inputWidth: 640,
@@ -287,8 +478,8 @@ void main() {
       );
       expect(
         AnlasCalculator.calculateNovelAiUpscaleCost(
-          inputWidth: 1025,
-          inputHeight: 1024,
+          inputWidth: 3145729,
+          inputHeight: 1,
           scale: 4,
         ),
         AnlasCalculator.invalidCost,
@@ -297,6 +488,26 @@ void main() {
   });
 
   group('AnlasCalculator Vibe pricing', () {
+    test('does not charge V4-only Vibe fees on V3', () {
+      final rawImage = Uint8List.fromList([1, 2, 3]);
+      final params = ImageParams(
+        model: ImageModels.animeDiffusionV3,
+        vibeReferencesV4: List.generate(
+          5,
+          (index) => VibeReference(
+            displayName: 'v3-vibe-$index',
+            vibeEncoding: '',
+            rawImageData: rawImage,
+            sourceType: VibeSourceType.rawImage,
+          ),
+        ),
+      );
+
+      expect(AnlasCalculator.usesVibeReferences(params), isTrue);
+      expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+      expect(AnlasCalculator.resolveVibeReferenceExtraCost(params), 0);
+    });
+
     test('charges encoding only for enabled uncached raw Vibes', () {
       final rawImage = Uint8List.fromList([1, 2, 3]);
       final params = ImageParams(

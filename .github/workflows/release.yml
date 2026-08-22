@@ -136,6 +136,27 @@ jobs:
       - name: Build Windows release
         run: flutter build windows --release
 
+      - name: Sign Windows application
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERT_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}
+          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT_BASE64)) {
+            Write-Host 'Windows signing certificate is not configured; skipping application signing.'
+            exit 0
+          }
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'nai-launcher-signing.pfx'
+          [IO.File]::WriteAllBytes(
+            $certificatePath,
+            [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERT_BASE64)
+          )
+          ./scripts/sign_windows_binary.ps1 `
+            -Path 'build/windows/x64/runner/Release/nai_launcher.exe' `
+            -CertificatePath $certificatePath `
+            -CertificatePassword $env:WINDOWS_SIGNING_CERT_PASSWORD
+
       - name: Package Windows artifacts
         shell: pwsh
         run: |
@@ -143,6 +164,27 @@ jobs:
           ./scripts/package_windows_release.ps1 `
             -Version '${{ needs.prepare.outputs.version }}' `
             -SkipFlutterBuild
+
+      - name: Sign Windows installer
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'nai-launcher-signing.pfx'
+          if (!(Test-Path -LiteralPath $certificatePath)) {
+            Write-Host 'Windows signing certificate is not configured; skipping installer signing.'
+            exit 0
+          }
+          ./scripts/sign_windows_binary.ps1 `
+            -Path 'dist/NAI_Launcher_Windows_${{ needs.prepare.outputs.version }}_Setup.exe' `
+            -CertificatePath $certificatePath `
+            -CertificatePassword $env:WINDOWS_SIGNING_CERT_PASSWORD
+
+      - name: Remove signing certificate
+        if: ${{ always() }}
+        shell: pwsh
+        run: Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP 'nai-launcher-signing.pfx') -Force -ErrorAction SilentlyContinue
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4

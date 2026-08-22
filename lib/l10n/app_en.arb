@@ -222,8 +222,14 @@
   "settings_privacySharing": "Privacy & Sharing",
   "settings_integrations": "Integrations",
   "settings_generationInputSection": "Input",
+  "settings_generationOutputSection": "Image Output",
   "settings_generationRetrySection": "Retry on Failure",
   "settings_generationFeedbackSection": "Completion Alert",
+  "settings_alphaModeTitle": "Alpha mode for transparent images",
+  "settings_alphaModeStraight": "Straight",
+  "settings_alphaModePremultiplied": "Premultiplied",
+  "settings_alphaModeStraightDescription": "Preserve RGB without multiplying by alpha. Best for further editing and the NovelAI website default.",
+  "settings_alphaModePremultipliedDescription": "Store RGB multiplied by alpha for compositing and rendering pipelines that expect premultiplied input.",
   "settings_promptAssistant": "Prompt Assistant",
   "settings_selectStyle": "Select Style",
   "settings_defaultPreset": "Default",
@@ -317,7 +323,13 @@
   "generation_clearHistory": "Clear History",
   "generation_clearHistoryConfirm": "Are you sure you want to clear all history records? This action cannot be undone.",
   "generation_model": "Model",
+  "generation_opusUsageRemaining": "{percent}% of Opus Generations remaining",
+  "generation_opusUsageEstimate": "About {count} images left",
+  "generation_opusUsageRefill": "The allowance refills automatically over time",
+  "generation_opusUsageExhausted": "Your Opus allowance is used up. V5 generations will cost Anlas until it refills.",
   "generation_imageSize": "Image Size",
+  "generation_transparentBackground": "Transparent BG",
+  "generation_e2eUpscaleHint": "Server outputs {size}",
   "generation_sampler": "Sampler",
   "generation_steps": "Steps: {steps}",
   "@generation_steps": {
@@ -326,12 +338,45 @@
     }
   },
   "generation_cfgScale": "CFG Scale: {scale}",
+  "@character_limitReached": {
+    "placeholders": {
+      "limit": {}
+    }
+  },
+  "@generation_opusUsageRemaining": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "@generation_opusUsageEstimate": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@generation_e2eUpscaleHint": {
+    "placeholders": {
+      "size": {}
+    }
+  },
   "@generation_cfgScale": {
     "placeholders": {
       "scale": {}
     }
   },
   "generation_seed": "Seed",
+  "generation_previewApplySeed": "Use the seed of the displayed image",
+  "generation_transparencyBackgroundTitle": "Transparency Background",
+  "generation_transparencyChecker": "Theme Checkerboard",
+  "generation_transparencyCheckerLight": "Light Checkerboard",
+  "generation_transparencyCheckerDark": "Dark Checkerboard",
+  "generation_transparencyNone": "None",
+  "generation_transparencyBlack": "Black",
+  "generation_transparencyWhite": "White",
+  "generation_transparencyGray": "Gray",
+  "generation_transparencyRed": "Red",
+  "generation_transparencyGreen": "Green",
+  "generation_transparencyBlue": "Blue",
+  "generation_transparencyCustom": "Custom Color",
   "generation_seedRandom": "Random",
   "generation_seedLock": "Lock Seed",
   "generation_seedUnlock": "Unlock Seed",
@@ -418,7 +463,7 @@
   "prompt_smartAutocomplete": "Smart Autocomplete",
   "prompt_smartAutocompleteSubtitle": "Show tag suggestions while typing",
   "prompt_autoFormat": "Auto Format",
-  "prompt_autoFormatSubtitle": "Convert Chinese commas to English, auto-add underscores",
+  "prompt_autoFormatSubtitle": "Convert Chinese commas and tag spaces while preserving line breaks",
   "prompt_highlightEmphasis": "Highlight Emphasis",
   "prompt_highlightEmphasisSubtitle": "Highlight brackets and weight syntax",
   "prompt_sdSyntaxAutoConvert": "SD Syntax Auto Convert",
@@ -588,6 +633,7 @@
   "img2img_enhanceMagnitude": "Magnitude",
   "img2img_enhanceShowIndividualSettings": "Show Individual Settings",
   "img2img_enhanceUpscaleAmount": "Upscale Amount",
+  "img2img_enhanceScaleMax": "Max",
   "img2img_focusedInpaint": "Focused Inpainting",
   "img2img_focusedInpaintEnabledHint": "Enabled. Adjust the focus area and Minimum Context Area from the top-left control in the inpaint editor.",
   "img2img_focusedInpaintDisabledHint": "Regular inpaint is the default. To use Focused Inpaint, enable it from the top-left control in the inpaint editor and draw a focus area.",
@@ -598,8 +644,9 @@
   "img2img_upscaleMode": "Upscale Mode",
   "img2img_upscaleRegularModel": "Regular Model",
   "img2img_upscaleModel": "Upscale Model",
-  "img2img_noSeedvr2Models": "No SeedVR2 model found. Refresh the model list or check the SeedVR2 node/model files.",
+  "img2img_noSeedvr2Models": "No usable SeedVR2 model found. Refresh the model list and check ComfyUI's native models/diffusion_models and models/vae folders or the SeedVR2 custom-node model folder.",
   "img2img_noRegularUpscaleModels": "No regular upscale model found. Refresh the model list or check models/upscale_models.",
+  "img2img_useNativeSeedvr2Workflow": "Using the native ComfyUI SeedVR2 one-step upscale workflow.",
   "img2img_useSeedvr2TiledWorkflow": "Using the SeedVR2TilingUpscaler tiled upscale workflow.",
   "img2img_useSeedvr2Workflow": "Using the SeedVR2VideoUpscaler workflow.",
   "img2img_useRegularUpscaleWorkflow": "Using UpscaleModelLoader + ImageUpscaleWithModel, then correcting to the target scale with Lanczos.",
@@ -634,9 +681,18 @@
   "img2img_metricSpeed": "Speed",
   "img2img_metricVram": "VRAM",
   "img2img_metricQuality": "Quality",
-  "img2img_seedvr2VaeTileHint": "Also writes the SeedVR2 VAE MODEL encode/decode tile size.",
+  "img2img_seedvr2Engine": "SeedVR2 Engine",
+  "img2img_seedvr2EngineAuto": "Auto",
+  "img2img_seedvr2EngineNative": "Native",
+  "img2img_seedvr2EngineLegacy": "Compatibility",
+  "img2img_seedvr2EngineResolvedNative": "Using native SeedVR2 built into ComfyUI.",
+  "img2img_seedvr2EngineResolvedLegacy": "Using the installed SeedVR2 custom nodes.",
+  "img2img_seedvr2EngineUnavailable": "The selected SeedVR2 engine or its required models are unavailable. Refresh the model list or switch engines.",
+  "img2img_seedvr2VaeTileHint": "Sets the tile size used for SeedVR2 VAE encoding and decoding.",
   "img2img_seedvr2UseTiledUpscale": "Use tiled upscale",
   "img2img_seedvr2UseTiledUpscaleHint": "When enabled, uses SeedVR2TilingUpscaler. Recommended for large images or high VRAM pressure.",
+  "settings_comfyUiSeedvr2EmbedNaiMetadata": "Write NAI generation parameters to SeedVR2 results",
+  "settings_comfyUiSeedvr2EmbedNaiMetadataHint": "Off by default. When enabled, writes the launcher's current prompts and generation parameters. When disabled, preserves the PNG metadata returned by ComfyUI.",
   "img2img_seedvr2TileSize": "Tile Size",
   "img2img_seedvr2TileSizeHint": "Also controls SeedVR2TilingUpscaler tile_width / tile_height.",
   "img2img_seedvr2BlocksToSwap": "Blocks Offloaded To RAM",
@@ -1035,7 +1091,7 @@
   "reference_disable": "Disable reference",
   "vibe_normalize": "Normalize Reference Strength Values",
   "vibe_sourceType_png": "PNG",
-  "vibe_sourceType_v4vibe": "V4 Vibe",
+  "vibe_sourceType_v4vibe": "Vibe file",
   "vibe_sourceType_bundle": "Bundle",
   "vibe_sourceType_image": "Image",
   "vibe_sourceType": "Source",
@@ -1048,6 +1104,7 @@
 
   "character_buttonLabel": "Characters",
   "character_addCharacter": "Add Character",
+  "character_limitReached": "Character limit for this model reached ({limit})",
   "character_number": "Character {index}",
   "@character_number": {
     "placeholders": {
@@ -1096,6 +1153,12 @@
   "onlineGallery_favorites": "Favorites",
   "onlineGallery_searchTags": "Search tags...",
   "onlineGallery_refresh": "Refresh",
+  "onlineGallery_random": "Random",
+  "onlineGallery_randomRedraw": "Draw again",
+  "onlineGallery_randomDrawing": "Drawing…",
+  "onlineGallery_randomExhausted": "No more unseen images in this range",
+  "onlineGallery_randomRestart": "Start over",
+  "onlineGallery_originalRetry": "Original failed to load — retry",
   "onlineGallery_login": "Login",
   "onlineGallery_logout": "Logout",
   "onlineGallery_dayRank": "Day",
@@ -1125,6 +1188,9 @@
   "onlineGallery_general": "General",
   "onlineGallery_copied": "Copied",
   "onlineGallery_copyTags": "Copy Tags",
+  "onlineGallery_promptTagCategories": "Prompt tag categories",
+  "onlineGallery_promptTagCategoriesTooltip": "Choose which tag categories are included when copying, sending, or adding to the queue",
+  "onlineGallery_keepOnePromptTagCategory": "Keep at least one prompt tag category selected",
   "onlineGallery_open": "Open",
   "onlineGallery_send": "Send",
   "onlineGallery_addToQueue": "Add to Queue",
@@ -1179,6 +1245,36 @@
   "onlineGallery_fuzzySearch": "Fuzzy Match",
   "onlineGallery_fuzzySearchTooltip": "Use *tag* matching for related tags when enabled; search exact Danbooru tags when disabled",
   "onlineGallery_blacklistTags": "Blacklist Tags",
+  "onlineGallery_outputFilter": "Output Filter",
+  "onlineGallery_outputFilterTooltip": "Manage tags removed automatically when copying, sending, or adding to the queue",
+  "onlineGallery_outputFilterTitle": "Output filter tags",
+  "onlineGallery_outputFilterSubtitle": "Images remain visible. Exact matching tags are removed only from copied, sent, and queued prompts.",
+  "onlineGallery_outputFilterAddHint": "Add a tag to remove from output",
+  "onlineGallery_outputFilterInputHint": "Separate multiple tags with commas or line breaks",
+  "onlineGallery_outputFilterEmpty": "No output filter tags configured",
+  "onlineGallery_outputFilterRestoreDefaults": "Restore defaults",
+  "onlineGallery_outputFilterClearTitle": "Clear the output filter?",
+  "onlineGallery_outputFilterClearConfirm": "Watermark and mosaic tags will appear in copied and sent prompts again.",
+  "onlineGallery_addTagToOutputFilter": "Add to output filter",
+  "onlineGallery_outputFilterAlreadyAdded": "Already in output filter",
+  "onlineGallery_outputFilterMenuHint": "Keep the image visible and remove only this output tag",
+  "onlineGallery_addTagToBlacklist": "Add to blacklist",
+  "onlineGallery_blacklistAlreadyAdded": "Already in blacklist",
+  "onlineGallery_blacklistMenuHint": "Hide gallery images containing this tag",
+  "onlineGallery_outputFilteredTagTooltip": "Removed when copying, sending, or adding to queue; right-click to manage",
+  "onlineGallery_tagContextMenuTooltip": "Right-click to add to the blacklist or output filter",
+  "onlineGallery_outputFilterTagAdded": "Added {tag} to the output filter",
+  "@onlineGallery_outputFilterTagAdded": {
+    "placeholders": {
+      "tag": {}
+    }
+  },
+  "onlineGallery_blacklistTagAdded": "Added {tag} to the blacklist",
+  "@onlineGallery_blacklistTagAdded": {
+    "placeholders": {
+      "tag": {}
+    }
+  },
   "onlineGallery_blacklistTitle": "Online Gallery Blacklist",
   "onlineGallery_blacklistSubtitle": "Images containing blacklisted tags will be hidden directly in the online gallery.",
   "onlineGallery_addBlacklistTagHint": "Add blacklist tag",
@@ -1252,7 +1348,20 @@
   "onlineGallery_gelbooruMalformedResponse": "Gelbooru returned data that could not be parsed.",
   "onlineGallery_gelbooruRequestFailed": "The Gelbooru request failed. Try again later.",
   "onlineGallery_aiTagQuery": "Search works, artists, titles, tags, or models",
-  "onlineGallery_aiTagPromptQuery": "AI Prompt search (raw syntax such as ::artist: is supported)",
+  "onlineGallery_aiTagPromptQuery": "AI Prompt search (search raw Prompt text such as artist:)",
+  "onlineGallery_artistHunt": "Artist chains only",
+  "onlineGallery_artistHuntTooltip": "Show only images whose positive Prompt contains explicit artist: tags",
+  "onlineGallery_artistChain": "Artist chain",
+  "onlineGallery_copyArtistChain": "Copy artist chain",
+  "onlineGallery_copyFullPrompt": "Copy full Prompt",
+  "onlineGallery_copyRawArtistFragments": "Copy original artist fragments",
+  "onlineGallery_noArtistChain": "No artist chain",
+  "onlineGallery_artistCount": "{count} artists",
+  "@onlineGallery_artistCount": {"placeholders": {"count": {}}},
+  "onlineGallery_artistHuntNoExactResults": "No exact artist chains were found in the candidate works",
+  "onlineGallery_artistHuntPartialFailure": "{count} works could not be parsed. Retry to check them again.",
+  "@onlineGallery_artistHuntPartialFailure": {"placeholders": {"count": {}}},
+  "onlineGallery_artistHuntDetailFailed": "None of the candidate work details could be parsed. Please retry.",
   "onlineGallery_aiTagTimeRange": "Time range",
   "onlineGallery_aiTagAllTime": "All",
   "onlineGallery_aiTagCurrentMonthly": "Live monthly ranking",
@@ -1355,6 +1464,8 @@
   "qualityTags_disabled": "Quality tags disabled\nClick to enable",
   "qualityTags_addToEnd": "Add to prompt end:",
   "qualityTags_naiDefault": "NAI Default",
+  "qualityTags_naiDefaultStandard": "NAI Default (Standard)",
+  "qualityTags_naiDefaultLight": "NAI Default (Light)",
   "qualityTags_none": "None",
   "qualityTags_addFromLibrary": "Add from Library",
   "qualityTags_selectFromLibrary": "Select Quality Tag Entry",
@@ -1446,6 +1557,12 @@
   "warmup_translationInit": "Initializing translation data...",
   "warmup_danbooruTagsInit": "Initializing Danbooru tags...",
   "warmup_dataMigration": "Migrating Hive / Vibe / image data...",
+  "warmup_dataMigrationFailed": "Data migration failed: {details}",
+  "@warmup_dataMigrationFailed": {
+    "placeholders": {
+      "details": {}
+    }
+  },
   "warmup_galleryDataSource": "Initializing gallery index...",
   "warmup_checkAndRecoverData": "Checking data integrity...",
   "warmup_group_dataSourceInitialization": "Initializing data source services...",
@@ -1473,6 +1590,16 @@
   "resolution_typeCustom": "Custom",
   "resolution_width": "Width",
   "resolution_height": "Height",
+  "generation_invalidResolution": "Invalid resolution",
+  "generation_invalidResolutionHint": "{width}×{height} cannot be used for generation. Both dimensions must be multiples of 64, neither side can exceed 4096, and the total pixel count cannot exceed 3,145,728. The nearest valid size is {suggestedWidth}×{suggestedHeight}.",
+  "@generation_invalidResolutionHint": {
+    "placeholders": {
+      "width": { "type": "int" },
+      "height": { "type": "int" },
+      "suggestedWidth": { "type": "int" },
+      "suggestedHeight": { "type": "int" }
+    }
+  },
 
   "api_error_429": "Concurrency limit reached",
   "api_error_429_hint": "Too many requests. Please wait and try again (common with shared accounts)",
@@ -1977,16 +2104,6 @@
   "scope_all": "Both",
   "scope_allTooltip": "Prompt appears in both main and character prompts\nSuitable for: pose, interaction, and other universal tags",
 
-  "vibeNoEncodingWarning": "This image has no pre-encoded data",
-  "vibeWillCostAnlas": "Encoding will cost {count} Anlas",
-  "@vibeWillCostAnlas": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "vibeEncodeConfirm": "Continue and consume Anlas?",
-  "vibeCancel": "Cancel",
-  "vibeConfirmEncode": "Encode",
   "vibeParseFailed": "Failed to parse Vibe file",
 
   "tagGroupBrowser_searchHint": "Search tags...",
@@ -3096,12 +3213,6 @@
 
   "tagLibrary_addedToFixed": "Added to Fixed Tags",
   "tagLibrary_entryMoved": "Entry moved to target category",
-  "tagLibrary_useCount": "Used {count} times",
-  "@tagLibrary_useCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "tagLibrary_addFavorite": "Add to Favorites",
   "tagLibrary_thumbnail": "Thumbnail",
   "tagLibrary_selectImage": "Select Image",
@@ -3460,7 +3571,6 @@
   "metadataImport_promptsOnly": "Prompts Only",
   "metadataImport_generationOnly": "Parameters Only",
   "metadataImport_clear": "Clear",
-  "metadataImport_prompt": "Prompt",
   "metadataImport_mainPrompt": "Main Prompt",
   "metadataImport_fixedTags": "Fixed Tags",
   "metadataImport_fixedPrefix": "Prefix: {text}",
@@ -3538,18 +3648,6 @@
       "fidelity": {}
     }
   },
-  "metadataImport_seed": "Seed",
-  "metadataImport_steps": "Steps",
-  "metadataImport_scale": "CFG Scale",
-  "metadataImport_size": "Size",
-  "metadataImport_sampler": "Sampler",
-  "metadataImport_model": "Model",
-  "metadataImport_smea": "SMEA",
-  "metadataImport_smeaDyn": "SMEA Dyn",
-  "metadataImport_noiseSchedule": "Noise Schedule",
-  "metadataImport_cfgRescale": "CFG Rescale",
-  "metadataImport_qualityToggle": "Quality Toggle",
-  "metadataImport_ucPreset": "Undesired Content Preset",
   "metadataImport_noData": "(no data)",
   "metadataImport_selectedCount": "{count} selected",
   "@metadataImport_selectedCount": {
@@ -3565,9 +3663,6 @@
       "count": {"type": "int"}
     }
   },
-  "metadataImport_appliedTitle": "Metadata Applied",
-  "metadataImport_appliedDescription": "The following parameters have been applied:",
-  "metadataImport_charactersCount": "characters",
   "shortcut_context_global": "Global",
   "shortcut_context_generation": "Generation",
   "shortcut_context_gallery": "Gallery List",
@@ -3714,7 +3809,7 @@
   "preciseRef_referenceType": "Reference Type",
   "preciseRef_strength": "Strength",
   "preciseRef_fidelity": "Fidelity",
-  "preciseRef_v4Only": "This feature requires V4+ models",
+  "preciseRef_v4Only": "This feature is only available on V4.5 models",
   "preciseRef_typeCharacter": "Character",
   "preciseRef_typeStyle": "Style",
   "preciseRef_typeCharacterAndStyle": "Character + Style",
@@ -3830,6 +3925,20 @@
   },
   "vibeLibrary_deletedCount": "Deleted {count} Vibes",
   "@vibeLibrary_deletedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "vibeLibrary_markEncodingModel": "Mark encoding model",
+  "vibeLibrary_markEncodingModelContent": "Mark the selected {count} Vibes as encoded for \"{model}\" and rewrite their library files.\n\nUse this for entries mislabelled with another model, which makes every generation re-encode and spend Anlas. If those encodings really came from a different model, results may not match expectations.",
+  "@vibeLibrary_markEncodingModelContent": {
+    "placeholders": {
+      "count": {},
+      "model": {}
+    }
+  },
+  "vibeLibrary_encodingModelMarked": "Updated the encoding model of {count} Vibes",
+  "@vibeLibrary_encodingModelMarked": {
     "placeholders": {
       "count": {}
     }
@@ -4316,18 +4425,8 @@
   "vibe_embedToImage": "Embed to Image",
   "vibe_import_skip": "Skip",
   "vibe_import_confirm": "Confirm",
-  "vibe_import_noEncodingData": "No encoding data",
   "vibe_import_encodingCost": "Encoding will cost 2 Anlas",
-  "vibe_import_confirmCost": "Continue and consume Anlas?",
-  "vibe_import_encodeNow": "Encode immediately (2 Anlas)",
-  "vibe_addImageOnly": "Add image only",
-  "vibe_import_autoSave": "Auto-save to library",
   "vibe_import_encodingFailed": "Encoding failed",
-  "vibe_import_encodingFailedMessage": "Failed to encode vibe. Continue adding unencoded image?",
-  "vibe_import_encodingInProgress": "Encoding...",
-  "vibe_import_encodingComplete": "Encoding complete",
-  "vibe_import_partialFailed": "Partial encoding failed",
-  "vibe_import_timeout": "Encoding timeout",
   "vibe_import_title": "Import from Library",
   "vibe_import_result": "Imported {count} vibes",
   "@vibe_import_result": {
@@ -4423,6 +4522,8 @@
   "vibe_statusEncoded": "Encoded",
   "vibe_statusEncoding": "Encoding...",
   "vibe_statusPendingEncode": "Encode (2 Anlas)",
+  "vibe_statusNeedsReencode": "Re-encode (2 Anlas)",
+  "vibe_statusSourceImageRequired": "Source image required",
   "vibe_encodeDialogTitle": "Confirm Vibe Encoding",
   "vibe_encodeDialogMessage": "Encode this image for generation?",
   "vibe_encodeCostWarning": "This will cost 2 Anlas (credits)",
@@ -4643,6 +4744,8 @@
 
   "comfyWorkflow_seedvr2UpscaleName": "SeedVR2 Upscale",
   "comfyWorkflow_seedvr2UpscaleDescription": "Upscale with the SeedVR2 AI model. Produces high-quality results.",
+  "comfyWorkflow_seedvr2LegacyUpscaleName": "SeedVR2 Compatibility Upscale",
+  "comfyWorkflow_seedvr2LegacyUpscaleDescription": "Upscale with the installed SeedVR2VideoUpscaler custom nodes.",
   "comfyWorkflow_seedvr2TiledUpscaleName": "SeedVR2 Tiled Upscale",
   "comfyWorkflow_seedvr2TiledUpscaleDescription": "Use SeedVR2TilingUpscaler for tiled upscale to reduce VRAM pressure on large images.",
   "comfyWorkflow_modelUpscaleName": "ComfyUI Standard Upscale Model",
@@ -5255,13 +5358,39 @@
     }
   },
   "updateInstallAndRestart": "Install and Restart",
+  "updateInstallNow": "Install Now",
   "updateInstallLater": "Install Later",
-  "updateDownloadCancelled": "Download cancelled",
+  "updateDownload": "Download Update",
+  "updateDownloadCancelled": "Download cancelled; you can resume later",
   "updateDownloadFailed": "Failed to download the update",
+  "updateInstallFailed": "Failed to install the update",
   "updateInstallingHint": "The installer has started. The app will close and finish updating automatically.",
-  "remindMeLater": "Remind Me Later",
+  "updateInstallConfirmationTitle": "Install the update now?",
+  "updateInstallConfirmationBody": "The app will shut down safely, install the update, and restart automatically. Active generation and download tasks will stop, so save anything important first.",
+  "updateActiveTasksWarning": "Queue tasks are still active. Installing will stop the current task.",
+  "remindMeLater": "Remind Me in 4 Hours",
   "skipThisVersion": "Skip This Version",
-  "updateDownloadAndInstall": "Download and Install",
+  "updateNoticeAvailable": "Version v{version} is available",
+  "@updateNoticeAvailable": {
+    "placeholders": {"version": {}}
+  },
+  "updateNoticeAvailableSubtitle": "Download and finish the update automatically in the app",
+  "updateNoticeManualSubtitle": "This platform must be updated manually from the Release page",
+  "updateNoticeReady": "Version v{version} is ready",
+  "@updateNoticeReady": {
+    "placeholders": {"version": {}}
+  },
+  "updateNoticeReadySubtitle": "The package is verified and ready to install on restart",
+  "updateNoticeFailed": "The previous update did not finish",
+  "updateViewDetails": "View Update",
+  "updateSettingsAvailable": "v{version} is available; select to view details",
+  "@updateSettingsAvailable": {
+    "placeholders": {"version": {}}
+  },
+  "updateSettingsReady": "v{version} is downloaded; select to install",
+  "@updateSettingsReady": {
+    "placeholders": {"version": {}}
+  },
   "goToDownload": "Go to Download",
   "versionSkipped": "Version skipped",
   "cannotOpenUrl": "Cannot open link",
@@ -5894,6 +6023,8 @@
   "autocomplete_showAliases": "Show matched aliases",
   "autocomplete_showTranslations": "Show Chinese translations",
   "autocomplete_autoComma": "Add a comma after insertion",
+  "autocomplete_openOnTagClick": "Open autocomplete when clicking tags",
+  "autocomplete_openOnTagClickSubtitle": "When enabled, clicking an existing tag opens normal autocomplete; Ctrl/Command-click still shows related tags",
   "autocomplete_replaceUnderscores": "Replace underscores with spaces on insertion",
   "autocomplete_dataSourcesTitle": "Data Sources & Cache",
   "autocomplete_relatedTagsTitle": "Co-occurrence and related tags",
@@ -5933,6 +6064,8 @@
   "autocomplete_sourceAi": "Prompt Assistant translation",
   "autocomplete_headerTitle": "Tag autocomplete",
   "autocomplete_relatedHeaderTitle": "Related tags",
+  "autocomplete_loading": "Searching the local catalog and online tags…",
+  "autocomplete_empty": "No matching tags found",
   "autocomplete_relatedLoading": "Querying offline co-occurrences and online related tags…",
   "autocomplete_relatedEmpty": "No related tags are available",
   "autocomplete_relatedMetric": "{count} co-occurrences · Jaccard {score}",

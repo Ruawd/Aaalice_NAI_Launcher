@@ -190,6 +190,88 @@ void main() {
     );
   });
 
+  group('library preview resolution', () {
+    test('prefers sourceEntryId over matching content and name', () {
+      final linked = TagLibraryEntry.create(name: 'linked', content: 'same');
+      final duplicate = TagLibraryEntry.create(
+        name: 'duplicate',
+        content: 'same',
+      );
+      final fixed = FixedTagEntry.create(
+        name: duplicate.name,
+        content: duplicate.content,
+        sourceEntryId: linked.id,
+      );
+
+      expect(resolveFixedTagLibraryEntry(fixed, [duplicate, linked]), linked);
+    });
+
+    test('restores legacy library association by exact content', () {
+      final libraryEntry = TagLibraryEntry.create(
+        name: 'library name',
+        content: '1girl, blue eyes',
+      );
+      final legacyFixed = FixedTagEntry.create(
+        name: 'old fixed name',
+        content: ' 1girl, blue eyes ',
+      );
+
+      expect(
+        resolveFixedTagLibraryEntry(legacyFixed, [libraryEntry]),
+        libraryEntry,
+      );
+    });
+  });
+
+  group('library picker filtering', () {
+    test('excludes library entries already linked from any fixed-tag list', () {
+      final available = TagLibraryEntry.create(name: 'available', content: 'a');
+      final linkedPositive = TagLibraryEntry.create(
+        name: 'positive',
+        content: 'b',
+      );
+      final linkedNegative = TagLibraryEntry.create(
+        name: 'negative',
+        content: 'c',
+      );
+      final manualFixedTag = FixedTagEntry.create(name: 'manual', content: 'd');
+
+      final filtered = filterUnlinkedLibraryEntries(
+        libraryEntries: [linkedPositive, available, linkedNegative],
+        fixedEntries: [
+          FixedTagEntry.create(
+            name: linkedPositive.name,
+            content: linkedPositive.content,
+            sourceEntryId: linkedPositive.id,
+          ),
+          FixedTagEntry.create(
+            name: linkedNegative.name,
+            content: linkedNegative.content,
+            promptType: FixedTagPromptType.negative,
+            sourceEntryId: linkedNegative.id,
+          ),
+          manualFixedTag,
+        ],
+      );
+
+      expect(filtered, [available]);
+    });
+
+    test('preserves the original list when no fixed tag is library-linked', () {
+      final entries = [
+        TagLibraryEntry.create(name: 'first', content: 'a'),
+        TagLibraryEntry.create(name: 'second', content: 'b'),
+      ];
+
+      final filtered = filterUnlinkedLibraryEntries(
+        libraryEntries: entries,
+        fixedEntries: [FixedTagEntry.create(name: 'manual', content: 'a')],
+      );
+
+      expect(identical(filtered, entries), isTrue);
+    });
+  });
+
   group('filtered reorder', () {
     test('reorders only visible ids while preserving hidden entries', () {
       final a1 = FixedTagEntry.create(

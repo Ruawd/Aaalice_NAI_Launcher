@@ -214,8 +214,14 @@
   "settings_privacySharing": "保護と共有",
   "settings_integrations": "連携",
   "settings_generationInputSection": "入力",
+  "settings_generationOutputSection": "画像出力",
   "settings_generationRetrySection": "失敗時リトライ",
   "settings_generationFeedbackSection": "完了通知",
+  "settings_alphaModeTitle": "透過画像のアルファモード",
+  "settings_alphaModeStraight": "ストレート",
+  "settings_alphaModePremultiplied": "乗算済み",
+  "settings_alphaModeStraightDescription": "アルファを乗算せずに RGB を保持します。追加編集向けで、NovelAI 公式サイトのデフォルトです。",
+  "settings_alphaModePremultipliedDescription": "RGB にアルファを乗算し、乗算済み入力を必要とする合成・レンダリング処理に適した形式にします。",
   "settings_promptAssistant": "プロンプトアシスタント",
   "settings_selectStyle": "スタイルの選択",
   "settings_defaultPreset": "デフォルト",
@@ -310,7 +316,13 @@
   "generation_clearHistory": "履歴をクリア",
   "generation_clearHistoryConfirm": "すべての履歴レコードをクリアしてもよろしいですか?この操作は元に戻すことができません。",
   "generation_model": "モデル",
+  "generation_opusUsageRemaining": "Opus 無料生成の残り {percent}%",
+  "generation_opusUsageEstimate": "あと約 {count} 枚生成可能",
+  "generation_opusUsageRefill": "上限は時間経過で自動回復します",
+  "generation_opusUsageExhausted": "Opus の無料枠を使い切りました。回復するまで V5 の生成には Anlas を消費します。",
   "generation_imageSize": "画像サイズ",
+  "generation_transparentBackground": "透過背景",
+  "generation_e2eUpscaleHint": "サーバー出力 {size}",
   "generation_sampler": "サンプラー",
   "generation_steps": "ステップ: {steps}",
   "@generation_steps": {
@@ -319,12 +331,45 @@
     }
   },
   "generation_cfgScale": "CFG スケール: {scale}",
+  "@character_limitReached": {
+    "placeholders": {
+      "limit": {}
+    }
+  },
+  "@generation_opusUsageRemaining": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "@generation_opusUsageEstimate": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@generation_e2eUpscaleHint": {
+    "placeholders": {
+      "size": {}
+    }
+  },
   "@generation_cfgScale": {
     "placeholders": {
       "scale": {}
     }
   },
   "generation_seed": "シード",
+  "generation_previewApplySeed": "表示中の画像のシードを使う",
+  "generation_transparencyBackgroundTitle": "透過部分の表示",
+  "generation_transparencyChecker": "テーマに合わせたチェック模様",
+  "generation_transparencyCheckerLight": "明るいチェック模様",
+  "generation_transparencyCheckerDark": "暗いチェック模様",
+  "generation_transparencyNone": "なし",
+  "generation_transparencyBlack": "黒",
+  "generation_transparencyWhite": "白",
+  "generation_transparencyGray": "グレー",
+  "generation_transparencyRed": "赤",
+  "generation_transparencyGreen": "緑",
+  "generation_transparencyBlue": "青",
+  "generation_transparencyCustom": "カスタムカラー",
   "generation_seedRandom": "ランダム",
   "generation_seedLock": "ロックシード",
   "generation_seedUnlock": "シードのロックを解除する",
@@ -411,7 +456,7 @@
   "prompt_smartAutocomplete": "スマート オートコンプリート",
   "prompt_smartAutocompleteSubtitle": "入力中にタグの候補を表示します",
   "prompt_autoFormat": "自動フォーマット",
-  "prompt_autoFormatSubtitle": "中国語カンマを英語カンマに変換し、アンダースコアを自動追加します",
+  "prompt_autoFormatSubtitle": "改行を保持しながら、中国語のカンマとタグ内の空白を変換します",
   "prompt_highlightEmphasis": "ハイライトの強調",
   "prompt_highlightEmphasisSubtitle": "括弧と重みの構文を強調表示します",
   "prompt_sdSyntaxAutoConvert": "SD 構文自動変換",
@@ -579,6 +624,7 @@
   "img2img_enhanceMagnitude": "大きさ",
   "img2img_enhanceShowIndividualSettings": "個別設定を表示",
   "img2img_enhanceUpscaleAmount": "画像の拡大率",
+  "img2img_enhanceScaleMax": "最大",
   "img2img_focusedInpaint": "Focused インペイント",
   "img2img_focusedInpaintEnabledHint": "有効になりました。インペイント エディターの左上のコントロールからフォーカス エリアと最小コンテキスト エリアを調整します。",
   "img2img_focusedInpaintDisabledHint": "通常のインペイントがデフォルトです。Focused インペイントを使うには、インペイントエディター左上のコントロールから有効にし、フォーカスエリアを描画します。",
@@ -589,8 +635,9 @@
   "img2img_upscaleMode": "拡大モード",
   "img2img_upscaleRegularModel": "レギュラーモデル",
   "img2img_upscaleModel": "拡大モデル",
-  "img2img_noSeedvr2Models": "SeedVR2 モデルが見つかりません。モデル リストを更新するか、SeedVR2 ノード/モデル ファイルを確認してください。",
+  "img2img_noSeedvr2Models": "利用可能な SeedVR2 モデルが見つかりません。モデル一覧を更新し、ComfyUI ネイティブの models/diffusion_models と models/vae、または SeedVR2 カスタムノードのモデルフォルダーを確認してください。",
   "img2img_noRegularUpscaleModels": "通常の拡大モデルが見つかりません。モデルリストを更新するか、models/upscale_models を確認してください。",
+  "img2img_useNativeSeedvr2Workflow": "ComfyUI ネイティブ SeedVR2 の 1 ステップ拡大ワークフローを使用します。",
   "img2img_useSeedvr2TiledWorkflow": "SeedVR2TilingUpscaler のタイル状の拡大ワークフローを使用します。",
   "img2img_useSeedvr2Workflow": "SeedVR2VideoUpscaler ワークフローの使用。",
   "img2img_useRegularUpscaleWorkflow": "UpscaleModelLoader + ImageUpscaleWithModel を使用し、Lanczos でターゲット スケールに修正します。",
@@ -625,9 +672,18 @@
   "img2img_metricSpeed": "速度",
   "img2img_metricVram": "VRAM",
   "img2img_metricQuality": "品質",
-  "img2img_seedvr2VaeTileHint": "SeedVR2 VAE MODEL のエンコード/デコード タイル サイズも書き込みます。",
+  "img2img_seedvr2Engine": "SeedVR2 エンジン",
+  "img2img_seedvr2EngineAuto": "自動",
+  "img2img_seedvr2EngineNative": "ネイティブ",
+  "img2img_seedvr2EngineLegacy": "互換ノード",
+  "img2img_seedvr2EngineResolvedNative": "ComfyUI ネイティブの SeedVR2 を使用しています。",
+  "img2img_seedvr2EngineResolvedLegacy": "インストール済みの SeedVR2 カスタムノードを使用しています。",
+  "img2img_seedvr2EngineUnavailable": "選択した SeedVR2 エンジンまたは必要なモデルを利用できません。モデル一覧を更新するか、エンジンを切り替えてください。",
+  "img2img_seedvr2VaeTileHint": "SeedVR2 VAE のエンコードとデコードに使用するタイルサイズを設定します。",
   "img2img_seedvr2UseTiledUpscale": "タイル状の拡大を使用する",
   "img2img_seedvr2UseTiledUpscaleHint": "有効にすると、SeedVR2TilingUpscaler が使用されます。大きな画像や VRAM 負荷が高い場合に推奨します。",
+  "settings_comfyUiSeedvr2EmbedNaiMetadata": "SeedVR2 の結果に NAI 生成パラメータを書き込む",
+  "settings_comfyUiSeedvr2EmbedNaiMetadataHint": "既定では無効です。有効にすると、ランチャーの現在のプロンプトと生成パラメータを書き込みます。無効の場合は、ComfyUI から返された PNG メタデータをそのまま保持します。",
   "img2img_seedvr2TileSize": "タイルのサイズ",
   "img2img_seedvr2TileSizeHint": "SeedVR2TilingUpscaler tile_width / tile_height も制御します。",
   "img2img_seedvr2BlocksToSwap": "メモリへ退避するブロック数",
@@ -1025,7 +1081,7 @@
   "reference_disable": "参照を無効化",
   "vibe_normalize": "基準強度値の正規化",
   "vibe_sourceType_png": "PNG",
-  "vibe_sourceType_v4vibe": "V4 Vibe",
+  "vibe_sourceType_v4vibe": "Vibe ファイル",
   "vibe_sourceType_bundle": "バンドル",
   "vibe_sourceType_image": "画像",
   "vibe_sourceType": "ソース",
@@ -1037,6 +1093,7 @@
   "vibe_shiftReplaceHint": "Shift+クリックして置換",
   "character_buttonLabel": "キャラクター",
   "character_addCharacter": "キャラクターを追加",
+  "character_limitReached": "このモデルのキャラクター上限（{limit}）に達しました",
   "character_number": "キャラクター {index}",
   "@character_number": {
     "placeholders": {
@@ -1084,6 +1141,12 @@
   "onlineGallery_favorites": "お気に入り",
   "onlineGallery_searchTags": "タグを検索...",
   "onlineGallery_refresh": "更新",
+  "onlineGallery_random": "ランダム",
+  "onlineGallery_randomRedraw": "もう一度抽選",
+  "onlineGallery_randomDrawing": "抽選中…",
+  "onlineGallery_randomExhausted": "この範囲に未表示の画像はありません",
+  "onlineGallery_randomRestart": "最初から",
+  "onlineGallery_originalRetry": "元画像の読み込みに失敗しました。再試行",
   "onlineGallery_login": "ログイン",
   "onlineGallery_logout": "ログアウト",
   "onlineGallery_dayRank": "日",
@@ -1113,6 +1176,9 @@
   "onlineGallery_general": "一般",
   "onlineGallery_copied": "コピーされました",
   "onlineGallery_copyTags": "タグをコピー",
+  "onlineGallery_promptTagCategories": "プロンプトタグのカテゴリ",
+  "onlineGallery_promptTagCategoriesTooltip": "コピー、送信、キューへの追加時に含めるタグカテゴリを選択します",
+  "onlineGallery_keepOnePromptTagCategory": "プロンプトタグのカテゴリを1つ以上選択してください",
   "onlineGallery_open": "開く",
   "onlineGallery_send": "送信",
   "onlineGallery_addToQueue": "キューに追加",
@@ -1167,6 +1233,36 @@
   "onlineGallery_fuzzySearch": "ファジーマッチ",
   "onlineGallery_fuzzySearchTooltip": "有効な場合は、関連タグに *tag* マッチングを使用します。無効になっている場合は、正確な Danbooru タグを検索します",
   "onlineGallery_blacklistTags": "ブラックリスト タグ",
+  "onlineGallery_outputFilter": "出力フィルター",
+  "onlineGallery_outputFilterTooltip": "コピー、送信、キュー追加時に自動で除外するタグを管理します",
+  "onlineGallery_outputFilterTitle": "出力フィルタータグ",
+  "onlineGallery_outputFilterSubtitle": "画像は表示されたまま、完全一致するタグだけをコピー・送信・キューのプロンプトから除外します。",
+  "onlineGallery_outputFilterAddHint": "出力から除外するタグを追加",
+  "onlineGallery_outputFilterInputHint": "複数のタグはカンマまたは改行で区切ります",
+  "onlineGallery_outputFilterEmpty": "出力フィルタータグは設定されていません",
+  "onlineGallery_outputFilterRestoreDefaults": "デフォルトに戻す",
+  "onlineGallery_outputFilterClearTitle": "出力フィルターをクリアしますか？",
+  "onlineGallery_outputFilterClearConfirm": "透かしやモザイクのタグがコピー・送信するプロンプトに再び含まれます。",
+  "onlineGallery_addTagToOutputFilter": "出力フィルターに追加",
+  "onlineGallery_outputFilterAlreadyAdded": "出力フィルターに追加済み",
+  "onlineGallery_outputFilterMenuHint": "画像は表示したまま、このタグだけを出力から除外します",
+  "onlineGallery_addTagToBlacklist": "ブラックリストに追加",
+  "onlineGallery_blacklistAlreadyAdded": "ブラックリストに追加済み",
+  "onlineGallery_blacklistMenuHint": "このタグを含むギャラリー画像を非表示にします",
+  "onlineGallery_outputFilteredTagTooltip": "コピー、送信、キュー追加時に除外されます。右クリックで管理できます",
+  "onlineGallery_tagContextMenuTooltip": "右クリックでブラックリストまたは出力フィルターに追加",
+  "onlineGallery_outputFilterTagAdded": "{tag} を出力フィルターに追加しました",
+  "@onlineGallery_outputFilterTagAdded": {
+    "placeholders": {
+      "tag": {}
+    }
+  },
+  "onlineGallery_blacklistTagAdded": "{tag} をブラックリストに追加しました",
+  "@onlineGallery_blacklistTagAdded": {
+    "placeholders": {
+      "tag": {}
+    }
+  },
   "onlineGallery_blacklistTitle": "オンライン ギャラリー ブラックリスト",
   "onlineGallery_blacklistSubtitle": "ブラックリストに登録されたタグを含む画像は、オンライン ギャラリーで直接非表示になります。",
   "onlineGallery_addBlacklistTagHint": "ブラックリスト タグを追加",
@@ -1240,7 +1336,20 @@
   "onlineGallery_gelbooruMalformedResponse": "Gelbooru から解析できないデータが返されました。",
   "onlineGallery_gelbooruRequestFailed": "Gelbooru リクエストに失敗しました。しばらくしてから再試行してください。",
   "onlineGallery_aiTagQuery": "作品、作者、タイトル、タグ、モデルを検索",
-  "onlineGallery_aiTagPromptQuery": "AI Prompt 検索（::artist: などの原文構文に対応）",
+  "onlineGallery_aiTagPromptQuery": "AI Prompt 検索（artist: などの Prompt 原文を検索）",
+  "onlineGallery_artistHunt": "絵師タグのみ",
+  "onlineGallery_artistHuntTooltip": "ポジティブ Prompt に明示的な artist: タグがある画像のみ表示",
+  "onlineGallery_artistChain": "絵師タグ列",
+  "onlineGallery_copyArtistChain": "絵師タグ列をコピー",
+  "onlineGallery_copyFullPrompt": "完全な Prompt をコピー",
+  "onlineGallery_copyRawArtistFragments": "元の絵師タグ断片をコピー",
+  "onlineGallery_noArtistChain": "コピー可能な絵師タグなし",
+  "onlineGallery_artistCount": "絵師 {count} 人",
+  "@onlineGallery_artistCount": {"placeholders": {"count": {}}},
+  "onlineGallery_artistHuntNoExactResults": "候補作品に正確な絵師タグ列がありません",
+  "onlineGallery_artistHuntPartialFailure": "{count} 件の作品を解析できませんでした。再試行できます。",
+  "@onlineGallery_artistHuntPartialFailure": {"placeholders": {"count": {}}},
+  "onlineGallery_artistHuntDetailFailed": "候補作品の詳細をすべて解析できませんでした。再試行してください。",
   "onlineGallery_aiTagTimeRange": "期間",
   "onlineGallery_aiTagAllTime": "すべて",
   "onlineGallery_aiTagCurrentMonthly": "リアルタイム月間ランキング",
@@ -1337,6 +1446,8 @@
   "qualityTags_disabled": "品質タグが無効です\nクリックして有効にします",
   "qualityTags_addToEnd": "プロンプトの最後に追加:",
   "qualityTags_naiDefault": "NAI のデフォルト",
+  "qualityTags_naiDefaultStandard": "NAI のデフォルト（標準）",
+  "qualityTags_naiDefaultLight": "NAI のデフォルト（ライト）",
   "qualityTags_none": "なし",
   "qualityTags_addFromLibrary": "ライブラリから追加",
   "qualityTags_selectFromLibrary": "品質タグエントリの選択",
@@ -1429,6 +1540,12 @@
   "warmup_translationInit": "翻訳データを初期化しています...",
   "warmup_danbooruTagsInit": "Danbooru タグを初期化しています...",
   "warmup_dataMigration": "Hive / Vibe / 画像データを移行しています...",
+  "warmup_dataMigrationFailed": "データ移行に失敗しました: {details}",
+  "@warmup_dataMigrationFailed": {
+    "placeholders": {
+      "details": {}
+    }
+  },
   "warmup_galleryDataSource": "ギャラリー インデックスを初期化しています...",
   "warmup_checkAndRecoverData": "データの整合性をチェックしています...",
   "warmup_group_dataSourceInitialization": "データ ソース サービスを初期化しています...",
@@ -1455,6 +1572,16 @@
   "resolution_typeCustom": "カスタム",
   "resolution_width": "幅",
   "resolution_height": "高さ",
+  "generation_invalidResolution": "無効な解像度",
+  "generation_invalidResolutionHint": "{width}×{height} は生成に使用できません。幅と高さは 64 の倍数で、各辺は 4096 以下、総ピクセル数は 3,145,728 以下である必要があります。最も近い有効なサイズは {suggestedWidth}×{suggestedHeight} です。",
+  "@generation_invalidResolutionHint": {
+    "placeholders": {
+      "width": { "type": "int" },
+      "height": { "type": "int" },
+      "suggestedWidth": { "type": "int" },
+      "suggestedHeight": { "type": "int" }
+    }
+  },
   "api_error_429": "同時実行制限に達しました",
   "api_error_429_hint": "リクエストが多すぎます。しばらく待ってからもう一度お試しください (共有アカウントの場合に共通)",
   "api_error_401": "認証に失敗しました",
@@ -1944,18 +2071,6 @@
   "scope_characterTooltip": "プロンプトはキャラクタープロンプトにのみ表示されます\nキャラクターごとに個別に生成されます\n適用対象: 髪の色、目の色、服装、表情など。",
   "scope_all": "両方",
   "scope_allTooltip": "プロンプトはメイン プロンプトとキャラクター プロンプトの両方に表示されます\n用途: ポーズ、インタラクション、その他の汎用タグ",
-  "vibeNoEncodingWarning": "この画像には事前にエンコードされたデータがありません",
-  "vibeWillCostAnlas": "エンコードには {count} Anlas を消費します",
-  "@vibeWillCostAnlas": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "vibeEncodeConfirm": "続けて Anlas を消費しますか?",
-  "vibeCancel": "キャンセル",
-  "vibeConfirmEncode": "エンコード",
   "vibeParseFailed": "Vibe ファイルの解析に失敗しました",
   "tagGroupBrowser_searchHint": "タグを検索...",
   "tagGroupBrowser_tagCount": "{count} タグ",
@@ -3043,12 +3158,6 @@
   "tagLibraryPicker_allCategories": "すべてのカテゴリ",
   "tagLibrary_addedToFixed": "固定タグに追加",
   "tagLibrary_entryMoved": "エントリがターゲット カテゴリに移動されました",
-  "tagLibrary_useCount": "{count} 回使用されました",
-  "@tagLibrary_useCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "tagLibrary_addFavorite": "お気に入りに追加",
   "tagLibrary_thumbnail": "サムネイル",
   "tagLibrary_selectImage": "画像を選択してください",
@@ -3389,7 +3498,6 @@
   "metadataImport_promptsOnly": "プロンプトのみ",
   "metadataImport_generationOnly": "パラメータのみ",
   "metadataImport_clear": "クリア",
-  "metadataImport_prompt": "プロンプト",
   "metadataImport_mainPrompt": "メイン プロンプト",
   "metadataImport_fixedTags": "固定タグ",
   "metadataImport_fixedPrefix": "プレフィックス: {text}",
@@ -3479,18 +3587,6 @@
       "fidelity": {}
     }
   },
-  "metadataImport_seed": "シード",
-  "metadataImport_steps": "ステップ数",
-  "metadataImport_scale": "CFG スケール",
-  "metadataImport_size": "サイズ",
-  "metadataImport_sampler": "サンプラー",
-  "metadataImport_model": "モデル",
-  "metadataImport_smea": "SMEA",
-  "metadataImport_smeaDyn": "SMEA Dyn",
-  "metadataImport_noiseSchedule": "ノイズスケジュール",
-  "metadataImport_cfgRescale": "CFG リスケール",
-  "metadataImport_qualityToggle": "品質切り替え",
-  "metadataImport_ucPreset": "除外したい要素プリセット",
   "metadataImport_noData": "(データなし)",
   "metadataImport_selectedCount": "{count} が選択されました",
   "@metadataImport_selectedCount": {
@@ -3510,9 +3606,6 @@
       }
     }
   },
-  "metadataImport_appliedTitle": "メタデータが適用されました",
-  "metadataImport_appliedDescription": "次のパラメータが適用されました:",
-  "metadataImport_charactersCount": "キャラクター",
   "shortcut_context_global": "グローバル",
   "shortcut_context_generation": "生成",
   "shortcut_context_gallery": "ギャラリーリスト",
@@ -3661,7 +3754,7 @@
   "preciseRef_referenceType": "参照タイプ",
   "preciseRef_strength": "強度",
   "preciseRef_fidelity": "忠実度",
-  "preciseRef_v4Only": "この機能には V4 以降のモデルが必要です",
+  "preciseRef_v4Only": "この機能は V4.5 モデルのみ対応しています",
   "preciseRef_typeCharacter": "キャラ参照",
   "preciseRef_typeStyle": "絵柄参照",
   "preciseRef_typeCharacterAndStyle": "キャラ＆絵柄参照",
@@ -3780,6 +3873,20 @@
   },
   "vibeLibrary_deletedCount": "{count} 件の Vibe を削除しました",
   "@vibeLibrary_deletedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "vibeLibrary_markEncodingModel": "エンコードモデルを設定",
+  "vibeLibrary_markEncodingModelContent": "選択した {count} 件の Vibe を「{model}」のエンコードとして設定し、ライブラリファイルを書き換えます。\n\n別モデルとして誤って記録され、生成のたびに再エンコードされて Anlas を消費する項目の修復用です。エンコードが実際に別モデルのものだった場合、結果が想定と異なる可能性があります。",
+  "@vibeLibrary_markEncodingModelContent": {
+    "placeholders": {
+      "count": {},
+      "model": {}
+    }
+  },
+  "vibeLibrary_encodingModelMarked": "{count} 件の Vibe のエンコードモデルを更新しました",
+  "@vibeLibrary_encodingModelMarked": {
     "placeholders": {
       "count": {}
     }
@@ -4320,18 +4427,8 @@
   "vibe_embedToImage": "画像に埋め込む",
   "vibe_import_skip": "スキップ",
   "vibe_import_confirm": "確認",
-  "vibe_import_noEncodingData": "エンコード データがありません",
   "vibe_import_encodingCost": "エンコードには 2 Anlas を消費します",
-  "vibe_import_confirmCost": "続けて Anlas を消費しますか?",
-  "vibe_import_encodeNow": "すぐにエンコードします (2 Anlas)",
-  "vibe_addImageOnly": "画像のみを追加",
-  "vibe_import_autoSave": "ライブラリに自動保存",
   "vibe_import_encodingFailed": "エンコードに失敗しました",
-  "vibe_import_encodingFailedMessage": "Vibe のエンコードに失敗しました。未エンコードの画像を追加し続けますか？",
-  "vibe_import_encodingInProgress": "エンコード中...",
-  "vibe_import_encodingComplete": "エンコードが完了しました",
-  "vibe_import_partialFailed": "部分的なエンコードに失敗しました",
-  "vibe_import_timeout": "エンコードのタイムアウト",
   "vibe_import_title": "ライブラリからインポート",
   "vibe_import_result": "{count} 件の Vibe をインポートしました",
   "@vibe_import_result": {
@@ -4453,6 +4550,8 @@
   "vibe_statusEncoded": "エンコード済み",
   "vibe_statusEncoding": "エンコード中...",
   "vibe_statusPendingEncode": "エンコード (2 Anlas)",
+  "vibe_statusNeedsReencode": "再エンコード (2 Anlas)",
+  "vibe_statusSourceImageRequired": "元画像が必要",
   "vibe_encodeDialogTitle": "Vibe エンコーディングを確認する",
   "vibe_encodeDialogMessage": "この画像を生成のためにエンコードしますか?",
   "vibe_encodeCostWarning": "これには 2 Anlas (クレジット) かかります",
@@ -4672,6 +4771,8 @@
   "settings_comfyUiCategoryCustom": "カスタム",
   "comfyWorkflow_seedvr2UpscaleName": "SeedVR2 拡大",
   "comfyWorkflow_seedvr2UpscaleDescription": "SeedVR2 AI モデルで拡大します。高品質な結果を生成します。",
+  "comfyWorkflow_seedvr2LegacyUpscaleName": "SeedVR2 互換ノード拡大",
+  "comfyWorkflow_seedvr2LegacyUpscaleDescription": "インストール済みの SeedVR2VideoUpscaler カスタムノードで拡大します。",
   "comfyWorkflow_seedvr2TiledUpscaleName": "SeedVR2 タイル拡大",
   "comfyWorkflow_seedvr2TiledUpscaleDescription": "大きな画像の VRAM 負荷を軽減するため、タイル状の拡大に SeedVR2TilingUpscaler を使用します。",
   "comfyWorkflow_modelUpscaleName": "ComfyUI 標準拡大モデル",
@@ -5241,9 +5342,35 @@
   "currentVersion": "現在のバージョン",
   "latestVersion": "最新バージョン",
   "releaseNotes": "リリースノート",
-  "remindMeLater": "後で通知する",
+  "remindMeLater": "4時間後に通知",
   "skipThisVersion": "このバージョンをスキップ",
-  "updateDownloadAndInstall": "ダウンロードしてインストール",
+  "updateDownload": "更新をダウンロード",
+  "updateInstallNow": "今すぐインストール",
+  "updateInstallFailed": "更新のインストールに失敗しました",
+  "updateInstallConfirmationTitle": "今すぐ更新をインストールしますか？",
+  "updateInstallConfirmationBody": "アプリを安全に終了して更新をインストールし、自動的に再起動します。実行中の生成・ダウンロードタスクは停止するため、必要な内容を先に保存してください。",
+  "updateActiveTasksWarning": "キュータスクが実行中です。インストールすると現在のタスクは停止します。",
+  "updateNoticeAvailable": "新しいバージョン v{version} があります",
+  "@updateNoticeAvailable": {
+    "placeholders": {"version": {}}
+  },
+  "updateNoticeAvailableSubtitle": "アプリ内でダウンロードして自動的に更新できます",
+  "updateNoticeManualSubtitle": "このプラットフォームでは Release ページから手動で更新してください",
+  "updateNoticeReady": "バージョン v{version} の準備ができました",
+  "@updateNoticeReady": {
+    "placeholders": {"version": {}}
+  },
+  "updateNoticeReadySubtitle": "パッケージは検証済みです。再起動してインストールできます",
+  "updateNoticeFailed": "前回の更新は完了しませんでした",
+  "updateViewDetails": "更新を表示",
+  "updateSettingsAvailable": "v{version} が利用可能です。選択して詳細を表示",
+  "@updateSettingsAvailable": {
+    "placeholders": {"version": {}}
+  },
+  "updateSettingsReady": "v{version} はダウンロード済みです。選択してインストール",
+  "@updateSettingsReady": {
+    "placeholders": {"version": {}}
+  },
   "goToDownload": "ダウンロードに移動",
   "updateDownloading": "アップデートをダウンロードしています...",
   "updateDownloadingProgress": "更新パッケージをダウンロードしています: {percent}%",
@@ -5269,7 +5396,7 @@
   },
   "updateInstallAndRestart": "インストールして再起動",
   "updateInstallLater": "後でインストール",
-  "updateDownloadCancelled": "ダウンロードをキャンセルしました",
+  "updateDownloadCancelled": "ダウンロードをキャンセルしました。後で再開できます",
   "updateDownloadFailed": "更新のダウンロードに失敗しました",
   "updateInstalling": "インストーラーを起動しています...",
   "updateInstallingHint": "インストーラーが起動しました。アプリは終了し、自動的に更新が完了します。",
@@ -5921,6 +6048,8 @@
   "autocomplete_showAliases": "一致した別名を表示",
   "autocomplete_showTranslations": "中国語訳を表示",
   "autocomplete_autoComma": "挿入後にカンマを追加",
+  "autocomplete_openOnTagClick": "タグのクリックで補完を表示",
+  "autocomplete_openOnTagClickSubtitle": "オンにすると既存タグのクリックで通常の補完を開きます。Ctrl/Command＋クリックでは引き続き関連タグを表示します",
   "autocomplete_replaceUnderscores": "挿入時にアンダースコアを空白に置換",
   "autocomplete_dataSourcesTitle": "データソースとキャッシュ",
   "autocomplete_relatedTagsTitle": "共起・関連タグ候補",
@@ -5960,6 +6089,8 @@
   "autocomplete_sourceAi": "Prompt Assistant 翻訳",
   "autocomplete_headerTitle": "タグ補完",
   "autocomplete_relatedHeaderTitle": "関連タグ",
+  "autocomplete_loading": "ローカルカタログとオンラインタグを検索中…",
+  "autocomplete_empty": "一致するタグが見つかりません",
   "autocomplete_relatedLoading": "ローカル共起データとオンライン関連タグを検索中…",
   "autocomplete_relatedEmpty": "利用可能な関連タグがありません",
   "autocomplete_relatedMetric": "共起 {count} 回 · Jaccard {score}",

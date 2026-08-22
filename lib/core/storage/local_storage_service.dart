@@ -2,12 +2,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../constants/api_constants.dart';
+import '../constants/model_capabilities.dart';
 import '../constants/storage_keys.dart';
 
 part 'local_storage_service.g.dart';
 
 /// 本地存储服务 - 存储非敏感配置数据
 class LocalStorageService {
+  static const String _fallbackModel = ImageModels.animeDiffusionV45Full;
+
   /// 获取已打开的 settings box (在 main.dart 中预先打开)
   Box get _settingsBox => Hive.box(StorageKeys.settingsBox);
 
@@ -130,9 +134,9 @@ class LocalStorageService {
   String getDefaultModel() {
     return getSetting<String>(
           StorageKeys.defaultModel,
-          defaultValue: 'nai-diffusion-4-5-full',
+          defaultValue: _fallbackModel,
         ) ??
-        'nai-diffusion-4-5-full';
+        _fallbackModel;
   }
 
   /// 保存默认模型
@@ -156,7 +160,9 @@ class LocalStorageService {
 
   /// 获取默认步数
   int getDefaultSteps() {
-    return getSetting<int>(StorageKeys.defaultSteps, defaultValue: 28) ?? 28;
+    final fallback = ModelCapabilityRegistry.of(getDefaultModel()).defaultSteps;
+    return getSetting<int>(StorageKeys.defaultSteps, defaultValue: fallback) ??
+        fallback;
   }
 
   /// 保存默认步数
@@ -237,6 +243,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.autoSaveImages, value);
   }
 
+  /// 获取透明图像的 Alpha 模式（true=Straight，false=Premultiplied）。
+  bool getImageStraightAlpha() {
+    return getSetting<bool>(
+          StorageKeys.imageStraightAlpha,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存透明图像的 Alpha 模式。
+  Future<void> setImageStraightAlpha(bool value) async {
+    await setSetting(StorageKeys.imageStraightAlpha, value);
+  }
+
   // ==================== Quality Tags ====================
 
   /// 获取是否添加质量标签 (默认开启)
@@ -297,6 +317,20 @@ class LocalStorageService {
   /// 保存质量词预设模式
   Future<void> setQualityPresetMode(int value) async {
     await setSetting(StorageKeys.qualityPresetMode, value);
+  }
+
+  /// 获取官方质量词档位（standard/light，默认 standard）
+  String getQualityPresetNaiTier() {
+    return getSetting<String>(
+          StorageKeys.qualityPresetNaiTier,
+          defaultValue: QualityTags.standardTier,
+        ) ??
+        QualityTags.standardTier;
+  }
+
+  /// 保存官方质量词档位
+  Future<void> setQualityPresetNaiTier(String value) async {
+    await setSetting(StorageKeys.qualityPresetNaiTier, value);
   }
 
   /// 获取质量词预设自定义条目 ID
@@ -584,6 +618,31 @@ class LocalStorageService {
     await setSetting(StorageKeys.lastVarietyPlus, value);
   }
 
+  /// 获取上次的透明背景开关 (仅 V5 生效)
+  bool getLastTransparentBackground() {
+    return getSetting<bool>(
+          StorageKeys.lastTransparentBackground,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存透明背景开关
+  Future<void> setLastTransparentBackground(bool value) async {
+    await setSetting(StorageKeys.lastTransparentBackground, value);
+  }
+
+  /// 获取上次的端到端 ×2 放大开关 (仅 V5 生效)
+  bool getLastE2eUpscale() {
+    return getSetting<bool>(StorageKeys.lastE2eUpscale, defaultValue: false) ??
+        false;
+  }
+
+  /// 保存端到端 ×2 放大开关
+  Future<void> setLastE2eUpscale(bool value) async {
+    await setSetting(StorageKeys.lastE2eUpscale, value);
+  }
+
   // ==================== Seed Lock ====================
 
   /// 获取种子是否锁定 (默认关闭)
@@ -721,6 +780,19 @@ class LocalStorageService {
   /// 保存历史记录点击行为
   Future<void> setHistoryClickBehavior(String behavior) async {
     await setSetting(StorageKeys.historyClickBehavior, behavior);
+  }
+
+  /// 获取预览区透明底色样式
+  ///
+  /// 未设置时返回 null，默认值与合法性由 `TransparencyBackgrounds` 归一化，
+  /// 避免在 core 层重复定义样式表。
+  String? getPreviewTransparencyBackground() {
+    return getSetting<String>(StorageKeys.previewTransparencyBackground);
+  }
+
+  /// 保存预览区透明底色样式
+  Future<void> setPreviewTransparencyBackground(String style) async {
+    await setSetting(StorageKeys.previewTransparencyBackground, style);
   }
 
   /// 获取官网式布局左栏宽度 (默认400)
@@ -919,7 +991,7 @@ class LocalStorageService {
     return DateTime.fromMillisecondsSinceEpoch(timestamp);
   }
 
-  /// 保存上次更新检查时间
+  /// 保存上次成功完成更新检查的时间
   Future<void> setLastUpdateCheckTime(DateTime? time) async {
     if (time != null) {
       await setSetting(
@@ -928,6 +1000,25 @@ class LocalStorageService {
       );
     } else {
       await deleteSetting(StorageKeys.lastUpdateCheckTime);
+    }
+  }
+
+  /// 获取最近一次更新检查尝试时间
+  DateTime? getLastUpdateCheckAttemptTime() {
+    final timestamp = getSetting<int>(StorageKeys.lastUpdateCheckAttemptTime);
+    if (timestamp == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(timestamp);
+  }
+
+  /// 保存最近一次更新检查尝试时间
+  Future<void> setLastUpdateCheckAttemptTime(DateTime? time) async {
+    if (time != null) {
+      await setSetting(
+        StorageKeys.lastUpdateCheckAttemptTime,
+        time.millisecondsSinceEpoch,
+      );
+    } else {
+      await deleteSetting(StorageKeys.lastUpdateCheckAttemptTime);
     }
   }
 
@@ -942,6 +1033,39 @@ class LocalStorageService {
       await setSetting(StorageKeys.skippedUpdateVersion, version);
     } else {
       await deleteSetting(StorageKeys.skippedUpdateVersion);
+    }
+  }
+
+  /// 获取上次发现的新版本
+  String? getLastKnownUpdateVersion() {
+    return getSetting<String>(StorageKeys.lastKnownUpdateVersion);
+  }
+
+  /// 保存上次发现的新版本
+  Future<void> setLastKnownUpdateVersion(String? version) async {
+    if (version != null) {
+      await setSetting(StorageKeys.lastKnownUpdateVersion, version);
+    } else {
+      await deleteSetting(StorageKeys.lastKnownUpdateVersion);
+    }
+  }
+
+  /// 获取更新提示延后时间
+  DateTime? getUpdateRemindAfter() {
+    final timestamp = getSetting<int>(StorageKeys.updateRemindAfter);
+    if (timestamp == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(timestamp);
+  }
+
+  /// 保存更新提示延后时间
+  Future<void> setUpdateRemindAfter(DateTime? time) async {
+    if (time != null) {
+      await setSetting(
+        StorageKeys.updateRemindAfter,
+        time.millisecondsSinceEpoch,
+      );
+    } else {
+      await deleteSetting(StorageKeys.updateRemindAfter);
     }
   }
 
