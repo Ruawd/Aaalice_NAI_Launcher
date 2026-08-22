@@ -382,6 +382,40 @@ void main() {
     });
 
     test(
+      'should preserve a Vibe encoding with an unknown source model',
+      () async {
+        var encodeCalls = 0;
+        final params = ImageParams(
+          model: 'nai-diffusion-4-5-full',
+          vibeReferencesV4: [
+            VibeReference(
+              displayName: 'legacy',
+              vibeEncoding: 'existing-encoding',
+              rawImageData: Uint8List.fromList([1, 2, 3]),
+              sourceType: VibeSourceType.naiv4vibe,
+            ),
+          ],
+        );
+
+        final result = await NAIImageRequestBuilder(
+          params: params,
+          encodeVibe:
+              (image, {required model, informationExtracted = 1.0}) async {
+                encodeCalls++;
+                return 'unexpected-encoding';
+              },
+        ).build(sampler: 'k_euler');
+
+        expect(encodeCalls, 0);
+        expect(
+          result.requestParameters['reference_image_multiple'],
+          equals(['existing-encoding']),
+        );
+        expect(result.vibeEncodingMap, equals({0: 'existing-encoding'}));
+      },
+    );
+
+    test(
       'should omit disabled vibe transfer references from request payload',
       () async {
         const params = ImageParams(
